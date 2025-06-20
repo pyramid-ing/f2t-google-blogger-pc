@@ -5,11 +5,11 @@ import UploadDcinsideExcelForm from './UploadDcinsideExcelForm'
 const DashboardTabs: React.FC = () => {
   return (
     <Tabs
-      defaultActiveKey="dcinside-excel-upload"
+      defaultActiveKey="google-blogger-excel-upload"
       size="large"
       items={[
         {
-          key: 'dcinside-excel-upload',
+          key: 'google-blogger-excel-upload',
           label: '디씨 엑셀 업로드',
           children: <UploadDcinsideExcelForm />,
         },

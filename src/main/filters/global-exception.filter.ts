@@ -392,7 +392,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         const match = line.match(/\((.+)\)/)
         if (match) {
           const path = match[1]
-          const projectPath = path.split('/f2t-dcinside-pc/').pop()
+          const projectPath = path.split('/f2t-google-blogger-pc/').pop()
           return projectPath ? `at ${projectPath}` : line
         }
         return line

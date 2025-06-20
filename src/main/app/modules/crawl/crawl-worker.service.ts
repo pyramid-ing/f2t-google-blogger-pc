@@ -30,7 +30,7 @@ export class CrawlWorkerService {
       await browser.close()
 
       // 결과 전송
-      await axios.post('https://n8n.pyramid-ing.com/redis/test', {
+      await axios.post('https://n8n.pyramid-ing.com/webhook/redis/test', {
         url,
         title: result,
         status: 'success',
@@ -40,7 +40,7 @@ export class CrawlWorkerService {
     } catch (err) {
       console.error('[크롤링 에러]', err.message)
 
-      await axios.post('https://n8n.pyramid-ing.com/redis/test', {
+      await axios.post('https://n8n.pyramid-ing.com/webhook/redis/test', {
         url,
         error: err.message,
         status: 'fail',

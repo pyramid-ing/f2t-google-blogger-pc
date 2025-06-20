@@ -83,7 +83,7 @@ export function getErrorDetails(error: any): string | undefined {
 export async function uploadDcinsideExcel(file: File): Promise<any> {
   const formData = new FormData()
   formData.append('file', file)
-  const res = await axios.post(`${API_BASE_URL}/dcinside/workflow/posting/excel-upload`, formData)
+  const res = await axios.post(`${API_BASE_URL}/google-blogger/workflow/posting/excel-upload`, formData)
   return res.data
 }
 
@@ -157,19 +157,19 @@ export async function getPostJobs(params?: {
     searchParams.append('order', params.order)
   }
 
-  const url = `${API_BASE_URL}/dcinside/api/post-jobs${searchParams.toString() ? `?${searchParams.toString()}` : ''}`
+  const url = `${API_BASE_URL}/google-blogger/api/post-jobs${searchParams.toString() ? `?${searchParams.toString()}` : ''}`
   const res = await axios.get(url)
   return res.data
 }
 
 // 실패/대기중 Job 재시도
 export async function retryPostJob(id: number): Promise<any> {
-  const res = await axios.post(`${API_BASE_URL}/dcinside/api/post-jobs/${id}/retry`)
+  const res = await axios.post(`${API_BASE_URL}/google-blogger/api/post-jobs/${id}/retry`)
   return res.data
 }
 
 // 작업 삭제
 export async function deletePostJob(id: number): Promise<any> {
-  const res = await axios.delete(`${API_BASE_URL}/dcinside/api/post-jobs/${id}`)
+  const res = await axios.delete(`${API_BASE_URL}/google-blogger/api/post-jobs/${id}`)
   return res.data
 }

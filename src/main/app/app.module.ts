@@ -1,6 +1,5 @@
 import { join } from 'node:path'
 import { ElectronModule } from '@doubleshot/nest-electron'
-import { DcinsideModule } from '@main/app/modules/dcinside/dcinside.module'
 import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { APP_FILTER, HttpAdapterHost } from '@nestjs/core'
@@ -50,7 +49,6 @@ import { PrismaService } from './shared/prisma.service'
       },
     }),
     SettingsModule,
-    DcinsideModule,
     CrawlModule,
     ScheduleModule.forRoot(),
   ],
