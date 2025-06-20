@@ -1,0 +1,34 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Settings {
+  id        Int      @id @default(autoincrement())
+  data      Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PostJob {
+  id            Int      @id @default(autoincrement())
+  galleryUrl    String
+  title         String
+  contentHtml   String
+  password      String
+  nickname      String?
+  headtext      String?
+  imagePaths    String?  // JSON stringified array
+  loginId       String?
+  loginPassword String?
+  scheduledAt   DateTime
+  status        String   // "pending" | "completed" | "failed"
+  resultMsg     String?
+  resultUrl     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
