@@ -10,6 +10,8 @@ import { GlobalExceptionFilter } from '../filters/global-exception.filter'
 import customConfig from './config/custom-config'
 import { SettingsModule } from './modules/settings/settings.module'
 import { CrawlModule } from './modules/crawl/crawl.module'
+import { TopicModule } from './modules/topic/topic.module'
+import { WorkflowModule } from './modules/workflow/workflow.module'
 import { PrismaService } from './shared/prisma.service'
 
 @Module({
@@ -44,13 +46,15 @@ import { PrismaService } from './shared/prisma.service'
     }),
     BullModule.forRoot({
       redis: {
-        host: 'localhost',
+        host: '192.168.0.67',
         port: 6379,
       },
     }),
+    ScheduleModule.forRoot(),
     SettingsModule,
     CrawlModule,
-    ScheduleModule.forRoot(),
+    TopicModule,
+    WorkflowModule,
   ],
   providers: [
     {

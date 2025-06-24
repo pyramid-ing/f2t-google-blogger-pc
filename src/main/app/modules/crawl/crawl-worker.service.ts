@@ -1,13 +1,16 @@
 import { Injectable } from '@nestjs/common'
 import { Process, Processor } from '@nestjs/bull'
 import { Job } from 'bull'
-import puppeteer from 'puppeteer-core'
+import puppeteerExtra from 'puppeteer-extra'
 import axios from 'axios'
 import { CrawlJobResult } from './dto/crawl-job.dto'
+import StealthPlugin from 'puppeteer-extra-plugin-stealth'
 
 interface CrawlJobData {
   url: string
 }
+
+puppeteerExtra.use(StealthPlugin())
 
 @Injectable()
 @Processor('crawl')
@@ -16,10 +19,12 @@ export class CrawlWorkerService {
   async handleCrawlJob(job: Job<CrawlJobData>) {
     const { url } = job.data
 
+    console.log(url)
+
     let result = ''
     try {
-      const browser = await puppeteer.launch({
-        headless: true,
+      const browser = await puppeteerExtra.launch({
+        headless: false,
         executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', // macOS용 Chrome 경로
       })
       const page = await browser.newPage()
