@@ -67,7 +67,6 @@ export class WorkflowController {
 
       // 7. 응답 헤더 설정 및 파일 전송
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`)
       res.send(buffer)
 
       this.logger.log(`엑셀 파일 "${fileName}" 내보내기 완료`)
