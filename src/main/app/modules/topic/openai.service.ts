@@ -37,7 +37,7 @@ export class OpenAiService {
 응답 형식:
 [
   {
-    "title": "SEO 최적화된 제목",
+    "title": "제목",
     "content": "제목에 대한 설명"
   }
 ]

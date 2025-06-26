@@ -89,9 +89,15 @@ importers:
       file-type:
         specifier: ^19.6.0
         version: 19.6.0
+      gcp-metadata:
+        specifier: ^7.0.1
+        version: 7.0.1
       ghost-cursor:
         specifier: ^1.4.1
         version: 1.4.1
+      google-auth-library:
+        specifier: ^10.1.0
+        version: 10.1.0
       googleapis:
         specifier: ^150.0.1
         version: 150.0.1
@@ -171,6 +177,9 @@ importers:
       '@types/express':
         specifier: ^5.0.3
         version: 5.0.3
+      '@types/multer':
+        specifier: ^1.4.13
+        version: 1.4.13
       '@types/node':
         specifier: ^20.19.0
         version: 20.19.1
@@ -1524,6 +1533,9 @@ packages:
 
   '@types/ms@2.1.0':
     resolution: {integrity: sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA==}
+
+  '@types/multer@1.4.13':
+    resolution: {integrity: sha512-bhhdtPw7JqCiEfC9Jimx5LqX9BDIPJEh2q/fQ4bqbBPtyEZYr3cvF22NwG0DmPZNYA0CAf2CnqDB4KIGGpJcaw==}
 
   '@types/node@20.19.1':
     resolution: {integrity: sha512-jJD50LtlD2dodAEO653i3YF04NWak6jN3ky+Ri3Em3mGR39/glWiboM/IePaRbgwSfqM1TpGXfAg8ohn/4dTgA==}
@@ -3223,8 +3235,8 @@ packages:
     resolution: {integrity: sha512-a4tiq7E0/5fTjxPAaH4jpjkSv/uCaU2p5KC6HVGrvl0cDjA8iBZv4vv1gyzlmK0ZUKqwpOyQMKzZQe3lTit77A==}
     engines: {node: '>=14'}
 
-  gcp-metadata@7.0.0:
-    resolution: {integrity: sha512-3PfRTzvT3Msu0Hy8Gf9ypxJvaClG2IB9pyH0r8QOmRBW5mUcrHgYpF4GYP+XulDbfhxEhBYtJtJJQb5S2wM+LA==}
+  gcp-metadata@7.0.1:
+    resolution: {integrity: sha512-UcO3kefx6dCcZkgcTGgVOTFb7b1LlQ02hY1omMjjrrBzkajRMCFgYOjs7J71WqnuG1k2b+9ppGL7FsOfhZMQKQ==}
     engines: {node: '>=18'}
 
   gensync@1.0.0-beta.2:
@@ -7251,6 +7263,10 @@ snapshots:
 
   '@types/ms@2.1.0': {}
 
+  '@types/multer@1.4.13':
+    dependencies:
+      '@types/express': 5.0.3
+
   '@types/node@20.19.1':
     dependencies:
       undici-types: 6.21.0
@@ -9397,7 +9413,7 @@ snapshots:
       - encoding
       - supports-color
 
-  gcp-metadata@7.0.0:
+  gcp-metadata@7.0.1:
     dependencies:
       gaxios: 7.1.0
       google-logging-utils: 1.1.1
@@ -9547,7 +9563,7 @@ snapshots:
       base64-js: 1.5.1
       ecdsa-sig-formatter: 1.0.11
       gaxios: 7.1.0
-      gcp-metadata: 7.0.0
+      gcp-metadata: 7.0.1
       google-logging-utils: 1.1.1
       gtoken: 8.0.0
       jws: 4.0.0
