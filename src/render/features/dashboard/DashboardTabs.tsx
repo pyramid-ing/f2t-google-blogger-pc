@@ -1,7 +1,7 @@
 import { Tabs, Button, Input, Upload, message } from 'antd'
 import React from 'react'
 import { UploadOutlined } from '@ant-design/icons'
-import { findTopics } from '../../api'
+import { findTopics, registerWorkflow } from '../../api'
 import { saveAs } from 'file-saver'
 
 const TopicExtraction: React.FC = () => {
@@ -16,14 +16,6 @@ const TopicExtraction: React.FC = () => {
       const response = await findTopics(topic, limit)
       const blob = new Blob([response], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
       saveAs(blob, `${topic}.xlsx`)
-      // const url = window.URL.createObjectURL(blob)
-      // const a = document.createElement('a')
-      // a.href = url
-      // a.download = `${topic}.xlsx`
-      // document.body.appendChild(a)
-      // a.click()
-      // a.remove()
-      // window.URL.revokeObjectURL(url)
       message.success('엑셀 파일이 다운로드되었습니다.')
     } catch (e: any) {
       message.error(e?.message || '엑셀 내보내기에 실패했습니다.')
@@ -55,13 +47,38 @@ const TopicExtraction: React.FC = () => {
 }
 
 const Posting: React.FC = () => {
+  const [file, setFile] = React.useState<File | null>(null)
+
+  const handleFileUpload = async (file: File) => {
+    try {
+      const response = await registerWorkflow(file)
+      console.log('Upload successful:', response)
+    } catch (error) {
+      console.error('Error uploading the file:', error)
+    }
+  }
+
+  const handleStartPosting = () => {
+    if (file) {
+      handleFileUpload(file)
+    } else {
+      console.error('No file selected')
+    }
+  }
+
   return (
     <div style={{ padding: 16 }}>
-      <Upload accept=".xlsx">
+      <Upload
+        accept=".xlsx"
+        beforeUpload={file => {
+          setFile(file)
+          return false // Prevent automatic upload
+        }}
+      >
         <Button icon={<UploadOutlined />}>엑셀 파일 선택</Button>
       </Upload>
-      <Button type="primary" style={{ marginTop: 16 }}>
-        업로드
+      <Button type="primary" style={{ marginTop: 16 }} onClick={handleStartPosting}>
+        포스팅 시작
       </Button>
     </div>
   )
