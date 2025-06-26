@@ -13,6 +13,7 @@ import { CrawlModule } from './modules/crawl/crawl.module'
 import { TopicModule } from './modules/topic/topic.module'
 import { WorkflowModule } from './modules/workflow/workflow.module'
 import { PrismaService } from './shared/prisma.service'
+import { GoogleModule } from '@main/app/modules/google/google.module'
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { PrismaService } from './shared/prisma.service'
     ScheduleModule.forRoot(),
     SettingsModule,
     CrawlModule,
+    GoogleModule,
     TopicModule,
     WorkflowModule,
   ],

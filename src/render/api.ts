@@ -79,14 +79,6 @@ export function getErrorDetails(error: any): string | undefined {
   return undefined
 }
 
-// DCinside 워크플로우 엑셀 업로드
-export async function uploadDcinsideExcel(file: File): Promise<any> {
-  const formData = new FormData()
-  formData.append('file', file)
-  const res = await axios.post(`${API_BASE_URL}/google-blogger/workflow/posting/excel-upload`, formData)
-  return res.data
-}
-
 // OpenAI API 키 서버 저장/불러오기
 export async function saveOpenAIApiKeyToServer(key: string) {
   const res = await axios.post(`${API_BASE_URL}/settings/global`, { openAIApiKey: key })
@@ -115,61 +107,157 @@ export async function saveAppSettingsToServer(settings: AppSettings) {
 
 export async function getAppSettingsFromServer(): Promise<AppSettings> {
   const res = await axios.get(`${API_BASE_URL}/settings/app`)
-  return res.data?.data || { showBrowserWindow: true, taskDelay: 10 }
+  return res.data?.data
 }
 
-// ------------------------------
-// PostJob (예약/작업) API
-// ------------------------------
-
-export interface PostJob {
-  id: number
-  galleryUrl: string
-  title: string
-  scheduledAt: string
-  status: string
-  resultMsg?: string
-  resultUrl?: string
-  createdAt: string
-  updatedAt: string
-  headtext?: string
-}
-
-// 목록 가져오기
-export async function getPostJobs(params?: {
-  status?: string
-  search?: string
-  orderBy?: string
-  order?: 'asc' | 'desc'
-}): Promise<PostJob[]> {
-  const searchParams = new URLSearchParams()
-
-  if (params?.status) {
-    searchParams.append('status', params.status)
-  }
-  if (params?.search) {
-    searchParams.append('search', params.search)
-  }
-  if (params?.orderBy) {
-    searchParams.append('orderBy', params.orderBy)
-  }
-  if (params?.order) {
-    searchParams.append('order', params.order)
-  }
-
-  const url = `${API_BASE_URL}/google-blogger/api/post-jobs${searchParams.toString() ? `?${searchParams.toString()}` : ''}`
-  const res = await axios.get(url)
+// Google OAuth 관련 - 서버 기반 처리
+export async function getGoogleOAuthStatus() {
+  const res = await axios.get(`${API_BASE_URL}/google-oauth/status`)
   return res.data
 }
 
-// 실패/대기중 Job 재시도
-export async function retryPostJob(id: number): Promise<any> {
-  const res = await axios.post(`${API_BASE_URL}/google-blogger/api/post-jobs/${id}/retry`)
+export async function googleOAuthLogout() {
+  const res = await axios.post(`${API_BASE_URL}/google-oauth/logout`)
   return res.data
 }
 
-// 작업 삭제
-export async function deletePostJob(id: number): Promise<any> {
-  const res = await axios.delete(`${API_BASE_URL}/google-blogger/api/post-jobs/${id}`)
+export async function refreshGoogleToken() {
+  const res = await axios.post(`${API_BASE_URL}/google-oauth/refresh-token`)
   return res.data
+}
+
+// OAuth2 설정
+const GOOGLE_REDIRECT_URI = 'http://localhost:3554/google-oauth/callback'
+const GOOGLE_SCOPE = [
+  'https://www.googleapis.com/auth/blogger',
+  'https://www.googleapis.com/auth/userinfo.email',
+  'https://www.googleapis.com/auth/userinfo.profile',
+].join(' ')
+
+export interface GoogleTokens {
+  accessToken: string
+  refreshToken?: string
+  expiresAt: number
+}
+
+// OAuth2 인증 URL 생성
+export function generateGoogleAuthUrl(clientId: string): string {
+  const params = new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: GOOGLE_REDIRECT_URI,
+    scope: GOOGLE_SCOPE,
+    response_type: 'code',
+    access_type: 'offline',
+    prompt: 'consent',
+  })
+
+  return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`
+}
+
+// 서버에서 Google OAuth 상태 확인
+export async function getGoogleAuthStatus() {
+  try {
+    const response = await getGoogleOAuthStatus()
+    return response
+  } catch (error) {
+    console.error('Google OAuth 상태 확인 오류:', error)
+    return {
+      isLoggedIn: false,
+      message: '상태 확인 실패',
+      error: error.message,
+    }
+  }
+}
+
+// 서버에서 Google OAuth 로그아웃
+export async function logoutGoogle() {
+  try {
+    const response = await googleOAuthLogout()
+    return response
+  } catch (error) {
+    console.error('Google OAuth 로그아웃 오류:', error)
+    throw error
+  }
+}
+
+// 로그인 상태 확인 (서버 기반)
+export async function isGoogleLoggedIn(): Promise<boolean> {
+  try {
+    const status = await getGoogleAuthStatus()
+    return status.isLoggedIn || false
+  } catch (error) {
+    return false
+  }
+}
+
+// 사용자 정보 가져오기 (서버에서 저장된 토큰 사용)
+export async function getGoogleUserInfo(): Promise<any> {
+  try {
+    const status = await getGoogleAuthStatus()
+    if (status.isLoggedIn && status.userInfo) {
+      return status.userInfo
+    }
+    throw new Error('로그인되지 않았거나 사용자 정보가 없습니다.')
+  } catch (error) {
+    console.error('사용자 정보 조회 오류:', error)
+    throw error
+  }
+}
+
+// 로그인 프로세스 시작 (브라우저에서 OAuth 진행)
+export function startGoogleLogin(clientId: string) {
+  if (!clientId.trim()) {
+    throw new Error('OAuth2 Client ID가 필요합니다.')
+  }
+
+  const authUrl = generateGoogleAuthUrl(clientId)
+
+  // Electron에서 외부 브라우저로 열기
+  if ((window as any).electron?.shell?.openExternal) {
+    ;(window as any).electron.shell.openExternal(authUrl)
+  } else {
+    window.open(authUrl, '_blank')
+  }
+
+  return {
+    success: true,
+    message: '브라우저에서 Google 로그인을 완료하세요. 인증이 완료되면 자동으로 처리됩니다.',
+  }
+}
+
+// 유효한 Access Token 가져오기 (서버에서 자동 갱신)
+export async function getValidAccessToken(): Promise<string | null> {
+  try {
+    const status = await getGoogleAuthStatus()
+    if (status.isLoggedIn) {
+      // 서버에서 자동으로 토큰 갱신을 처리하므로 별도 처리 불필요
+      return 'valid' // 실제 토큰 값은 서버에서 관리
+    }
+    return null
+  } catch (error) {
+    console.error('토큰 확인 실패:', error)
+    return null
+  }
+}
+
+// 주제 찾기
+export async function findTopics(topic: string, limit: number = 10) {
+  const response = await axios.get(`${API_BASE_URL}/workflow/find-topics`, {
+    params: { topic, limit },
+    responseType: 'blob',
+  })
+  return response.data
+}
+
+// 워크플로우 등록
+export async function registerWorkflow(file: File) {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const response = await axios.post(`${API_BASE_URL}/workflow/post`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
+  return response.data
 }

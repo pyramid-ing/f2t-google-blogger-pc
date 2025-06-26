@@ -3,9 +3,11 @@ import { PrismaService } from 'src/main/app/shared/prisma.service'
 import { OpenAI } from 'openai'
 
 interface AppSettings {
-  showBrowserWindow: boolean
-  taskDelay: number
-  imageUploadFailureAction: 'fail' | 'skip'
+  oauth2AccessToken?: string
+  oauth2TokenExpiry?: string
+  oauth2ClientId?: string // OAuth2 Client ID
+  oauth2ClientSecret?: string // OAuth2 Client Secret
+  oauth2RefreshToken?: string
 }
 
 @Injectable()
@@ -17,13 +19,12 @@ export class SettingsService {
   // 앱 설정 조회
   async getAppSettings(): Promise<AppSettings> {
     const settings = await this.findByKey('app')
-    return (
-      (settings?.data as unknown as AppSettings) || {
-        showBrowserWindow: true,
-        taskDelay: 10,
-        imageUploadFailureAction: 'fail',
-      }
-    )
+    return settings?.data as unknown as AppSettings
+  }
+
+  // 앱 설정 업데이트
+  async updateAppSettings(appSettings: AppSettings) {
+    await this.saveByKey('app', appSettings)
   }
 
   // 모든 설정 조회
@@ -95,7 +96,6 @@ export class SettingsService {
 
   // key를 id로 변환 (간단 매핑, 실제 운영시 key 컬럼 추가 권장)
   private keyToId(key: string): number {
-    if (key === 'global') return 2
     if (key === 'app') return 1
     return 9999 // 기타
   }
