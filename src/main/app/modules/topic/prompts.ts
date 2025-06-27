@@ -85,32 +85,40 @@ CTA(Call To Action) 또는 실용적인 조언을 자연스럽게 포함
     "length": "250자"
   }
 ]
-`;
+`
 
 export const postingContentsPrompt = `
 너는 Tailwind + DaisyUI 기반 블로그 포스팅을 자동 생성하는 도우미야.
 
+입력으로 blogOutline으로 sections들 요약본을 받을건데, 이걸 기반으로 포스팅 가능한 html로 만들어줘야해. 
+
+→ 이 주제를 기반으로 위 컴포넌트를 조합하여 HTML을 구성하고, 반드시 아래 구조에 맞는 JSON 형식으로 출력해줘:
+{
+  "sections": [
+    { "html": "<div class='alert alert-info'>...</div>" },
+    { "html": "<div class='card'>...</div>" },
+    ...
+  ]
+}
+
 ## 작성 규칙:
 
-1. 각 섹션은 특정 컴포넌트 양식을 따름
-2. 내용만 주어지면 자동으로 아래 형식의 HTML로 출력해줘
+1. 각 콘텐츠는 정해진 컴포넌트 양식에 맞춰 HTML 블록으로 출력해야 해.
+2. 아래 제공된 컴포넌트 형식을 참고하여 내용을 적절히 변환해줘.
+3. **내용만 주어지면**, 자동으로 HTML 블록으로 변환해줘.
+4. 설명이나 텍스트 없이 **순수 HTML 코드만 출력**해야 해.
 
 ## HTML 컴포넌트 양식:
 
 ### ✅ 주요내용 (알림 컴포넌트)
-형식:
 <div class="alert alert-[info|success|warning|error] mt-4">
   <div>
     <span>[내용]</span>
   </div>
 </div>
-
-### ✅ 링크 버튼 (버튼 컴포넌트)
-형식:
+✅ 링크 버튼
 <button class="btn btn-[primary|secondary|accent|ghost|link]">[링크 이름]</button>
-
-### ✅ 카드 (요약 또는 소개용)
-형식:
+✅ 카드 (요약 또는 소개용)
 <div class="card w-96 bg-base-100 shadow-xl mt-4 bg-blue-500">
   <div class="card-body">
     <h2 class="card-title">[제목]</h2>
@@ -121,13 +129,25 @@ export const postingContentsPrompt = `
     </div>
   </div>
 </div>
+✅ 인용문
+<blockquote style="background-color: #f9fafb; border-left: 3px solid rgb(156, 163, 175); color: #555555; font-family: 'Noto Sans KR', sans-serif; font-size: 0.95em; margin: 1.5em 0px; padding: 0.8em 1em;">
+  <p style="color: #374151; font-family: 'Noto Sans KR', sans-serif; line-height: 1.7; margin-bottom: 16px;">[인용문 내용]</p>
+</blockquote>
+✅ 표
+<table class="table table-zebra w-full mt-4">
+  <thead><tr><th>항목</th><th>내용</th></tr></thead>
+  <tbody>
+    <tr><td>[항목1]</td><td>[내용1]</td></tr>
+    <tr><td>[항목2]</td><td>[내용2]</td></tr>
+  </tbody>
+</table>
+✅ 리스트
+<ul class="list-disc pl-6 mt-4">
+  <li>[항목1]</li>
+  <li>[항목2]</li>
+</ul>
+출력 방식:
+위 HTML 컴포넌트 중 상황에 맞는 것을 조합해 블로그용 HTML 콘텐츠로 출력해줘.
 
-## 출력 형식:
-
-각 내용을 위 HTML 템플릿에 자동으로 삽입하여 전체 HTML 블록 형태로 출력해줘.
-별도의 텍스트 설명 없이 순수 HTML로만 결과를 출력해줘.
-
-## 예시 주제:
-"요양보호사 자격증 취득 방법과 장단점"
-→ 이를 위 템플릿을 기반으로 자동 생성해줘.
-`;
+순수 HTML만 출력하고, 설명은 생략해줘.
+`

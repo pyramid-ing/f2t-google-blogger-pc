@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common'
-import {BlogOutline, OpenAiService, Topic} from './openai.service'
+import { BlogOutline, BlogPostHtml, OpenAiService, Topic } from './openai.service'
 
 @Injectable()
 export class TopicService {
@@ -41,9 +41,9 @@ export class TopicService {
   /**
    * OpenAI를 사용하여 섹션에 대한 구체적인 콘텐츠 생성
    */
-  async generateContentWithOpenAI(tableOfContents: any): Promise<string> {
+  async generatePostingContentsWithOpenAI(blogOutline: BlogOutline): Promise<BlogPostHtml> {
     try {
-      const response = await this.openAiService.generatePostingContents(tableOfContents)
+      const response = await this.openAiService.generatePostingContents(blogOutline)
       return response
     } catch (error) {
       this.logger.error('OpenAI API 호출 중 오류 발생:', error)

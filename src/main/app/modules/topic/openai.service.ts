@@ -17,6 +17,13 @@ export interface BlogOutline {
   }[]
 }
 
+// Define the TypeScript interface based on the new JSON schema
+export interface BlogPostHtml {
+  sections: {
+    html: string // HTML content for each section
+  }[]
+}
+
 @Injectable()
 export class OpenAiService {
   private readonly logger = new Logger(OpenAiService.name)
@@ -146,7 +153,7 @@ export class OpenAiService {
   /**
    * OpenAI를 사용하여 목차 생성
    */
-  async generatePostingContents(tableOfContents: any): Promise<string> {
+  async generatePostingContents(blogOutline: BlogOutline): Promise<BlogPostHtml> {
     const systemPrompt = postingContentsPrompt
 
     try {
@@ -159,13 +166,39 @@ export class OpenAiService {
           },
           {
             role: 'user',
-            content: `${JSON.stringify(tableOfContents)}`,
+            content: `${JSON.stringify(blogOutline)}`,
           },
         ],
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            name: 'blog_post_html',
+            strict: true,
+            schema: {
+              type: 'object',
+              properties: {
+                sections: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      html: { type: 'string', description: 'HTML content for each section' },
+                    },
+                    required: ['html'],
+                    additionalProperties: false,
+                  },
+                  minItems: 1,
+                },
+              },
+              required: ['sections'],
+              additionalProperties: false,
+            },
+          },
+        },
       })
 
-      const response = JSON.parse(completion.choices[0].message.content)
-      return response || []
+      const response: BlogPostHtml = JSON.parse(completion.choices[0].message.content)
+      return response
     } catch (error) {
       this.logger.error('OpenAI API 호출 중 오류 발생:', error)
       throw new Error(`OpenAI API 오류: ${error.message}`)

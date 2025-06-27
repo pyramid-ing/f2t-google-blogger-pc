@@ -107,10 +107,8 @@ export class WorkflowController {
         this.logger.log(`생성된 목차: ${JSON.stringify(blogOutline.sections)}`)
 
         // 4. 포스팅 내용 구체적으로 만들기
-        for (const section of blogOutline.sections) {
-          const detailedContent = await this.topicService.generateContentWithOpenAI(section)
-          this.logger.log(`섹션: ${section.title}, 내용: ${detailedContent}`)
-        }
+        const detailedContent = await this.topicService.generatePostingContentsWithOpenAI(blogOutline)
+        console.log(detailedContent)
       }
 
       res.status(201).send('워크플로우 등록 완료')
