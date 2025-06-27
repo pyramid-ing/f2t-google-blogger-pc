@@ -103,11 +103,11 @@ export class WorkflowController {
         this.logger.log(`포스팅 처리: 제목=${title}, 설명=${description}`)
 
         // 3. 포스팅 목차 생성
-        const tableOfContents = await this.topicService.generateTableOfContents(title, description)
-        this.logger.log(`생성된 목차: ${JSON.stringify(tableOfContents)}`)
+        const blogOutline = await this.topicService.generateBlogOutline(title, description)
+        this.logger.log(`생성된 목차: ${JSON.stringify(blogOutline.sections)}`)
 
         // 4. 포스팅 내용 구체적으로 만들기
-        for (const section of tableOfContents) {
+        for (const section of blogOutline.sections) {
           const detailedContent = await this.topicService.generateContentWithOpenAI(section)
           this.logger.log(`섹션: ${section.title}, 내용: ${detailedContent}`)
         }

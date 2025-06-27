@@ -7,6 +7,16 @@ export interface Topic {
   content: string
 }
 
+// Define the TypeScript interface based on the JSON schema
+export interface BlogOutline {
+  sections: {
+    index: number // 섹션 순서
+    title: string // 제목
+    summary: string // 요약
+    length: string // 예상 글자 수 (ex: '250자')
+  }[]
+}
+
 @Injectable()
 export class OpenAiService {
   private readonly logger = new Logger(OpenAiService.name)
@@ -72,14 +82,14 @@ export class OpenAiService {
   /**
    * OpenAI를 사용하여 목차 생성
    */
-  async generateTableOfContents(title: string, description: string): Promise<any[]> {
+  async generateBlogOutline(title: string, description: string): Promise<BlogOutline> {
     this.logger.log(`OpenAI로 주제 "${title}"에 대한 목차를 생성합니다.`)
 
     const systemPrompt = tableOfContentsPrompt
 
     try {
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4o',
+        model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',
@@ -125,8 +135,8 @@ export class OpenAiService {
         },
       })
 
-      const response = JSON.parse(completion.choices[0].message.content)
-      return response.sections || []
+      const response: BlogOutline = JSON.parse(completion.choices[0].message.content)
+      return response
     } catch (error) {
       this.logger.error('OpenAI API 호출 중 오류 발생:', error)
       throw new Error(`OpenAI API 오류: ${error.message}`)
