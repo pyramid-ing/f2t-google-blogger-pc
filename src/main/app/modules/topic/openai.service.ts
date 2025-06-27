@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
 import OpenAI from 'openai'
+import { tableOfContentsPrompt, postingContentsPrompt } from './prompts'
 
 export interface Topic {
   title: string
@@ -45,7 +46,7 @@ export class OpenAiService {
 
     try {
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4-turbo-preview',
+        model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',
@@ -74,119 +75,58 @@ export class OpenAiService {
   async generateTableOfContents(title: string, description: string): Promise<any[]> {
     this.logger.log(`OpenAI로 주제 "${title}"에 대한 목차를 생성합니다.`)
 
+    const systemPrompt = tableOfContentsPrompt
+
     try {
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4-turbo-preview',
+        model: 'gpt-4o',
         messages: [
           {
             role: 'system',
-            content: `
-필수로 서론, FAQ, 마무리는 꼭넣어줘. 서론은 가장 처음 FAQ, 마무리는 마지막으로. 그중간에는 컨텐츠에 맞게 알아서. (최대 10섹션 정도)
-
-
-서론
-
-목적: 독자의 관심을 끌고, 주제의 필요성을 간단하게 설명
-
-분량: 보통 100~200자
-
-SEO 전략상 주 키워드를 처음 문단에 자연스럽게 배치
-
-FAQ (자주 묻는 질문)
-
-목적: 실제 검색자가 자주 궁금해할 내용을 사전에 해소
-
-분량: 약 300~500자
-
-SEO에 효과적인 “질문형 키워드” 포함이 가능해서 유입에 매우 유리
-
-예시: “근로장려금 신청은 언제?”, “신청 결과는 어디서 보나요?” 등
-
-마무리 및 팁
-
-목적: 전체 내용을 요약하고, 독자에게 행동을 유도
-
-분량: 약 200~300자
-
-CTA(Call To Action) 또는 실용적인 조언을 자연스럽게 포함
-
-
-- 각 항목은 다음과같은 JSON 구조로 출력해줘:
-예시
-[
-  {
-    "index": 1,
-    "title": "서론",
-    "summary": "아침고요수목원 예약은 사전 방문 계획의 핵심입니다. 성수기나 주말에는 예약 없이는 입장이 어려울 정도로 인기가 높습니다. 본 글에서는 아침고요수목원 예약 방법부터 유의사항까지 모두 정리해드립니다.",
-    "length": "150자"
-  },
-  {
-    "index": 2,
-    "title": "아침고요수목원은 어떤 곳인가요?",
-    "summary": "경기도 가평에 위치한 아침고요수목원은 사계절 내내 아름다운 정원과 자연을 즐길 수 있는 명소입니다. 연인, 가족 단위 관광객은 물론 사진작가들에게도 인기 있는 장소로 유명합니다.",
-    "length": "250자"
-  },
-  {
-    "index": 3,
-    "title": "예약이 필요한 이유",
-    "summary": "아침고요수목원은 특히 봄꽃축제, 겨울 정원 별빛축제 등 특정 시즌에 수많은 인파가 몰리기 때문에 사전 예약 없이는 입장이 제한되기도 합니다. 예약을 통해 혼잡을 피하고 원하는 시간대에 여유롭게 관람할 수 있습니다.",
-    "length": "250자"
-  },
-  {
-    "index": 4,
-    "title": "예약 가능한 방법",
-    "summary": "공식 홈페이지, 네이버 예약, 전화 예약 등의 방법을 통해 아침고요수목원 입장권을 사전 구매할 수 있습니다. 특히 모바일 예매는 QR코드 발급으로 입장도 간편해 추천됩니다.",
-    "length": "300자"
-  },
-  {
-    "index": 5,
-    "title": "예약 시 유의사항",
-    "summary": "예약 인원, 방문 날짜 변경은 제한이 있으며 일부 시간대는 조기 마감될 수 있습니다. 또한 날씨에 따라 운영 시간 변동이 있을 수 있으므로 방문 전 운영 공지를 확인해야 합니다.",
-    "length": "300자"
-  },
-  {
-    "index": 6,
-    "title": "입장료와 할인 정보",
-    "summary": "성인, 청소년, 어린이 요금이 다르며 단체 할인, 장애인 및 국가유공자 할인도 제공됩니다. 계절별 특별 이벤트에 따라 요금이 변동될 수 있으니 사전 확인이 필요합니다.",
-    "length": "300자"
-  },
-  {
-    "index": 7,
-    "title": "운영 시간 및 휴무일",
-    "summary": "아침고요수목원은 계절마다 개장 시간이 상이하며 연중무휴로 운영되지만, 특정 정비 기간에는 임시 휴장이 있을 수 있습니다. 공식 홈페이지를 통해 실시간 정보를 확인할 수 있습니다.",
-    "length": "250자"
-  },
-  {
-    "index": 8,
-    "title": "FAQ (자주 묻는 질문)",
-    "summary": "Q. 아침고요수목원 예약은 어디서 하나요? → 공식 홈페이지, 네이버 예약 가능\\nQ. 예약 취소나 변경이 가능한가요? → 방문일 1일 전까지 가능\\nQ. 현장 구매도 가능한가요? → 잔여 수량 있을 시 가능하나 권장되지 않음\\nQ. 반려동물 입장 가능한가요? → 불가능\\nQ. 우천 시에도 운영하나요? → 정상 운영되며, 우산 또는 우비 지참 권장",
-    "length": "400자"
-  },
-  {
-    "index": 9,
-    "title": "기타 방문 팁",
-    "summary": "자차 이용 시 넓은 주차장 완비, 대중교통은 청평역에서 셔틀 또는 택시 이용 권장. 도보 코스가 많으니 편한 신발 필수. 사진 촬영 포인트가 많으니 배터리나 보조 배터리 준비를 추천합니다.",
-    "length": "250자"
-  },
-  {
-    "index": 10,
-    "title": "마무리 및 팁",
-    "summary": "아침고요수목원은 계절마다 다른 매력을 선사하는 힐링 공간입니다. 미리 예약하고 준비하면 더욱 쾌적하게 자연을 즐길 수 있습니다. 지금 바로 예약하고 특별한 하루를 계획해보세요!",
-    "length": "250자"
-  }
-]
-`,
+            content: systemPrompt,
           },
           {
             role: 'user',
-            content: `topic: ${title}, summary: ${description}`,
+            content: `title: ${title}, description: ${description}`,
           },
         ],
-        response_format: { type: 'json_object' },
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            name: 'blog_outline',
+            strict: true,
+            schema: {
+              type: 'object',
+              properties: {
+                sections: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      index: { type: 'integer', description: '섹션 순서' },
+                      title: { type: 'string', description: '제목' },
+                      summary: { type: 'string', description: '요약' },
+                      length: {
+                        type: 'string',
+                        description: "예상 글자 수 (ex: '250자')",
+                        pattern: '^[0-9]+자$',
+                      },
+                    },
+                    required: ['index', 'title', 'summary', 'length'],
+                    additionalProperties: false,
+                  },
+                  minItems: 1,
+                },
+              },
+              required: ['sections'],
+              additionalProperties: false,
+            },
+          },
+        },
       })
 
       const response = JSON.parse(completion.choices[0].message.content)
-      return response || []
+      return response.sections || []
     } catch (error) {
       this.logger.error('OpenAI API 호출 중 오류 발생:', error)
       throw new Error(`OpenAI API 오류: ${error.message}`)
@@ -197,56 +137,15 @@ CTA(Call To Action) 또는 실용적인 조언을 자연스럽게 포함
    * OpenAI를 사용하여 목차 생성
    */
   async generatePostingContents(tableOfContents: any): Promise<string> {
+    const systemPrompt = postingContentsPrompt
+
     try {
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4-turbo-preview',
+        model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',
-            content: `
-너는 Tailwind + DaisyUI 기반 블로그 포스팅을 자동 생성하는 도우미야.
-
-## 작성 규칙:
-
-1. 각 섹션은 특정 컴포넌트 양식을 따름
-2. 내용만 주어지면 자동으로 아래 형식의 HTML로 출력해줘
-
-## HTML 컴포넌트 양식:
-
-### ✅ 주요내용 (알림 컴포넌트)
-형식:
-<div class="alert alert-[info|success|warning|error] mt-4">
-  <div>
-    <span>[내용]</span>
-  </div>
-</div>
-
-### ✅ 링크 버튼 (버튼 컴포넌트)
-형식:
-<button class="btn btn-[primary|secondary|accent|ghost|link]">[링크 이름]</button>
-
-### ✅ 카드 (요약 또는 소개용)
-형식:
-<div class="card w-96 bg-base-100 shadow-xl mt-4 bg-blue-500">
-  <div class="card-body">
-    <h2 class="card-title">[제목]</h2>
-    <p>[내용]</p>
-    <div class="card-actions justify-end">
-      <button class="btn btn-primary">[버튼1]</button>
-      <button class="btn btn-secondary">[버튼2]</button>
-    </div>
-  </div>
-</div>
-
-## 출력 형식:
-
-각 내용을 위 HTML 템플릿에 자동으로 삽입하여 전체 HTML 블록 형태로 출력해줘.
-별도의 텍스트 설명 없이 순수 HTML로만 결과를 출력해줘.
-
-## 예시 주제:
-"요양보호사 자격증 취득 방법과 장단점"
-→ 이를 위 템플릿을 기반으로 자동 생성해줘.
-    `,
+            content: systemPrompt,
           },
           {
             role: 'user',
