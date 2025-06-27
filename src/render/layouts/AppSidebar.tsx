@@ -1,4 +1,4 @@
-import { HomeOutlined, SettingOutlined, UnorderedListOutlined } from '@ant-design/icons'
+import { HomeOutlined, SettingOutlined } from '@ant-design/icons'
 import { Layout, Menu, Typography } from 'antd'
 import React, { useEffect, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
