@@ -22,4 +22,32 @@ export class TopicService {
       throw error
     }
   }
+
+  /**
+   * OpenAI를 사용하여 주제에 대한 목차 생성
+   */
+  async generateTableOfContents(title: string, description: string): Promise<any[]> {
+    this.logger.log(`OpenAI로 주제 "${title}"에 대한 목차를 생성합니다.`)
+
+    try {
+      const response = await this.openAiService.generateTableOfContents(title, description)
+      return response
+    } catch (error) {
+      this.logger.error('OpenAI API 호출 중 오류 발생:', error)
+      throw new Error(`OpenAI API 오류: ${error.message}`)
+    }
+  }
+
+  /**
+   * OpenAI를 사용하여 섹션에 대한 구체적인 콘텐츠 생성
+   */
+  async generateContentWithOpenAI(tableOfContents: any): Promise<string> {
+    try {
+      const response = await this.openAiService.generatePostingContents(tableOfContents)
+      return response
+    } catch (error) {
+      this.logger.error('OpenAI API 호출 중 오류 발생:', error)
+      throw new Error(`OpenAI API 오류: ${error.message}`)
+    }
+  }
 }
