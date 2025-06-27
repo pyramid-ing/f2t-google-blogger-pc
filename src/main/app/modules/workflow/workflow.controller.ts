@@ -15,12 +15,16 @@ import { Response } from 'express'
 import { TopicService } from '../topic/topic.service'
 import * as XLSX from 'xlsx'
 import { Express } from 'express'
+import { GoogleBloggerService } from '@main/app/modules/google/blogger/google-blogger.service'
 
 @Controller('workflow')
 export class WorkflowController {
   private readonly logger = new Logger(WorkflowController.name)
 
-  constructor(private readonly topicService: TopicService) {}
+  constructor(
+    private readonly topicService: TopicService,
+    private readonly bloggerService: GoogleBloggerService,
+  ) {}
 
   /**
    * SEO 최적화된 주제 찾기 및 엑셀 다운로드
@@ -98,7 +102,7 @@ export class WorkflowController {
 
       // 2. 각 행별로 처리
       for (const row of data.slice(1)) {
-        // 첫 번째 행은 헤더
+        // // 첫 번째 행은 헤더
         const [title, description] = row
         this.logger.log(`포스팅 처리: 제목=${title}, 설명=${description}`)
 
@@ -109,11 +113,14 @@ export class WorkflowController {
         // 4. 포스팅 내용 구체적으로 만들기
         const detailedContent = await this.topicService.generatePostingContentsWithOpenAI(blogOutline)
 
-        // TODO 여기에 detailedContent.sections를 loop 돌려서 이미지, 영상등 후처리
-
         // 5. HTML로 합치기
         const combinedHtml = this.topicService.combineHtmlSections(detailedContent)
         console.log(combinedHtml)
+
+        // 6. Blogger API로 포스팅하기
+        const blogInfo = await this.bloggerService.getUserSelfBlogs()
+        await this.bloggerService.postToBlogger(blogInfo.items[0].id, title, description)
+        this.logger.log(`Blogger에 포스팅 완료: 제목=${title}`)
       }
 
       res.status(201).send('워크플로우 등록 완료')

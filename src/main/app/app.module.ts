@@ -4,12 +4,10 @@ import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { APP_FILTER, HttpAdapterHost } from '@nestjs/core'
 import { ScheduleModule } from '@nestjs/schedule'
-import { BullModule } from '@nestjs/bull'
 import { app, BrowserWindow } from 'electron'
 import { GlobalExceptionFilter } from '../filters/global-exception.filter'
 import customConfig from './config/custom-config'
 import { SettingsModule } from './modules/settings/settings.module'
-import { CrawlModule } from './modules/crawl/crawl.module'
 import { TopicModule } from './modules/topic/topic.module'
 import { WorkflowModule } from './modules/workflow/workflow.module'
 import { PrismaService } from './shared/prisma.service'
@@ -45,15 +43,8 @@ import { GoogleModule } from '@main/app/modules/google/google.module'
       load: [customConfig],
       isGlobal: true,
     }),
-    BullModule.forRoot({
-      redis: {
-        host: '192.168.0.67',
-        port: 6379,
-      },
-    }),
     ScheduleModule.forRoot(),
     SettingsModule,
-    CrawlModule,
     GoogleModule,
     TopicModule,
     WorkflowModule,
