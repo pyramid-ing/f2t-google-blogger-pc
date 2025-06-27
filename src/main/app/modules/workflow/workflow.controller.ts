@@ -119,7 +119,11 @@ export class WorkflowController {
 
         // 6. Blogger API로 포스팅하기
         const blogInfo = await this.bloggerService.getUserSelfBlogs()
-        await this.bloggerService.postToBlogger(blogInfo.items[0].id, title, description)
+        await this.bloggerService.postToBlogger({
+          blogId: blogInfo.items[0].id,
+          title,
+          content: description,
+        })
         this.logger.log(`Blogger에 포스팅 완료: 제목=${title}`)
       }
 
