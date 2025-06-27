@@ -4,6 +4,7 @@ import { GoogleBloggerController } from 'src/main/app/modules/google/blogger/goo
 import { GoogleBloggerService } from 'src/main/app/modules/google/blogger/google-blogger.service'
 import { PrismaService } from 'src/main/app/shared/prisma.service'
 import { SettingsService } from '@main/app/modules/settings/settings.service'
+import type * as BloggerTypes from './google-blogger.types'
 
 @Module({
   imports: [HttpModule],

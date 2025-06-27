@@ -3,7 +3,7 @@ import { HttpService } from '@nestjs/axios'
 import { Injectable, Logger } from '@nestjs/common'
 import { firstValueFrom } from 'rxjs'
 import { SettingsService } from '@main/app/modules/settings/settings.service'
-import { BloggerOptions } from '@main/app/modules/google/blogger/google-blogger.types'
+import type * as BloggerTypes from './google-blogger.types'
 
 @Injectable()
 export class GoogleBloggerService {
@@ -117,7 +117,7 @@ export class GoogleBloggerService {
   /**
    * 블로그 URL로 블로그 정보 조회
    */
-  async getBlogByUrl(blogUrl: string, accessToken?: string): Promise<any> {
+  async getBlogByUrl(blogUrl: string, accessToken?: string): Promise<BloggerTypes.BloggerBlog> {
     try {
       const token = accessToken || (await this.getAccessToken())
 
@@ -170,7 +170,7 @@ export class GoogleBloggerService {
   /**
    * 블로그 게시물 목록 조회
    */
-  async getBlogPosts(options: BloggerOptions): Promise<any> {
+  async getBlogPosts(options: BloggerTypes.BloggerOptions): Promise<BloggerTypes.BloggerPostListResponse> {
     const { blogId, blogUrl, maxResults = 10, pageToken, status = 'live' } = options
 
     try {
@@ -250,7 +250,7 @@ export class GoogleBloggerService {
   /**
    * 특정 게시물 조회
    */
-  async getBlogPost(blogId: string, postId: string): Promise<any> {
+  async getBlogPost(blogId: string, postId: string): Promise<BloggerTypes.BloggerPost> {
     try {
       const accessToken = await this.getAccessToken()
 
@@ -295,7 +295,7 @@ export class GoogleBloggerService {
   /**
    * 블로그 정보 조회
    */
-  async getBlogInfo(blogId: string): Promise<any> {
+  async getBlogInfo(blogId: string): Promise<BloggerTypes.BloggerBlog> {
     try {
       const accessToken = await this.getAccessToken()
 
@@ -315,7 +315,7 @@ export class GoogleBloggerService {
   /**
    * 사용자의 블로그 목록 조회
    */
-  async getUserSelfBlogs(): Promise<any> {
+  async getUserSelfBlogs(): Promise<BloggerTypes.BloggerBlogListResponse> {
     try {
       const accessToken = await this.getAccessToken()
 
@@ -335,10 +335,11 @@ export class GoogleBloggerService {
   /**
    * Blogger API를 사용하여 블로그에 포스팅
    */
-  async postToBlogger(blogId: string, title: string, content: string): Promise<void> {
+  async postToBlogger(request: BloggerTypes.BloggerPostRequest): Promise<BloggerTypes.BloggerPost> {
+    const { blogId, title, content, labels } = request
+
     try {
       const accessToken = await this.getAccessToken()
-
       const response = await firstValueFrom(
         this.httpService.post(
           `${this.bloggerApiUrl}/blogs/${blogId}/posts/`,
@@ -346,6 +347,7 @@ export class GoogleBloggerService {
             kind: 'blogger#post',
             title,
             content,
+            ...(labels ? { labels } : {}),
           },
           {
             headers: {
@@ -357,6 +359,7 @@ export class GoogleBloggerService {
       )
 
       this.logger.log(`Blogger에 포스팅 성공: ${response.data.id}`)
+      return response.data
     } catch (error) {
       this.logger.error('Blogger 포스팅 실패:', error)
 
