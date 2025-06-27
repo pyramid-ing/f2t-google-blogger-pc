@@ -4,10 +4,11 @@ import { GoogleBloggerController } from 'src/main/app/modules/google/blogger/goo
 import { GoogleBloggerService } from 'src/main/app/modules/google/blogger/google-blogger.service'
 import { PrismaService } from 'src/main/app/shared/prisma.service'
 import { SettingsService } from '@main/app/modules/settings/settings.service'
+import { OauthService } from '@main/app/modules/google/oauth/oauth.service'
 
 @Module({
   imports: [HttpModule],
-  providers: [GoogleBloggerService, PrismaService, SettingsService],
+  providers: [GoogleBloggerService, PrismaService, SettingsService, OauthService],
   controllers: [GoogleBloggerController],
   exports: [GoogleBloggerService],
 })
