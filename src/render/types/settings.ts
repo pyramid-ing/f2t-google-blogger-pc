@@ -4,4 +4,5 @@ export interface AppSettings {
   oauth2AccessToken?: string
   oauth2TokenExpiry?: string
   oauth2RefreshToken?: string
+  bloggerBlogId?: string // 선택된 Blogger 블로그 ID
 }

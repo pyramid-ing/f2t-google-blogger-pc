@@ -335,9 +335,11 @@ export class GoogleBloggerService {
   /**
    * Blogger API를 사용하여 블로그에 포스팅
    */
-  async postToBlogger(request: BloggerTypes.BloggerPostRequest): Promise<BloggerTypes.BloggerPost> {
-    const { blogId, title, content, labels } = request
-
+  async postToBlogger(request: Omit<BloggerTypes.BloggerPostRequest, 'blogId'>): Promise<BloggerTypes.BloggerPost> {
+    const { title, content, labels } = request
+    const settings = await this.settingsService.getAppSettings()
+    const blogId = settings.bloggerBlogId
+    if (!blogId) throw new Error('bloggerBlogId가 설정되어 있지 않습니다. 설정에서 블로그를 선택하세요.')
     try {
       const accessToken = await this.getAccessToken()
       const response = await firstValueFrom(
@@ -357,16 +359,13 @@ export class GoogleBloggerService {
           },
         ),
       )
-
       this.logger.log(`Blogger에 포스팅 성공: ${response.data.id}`)
       return response.data
     } catch (error) {
       this.logger.error('Blogger 포스팅 실패:', error)
-
       if (error.response?.status === 401) {
         throw new GoogleAuthError('Google API 인증이 실패했습니다.', 'postToBlogger', { blogId, title })
       }
-
       throw new GoogleBloggerError(
         `Blogger 포스팅 실패: ${error.response?.data?.error?.message || error.message}`,
         'postToBlogger',

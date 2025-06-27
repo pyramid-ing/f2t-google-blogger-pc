@@ -7,6 +7,7 @@ import type { AppSettings } from './types/settings'
 import axios from 'axios'
 
 const API_BASE_URL = 'http://localhost:3554'
+const api = axios.create({ baseURL: API_BASE_URL })
 
 // 에러 코드 enum
 export enum ErrorCode {}
@@ -81,12 +82,12 @@ export function getErrorDetails(error: any): string | undefined {
 
 // OpenAI API 키 서버 저장/불러오기
 export async function saveOpenAIApiKeyToServer(key: string) {
-  const res = await axios.post(`${API_BASE_URL}/settings/global`, { openAIApiKey: key })
+  const res = await api.post('/settings/global', { openAIApiKey: key })
   return res.data
 }
 
 export async function getOpenAIApiKeyFromServer(): Promise<string> {
-  const res = await axios.get(`${API_BASE_URL}/settings/global`)
+  const res = await api.get('/settings/global')
   return res.data?.data?.openAIApiKey || ''
 }
 
@@ -96,33 +97,33 @@ export async function validateOpenAIApiKey(apiKey: string): Promise<{
   error?: string
   model?: string
 }> {
-  const res = await axios.post(`${API_BASE_URL}/settings/validate-openai-key`, { apiKey })
+  const res = await api.post('/settings/validate-openai-key', { apiKey })
   return res.data
 }
 
 export async function saveAppSettingsToServer(settings: AppSettings) {
-  const res = await axios.post(`${API_BASE_URL}/settings/app`, settings)
+  const res = await api.post('/settings/app', settings)
   return res.data
 }
 
 export async function getAppSettingsFromServer(): Promise<AppSettings> {
-  const res = await axios.get(`${API_BASE_URL}/settings/app`)
+  const res = await api.get('/settings/app')
   return res.data?.data
 }
 
 // Google OAuth 관련 - 서버 기반 처리
 export async function getGoogleOAuthStatus() {
-  const res = await axios.get(`${API_BASE_URL}/google-oauth/status`)
+  const res = await api.get('/google-oauth/status')
   return res.data
 }
 
 export async function googleOAuthLogout() {
-  const res = await axios.post(`${API_BASE_URL}/google-oauth/logout`)
+  const res = await api.post('/google-oauth/logout')
   return res.data
 }
 
 export async function refreshGoogleToken() {
-  const res = await axios.post(`${API_BASE_URL}/google-oauth/refresh-token`)
+  const res = await api.post('/google-oauth/refresh-token')
   return res.data
 }
 
@@ -213,11 +214,7 @@ export function startGoogleLogin(clientId: string) {
   const authUrl = generateGoogleAuthUrl(clientId)
 
   // Electron에서 외부 브라우저로 열기
-  if ((window as any).electron?.shell?.openExternal) {
-    ;(window as any).electron.shell.openExternal(authUrl)
-  } else {
-    window.open(authUrl, '_blank')
-  }
+  window.electronAPI.openExternal(authUrl)
 
   return {
     success: true,
@@ -242,7 +239,7 @@ export async function getValidAccessToken(): Promise<string | null> {
 
 // 주제 찾기
 export async function findTopics(topic: string, limit: number = 10) {
-  const response = await axios.get(`${API_BASE_URL}/workflow/find-topics`, {
+  const response = await api.get('/workflow/find-topics', {
     params: { topic, limit },
     responseType: 'blob',
   })
@@ -254,10 +251,16 @@ export async function registerWorkflow(file: File) {
   const formData = new FormData()
   formData.append('file', file)
 
-  const response = await axios.post(`${API_BASE_URL}/workflow/post`, formData, {
+  const response = await api.post('/workflow/post', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
   })
   return response.data
+}
+
+// Blogger 블로그 목록 조회
+export async function getBloggerBlogsFromServer() {
+  const res = await api.get('/google-blogger/user/blogs')
+  return res.data.blogs?.items || []
 }

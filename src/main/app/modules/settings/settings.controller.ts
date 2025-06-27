@@ -37,11 +37,7 @@ export class SettingsController {
   async getAppSettings() {
     try {
       const setting = await this.settingsService.findByKey('app')
-      const defaultSettings = {
-        showBrowserWindow: true, // 기본값: 창보임
-        taskDelay: 10, // 기본값: 10초
-      }
-      return { success: true, data: setting?.data || defaultSettings }
+      return { success: true, data: setting?.data }
     } catch (error) {
       this.logger.error('앱 설정 조회 실패:', error)
       return { success: false, error: error.message }

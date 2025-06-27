@@ -2,7 +2,6 @@ import React, { useEffect } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import AppLayout from '../layouts/AppLayout'
 import Dashboard from './Dashboard'
-import ScheduledPostsPage from './ScheduledPosts'
 import SettingsPage from './Settings'
 
 const App: React.FC = () => {
@@ -21,7 +20,6 @@ const App: React.FC = () => {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/scheduled-posts" element={<ScheduledPostsPage />} />
       </Routes>
     </AppLayout>
   )

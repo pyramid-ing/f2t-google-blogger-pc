@@ -1,4 +1,4 @@
-import { Button, Form, Input, message, Space, Avatar } from 'antd'
+import { Button, Form, Input, message, Space, Avatar, Select } from 'antd'
 import React, { useEffect, useState } from 'react'
 import {
   getAppSettingsFromServer,
@@ -6,6 +6,7 @@ import {
   startGoogleLogin,
   getGoogleUserInfo,
   isGoogleLoggedIn,
+  getBloggerBlogsFromServer,
 } from '../../api'
 import { UserOutlined } from '@ant-design/icons'
 
@@ -17,6 +18,8 @@ const AppSettingsForm: React.FC = () => {
   const [clientSecret, setClientSecret] = useState('')
   const [userInfo, setUserInfo] = useState<any>(null)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [blogList, setBlogList] = useState<any[]>([])
+  const [selectedBlogId, setSelectedBlogId] = useState<string | undefined>(undefined)
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -26,12 +29,15 @@ const AppSettingsForm: React.FC = () => {
         setClientId(settings.oauth2ClientId || '')
         setClientSecret(settings.oauth2ClientSecret || '')
         form.setFieldsValue(settings)
+        setSelectedBlogId(settings.bloggerBlogId)
 
         const loggedIn = await isGoogleLoggedIn()
         if (loggedIn) {
           const user = await getGoogleUserInfo()
           setUserInfo(user)
           setIsLoggedIn(true)
+          const blogs = await getBloggerBlogsFromServer()
+          setBlogList(blogs)
         }
       } catch (error) {
         console.error('Error loading settings:', error)
@@ -46,9 +52,13 @@ const AppSettingsForm: React.FC = () => {
   const handleSaveSettings = async () => {
     setSaving(true)
     try {
+      const settings = await getAppSettingsFromServer()
+
       await saveAppSettingsToServer({
+        ...settings,
         oauth2ClientId: clientId,
         oauth2ClientSecret: clientSecret,
+        bloggerBlogId: selectedBlogId,
       })
       message.success('설정이 저장되었습니다.')
     } catch (error) {
@@ -89,7 +99,16 @@ const AppSettingsForm: React.FC = () => {
         <Form.Item label="OAuth2 Client Secret">
           <Input type="password" value={clientSecret} onChange={e => setClientSecret(e.target.value)} />
         </Form.Item>
-
+        <Form.Item label="Blogger 블로그 선택">
+          <Select
+            value={selectedBlogId}
+            onChange={setSelectedBlogId}
+            placeholder="블로그를 선택하세요"
+            loading={loading}
+            options={blogList.map(blog => ({ label: `${blog.name}(${blog.id})`, value: blog.id }))}
+            allowClear
+          />
+        </Form.Item>
         <Form.Item>
           <Space>
             <Button type="primary" onClick={handleSaveSettings} loading={saving}>

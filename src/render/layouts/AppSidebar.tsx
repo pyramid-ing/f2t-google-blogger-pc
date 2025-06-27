@@ -150,11 +150,6 @@ const AppSidebar: React.FC = () => {
             label: <NavLink to="/">대시보드</NavLink>,
           },
           {
-            key: '2',
-            icon: <UnorderedListOutlined />,
-            label: <NavLink to="/scheduled-posts">작업 관리</NavLink>,
-          },
-          {
             key: '3',
             icon: <SettingOutlined />,
             label: <NavLink to="/settings">설정</NavLink>,
