@@ -1,5 +1,5 @@
 import { Tabs, Button, Input, Upload, message } from 'antd'
-import React from 'react'
+import React, { useState } from 'react'
 import { UploadOutlined } from '@ant-design/icons'
 import { findTopics, registerWorkflow } from '../../api'
 import { saveAs } from 'file-saver'
@@ -47,14 +47,18 @@ const TopicExtraction: React.FC = () => {
 }
 
 const Posting: React.FC = () => {
-  const [file, setFile] = React.useState<File | null>(null)
+  const [file, setFile] = useState<File | null>(null)
+  const [isPosting, setIsPosting] = useState(false)
 
   const handleFileUpload = async (file: File) => {
+    setIsPosting(true)
     try {
       const response = await registerWorkflow(file)
       console.log('Upload successful:', response)
     } catch (error) {
       console.error('Error uploading the file:', error)
+    } finally {
+      setIsPosting(false)
     }
   }
 
@@ -77,8 +81,8 @@ const Posting: React.FC = () => {
       >
         <Button icon={<UploadOutlined />}>엑셀 파일 선택</Button>
       </Upload>
-      <Button type="primary" style={{ marginTop: 16 }} onClick={handleStartPosting}>
-        포스팅 시작
+      <Button type="primary" style={{ marginTop: 16 }} onClick={handleStartPosting} loading={isPosting}>
+        {isPosting ? '포스팅 중...' : '포스팅 시작'}
       </Button>
     </div>
   )
