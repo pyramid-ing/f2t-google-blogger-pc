@@ -50,4 +50,11 @@ export class TopicService {
       throw new Error(`OpenAI API 오류: ${error.message}`)
     }
   }
+
+  /**
+   * Combine HTML sections into a single HTML string
+   */
+  combineHtmlSections(blogPostHtml: BlogPostHtml): string {
+    return blogPostHtml.sections.map(section => section.html).join('\n')
+  }
 }

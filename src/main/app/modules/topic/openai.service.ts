@@ -158,7 +158,7 @@ export class OpenAiService {
 
     try {
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4o',
         messages: [
           {
             role: 'system',
@@ -169,6 +169,7 @@ export class OpenAiService {
             content: `${JSON.stringify(blogOutline)}`,
           },
         ],
+        temperature: 0.7,
         response_format: {
           type: 'json_schema',
           json_schema: {

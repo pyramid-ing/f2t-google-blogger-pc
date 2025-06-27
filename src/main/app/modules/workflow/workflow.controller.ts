@@ -108,7 +108,12 @@ export class WorkflowController {
 
         // 4. 포스팅 내용 구체적으로 만들기
         const detailedContent = await this.topicService.generatePostingContentsWithOpenAI(blogOutline)
-        console.log(detailedContent)
+
+        // TODO 여기에 detailedContent.sections를 loop 돌려서 이미지, 영상등 후처리
+
+        // 5. HTML로 합치기
+        const combinedHtml = this.topicService.combineHtmlSections(detailedContent)
+        console.log(combinedHtml)
       }
 
       res.status(201).send('워크플로우 등록 완료')

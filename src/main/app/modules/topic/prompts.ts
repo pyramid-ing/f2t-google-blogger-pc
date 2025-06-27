@@ -90,64 +90,61 @@ CTA(Call To Action) 또는 실용적인 조언을 자연스럽게 포함
 export const postingContentsPrompt = `
 너는 Tailwind + DaisyUI 기반 블로그 포스팅을 자동 생성하는 도우미야.
 
-입력으로 blogOutline으로 sections들 요약본을 받을건데, 이걸 기반으로 포스팅 가능한 html로 만들어줘야해. 
+입력으로는 하나의 배열이 주어지며, 각 객체는 블로그의 '한 섹션'을 의미해. 배열의 각 객체는 다음과 같은 속성으로 구성되어 있어:
 
-→ 이 주제를 기반으로 위 컴포넌트를 조합하여 HTML을 구성하고, 반드시 아래 구조에 맞는 JSON 형식으로 출력해줘:
-{
-  "sections": [
-    { "html": "<div class='alert alert-info'>...</div>" },
-    { "html": "<div class='card'>...</div>" },
-    ...
-  ]
-}
+- index: 숫자. 이 섹션의 순서 (0부터 시작)
+- title: 섹션 제목. 이 제목이 h2 또는 h3로 쓰여야 해.
+- summary: 이 섹션에서 다룰 내용의 요약 설명. 여기에 포함된 내용을 SEO 친화적인 방식으로 풀어서 본문 HTML을 구성해야 해.
+- length: 예상되는 본문의 글자 수. 예: '250자'. 이 길이에 맞춰 작성하되 너무 짧거나 단순 요약이 아닌 블로그 글처럼 풍부하게 구성해.
+
+## 글작성 주요요소(문체, 톤, 대상 독자등)
+1. 톤(Tone): 따뜻하고 친절하며 신뢰감 있는 말투로, 독자에게 도움을 주고자 하는 느낌을 전달해주세요.
+2. 스타일(Style): 설명 중심으로 구성하되, 실제 사례나 경험담을 포함한 인용문(blockquote)을 중간중간 삽입해주세요. 목록(ul, ol)도 적극 활용해 가독성을 높여주세요.
+3. 구성(Structure): \`h2\`로 큰 주제 구분, \`h3\`로 세부 항목 구분, \`p\`는 본문 설명, \`ul\`/\`ol\`은 항목 정리, \`blockquote\`는 독자의 공감을 유도하는 인용문으로 구성해주세요.
+4. 대상 독자(Target audience): 해당 컨텐츠를 주로 접하는 타겟을 직접 유추해서 작성해주세요
+5. 문체(Formality): 존댓말 기반의 부드럽고 자연스러운 구어체. 2인칭(여러분, 당신)을 적절히 사용하며, 정보 전달과 정서적 공감을 함께 담아주세요.
+6. 시각적 포인트: 각 섹션 제목에 이모지는 빼주세요.
 
 ## 작성 규칙:
 
-1. 각 콘텐츠는 정해진 컴포넌트 양식에 맞춰 HTML 블록으로 출력해야 해.
-2. 아래 제공된 컴포넌트 형식을 참고하여 내용을 적절히 변환해줘.
-3. **내용만 주어지면**, 자동으로 HTML 블록으로 변환해줘.
-4. 설명이나 텍스트 없이 **순수 HTML 코드만 출력**해야 해.
+1. 블로그 본문처럼 친절하고 풍성하게 구성해줘. 단순 요약이 아니라, 예시·비유·설명·공감가는 문장을 활용해 독자가 글에 몰입할 수 있도록 써줘.
+2. 각 섹션은 title을 \`h2\` 또는 \`h3\`로 표현하고, 그 아래에 \`p\`, \`ul\`, \`blockquote\` 등을 적절히 조합해서 풍성하게 만들어줘.
+3. 실제 출력은 아래 JSON 구조로 해줘.
+4. 구성에 대한 예시도 아래 예시를 참고해줘. 
+예시
+{
+  "sections": [
+    {
+      "html": "<p>우리 사회는 고령화가 빠르게 진행되면서 어르신 돌봄의 중요성이 커지고 있어요. 이에 따라 요양보호사라는 직업에 대한관심도 높아지고 있죠. 이 글에서는 요양보호사 자격증을 어떻게 취득하고, 어떤 일을 하며, 어떻게 취업할 수 있는지 모든 과정을 자세히 알려드릴게요. 요양보호사를 꿈꾸는 분들께 꼭 필요한 정보가될 거예요.</p>"
+    },
+    {
+      "html": "<h2> 📋 요양보호사, 왜 필요할까요?</h2><p><img alt=\\"📌 마무리\\" loading=\\"lazy\\" src=\\"https://po.blomi.kr/api/files/pbc_1943230434/u8s1b4r528xbz48/blomi_generated_1749455949941_0_d3s9afwp31.png\\"/>\\n</p><p>요양보호사는 초고령 사회에 꼭 필요한 전문가예요.</p><h3>필요성과 역할</h3><ul>\\n<li><strong>돌봄 수요 증가</strong>: 고령화로 인해 어르신 돌봄 인력이 엄청나게 필요해지고 있어요.</li>\\n<li><strong>삶의 질 향상</strong>: 식사, 세면 등 기본적인 돌봄부터 외출 동행까지, 어르신들의 편안한 일상을 지원해요.</li>\\n<li><strong>정서적 안정 제공</strong>: 말벗이 되어드리고 이야기를 들어주며 어르신들께 긍정적인 에너지를 전달하는 중요한 역할을 해요.</li>\\n</ul><blockquote>\\n<p>실제로 주변에서 요양보호사님 덕분에 부모님이 훨씬 밝아지셨다는 이야기를 자주 들어요. 단순한 돌봄을 넘어 정서적    지지가 정말 중요하더라고요.</p>\\n</blockquote><p>요양보호사는 어르신들의 삶에 깊이 관여하며 긍정적인 변화를 이끌어내는 사회에 꼭 필요한 존재입니다.</p>"
+    },
+    {
+      "html": "<h2>💼 어떤 일을 하고 어디서 일할까요?\\n</h2><img alt=\\"💼 어떤 일을 하고 어디서 일할까요?\\" loading=\\"lazy\\" src=\\"https://po.blomi.kr/api/files/pbc_1943230434/18yfkr678dg7wo1/blomi_generated_1749455945643_0_r3mq5gu784.png\\"/><p>요양보호사는 어르신들의 편안한 일상과 정서적 안정을 책임져요.</p><h3>주요 업무 내용</h3><ul>\\n<li><strong>신체 활동 지원</strong>: 식사, 세면, 옷 입기, 이동 등 일상생활에 필요한 도움을 드려요.</li>\\n<li><strong>가사 및 일상생활 지원</strong>: 청소, 세탁, 장보기 등 어르신 댁에서 필요한 일을 도와드려요.</li>\\n<li><strong>정서 지원</strong>: 말벗이 되어드리고 격려하며 심리적인 안정감을 제공해요.</li>\\n<li><strong>치매 관리 지원</strong>: 치매 어르신의 행동 변화에 대처하고 안전을 관리해요.</li>\\n</ul><h3>주요 근무 환경</h3><ul>\\n<li><strong>요양원</strong>: 입소 어르신 대상 24시간 케어를 제공해요.</li>\\n<li><strong>재가요양센터</strong>: 어르신 댁을 방문하여 맞춤형 서비스를 제공하며, 시간/장소 선택이 비교적 자유로워요.</li>\\n<li><strong>주간보호센터</strong>: 낮 시간 동안 어르신들을 돌보고 다양한 프로그램을 제공해요.</li>\\n<li><strong>복지관/병원</strong>: 공공 돌봄이나 병원 내 요양 서비스 인력으로 활동하기도 해요.</li>\\n</ul><blockquote>\\n<p>제가 아는 요양보호사님은 방문요양을 하시는데, 어르신과 깊은 유대감을 형성하며 일하는 것에 큰 보람을 느끼신다고    해요.</p>\\n</blockquote><p>요양보호사는 다양한 환경에서 어르신들의 삶의 질을 높이는 데 기여합니다.</p>"
+    },
+    {
+      "html": "<h2>📝 자격증 취득 절차, 한눈에 보기\\n</h2><img alt=\\"📝 자격증 취득 절차, 한눈에 보기\\" loading=\\"lazy\\" src=\\"https://po.blomi.kr/api/files/pbc_1943230434/fz73yj03t8lppq2/blomi_generated_1749455945825_0_jlp3hg7og0.png\\"/><p><strong>요양보호사 자격증</strong>은 정해진 절차를 따라 취득할 수 있어요.</p><p>\\n<a href=\\"https://www.kuksiwon.or.kr\\">한국보건의료인국가시험원 바로가기</a>\\n</p><h3>취득 단계별 안내</h3><ol>\\n<li><strong>교육기관 선택 및 등록</strong>: 보건복지부 지정 <strong>요양보호사 교육기관</strong>을 선택하고 등록해요. (시·군·구청,    보건소, 인터넷 검색 활용)</li>\\n<li><strong>교육 과정 이수</strong>: 이론, 실기, 현장실습을 포함한 총 교육 시간을 이수해요. (출석률 80% 이상 필수)</li>\\n<li><strong>국가시험 응시</strong>: 교육 수료 후 한국보건의료인국가시험원(국시원) 주관 <strong>요양보호사 시험</strong>에 응시해요.    (CBT 방식, 필기/실기)</li>\\n<li><strong>자격증 발급 신청</strong>: 시험 합격 후 국시원 홈페이지에서 온라인으로 자격증 발급을 신청해요. (필요 서류 제출)</li>\\n</ol><blockquote>\\n<p>처음 교육기관을 고를 때 집에서 가까운 곳이 최고라고 생각했는데, 커리큘럼이나 강사님 후기도 꼭 확인하는 게    좋더라고요.</p>\\n</blockquote><p>이 과정을 거치면 요양보호사로서 활동할 수 있는 정식 자격을 얻게 됩니다.</p>"
+    },
+    {
+      "html": "<h2>💡 교육 과정과 국비 지원 활용법</h2><img alt=\\"💡 교육 과정과 국비 지원 활용법\\" loading=\\"lazy\\" src=\\"https://po.blomi.kr/api/files/pbc_1943230434/q312o13p4w13m7q/blomi_generated_1749455946810_0_zb3q6zttan.png\\"/><p><strong>요양보호사 교육</strong>은 <strong>국비 지원</strong>을 통해 부담 없이 받을 수있어요.</p><p>\\n<a href=\\"https://www.hrd.go.kr\\">HRD-Net 바로가기</a>\\n</p><h3>교육 과정 개요</h3><ul>\\n<li><strong>교육기관</strong>: 보건복지부 인가 교육기관에서 이수해야 해요.</li>\\n<li><strong>교육 시간</strong>: 일반 과정은 총 240~320시간, 단축 과정(간호사, 사회복지사 등)은 40~50시간이에요.</li>\\n<li><strong>구성</strong>: 이론, 실기, 실습으로 이루어져 있어요.</li>\\n</ul><h3>국비 지원 정보</h3><ul>\\n<li><strong>지원 제도</strong>: 국민내일배움카드를 통해 교육비 지원을 받을 수 있어요.</li>\\n<li><strong>지원 금액</strong>: 최대 300만 원 이상 지원 가능하며, 소득/고용 상태에 따라 자비 부담률이 달라져요. (전액 지원 사례도 있음)</li>\\n<li><strong>신청 방법</strong>: HRD-Net 홈페이지 또는 고용노동부 상담을 통해 신청해요.</li>\\n<li><strong>60세 이상</strong>: 지자체, 복지관, 고용노동부 등에서 제공하는 무료/국비 교육 활용이 가능해요.</li>\\n</ul><blockquote>\\n<p>저는 국민내일배움카드를 활용해서 교육비 부담을 크게 줄였어요. 생각보다 신청 과정이 어렵지 않으니 꼭    알아보세요!</p>\\n</blockquote><p><strong>국비 지원</strong>을 잘 활용하면 전문적인 교육을 경제적으로 이수할 수 있습니다.</p>"
+    },
+    {
+      "html": "<h2>📊 시험 구성과 합격 기준은?\\n</h2><img alt=\\"📊 시험 구성과 합격 기준은?\\" loading=\\"lazy\\" src=\\"https://po.blomi.kr/api/files/pbc_1943230434/15194vgjx3auwhg/blomi_generated_1749455948442_0_wfgi5jwjia.png\\"/><p><strong>요양보호사 시험</strong>은 필기/실기 모두 기준 점수를 넘어야 합격해요.</p><p>\\n<a href=\\"https://www.kuksiwon.or.kr\\">요양보호사 시험 정보 확인하기</a>\\n</p><h3>시험 구성</h3><ul>\\n<li><strong>필기 시험</strong>: 총 35문항으로 이론 내용을 평가해요.</li>\\n<li><strong>실기 시험</strong>: 총 45문항으로 현장 기술을 평가해요.</li>\\n<li><strong>방식</strong>: 컴퓨터 기반 시험(CBT)으로 진행돼요.</li>\\n<li><strong>응시</strong>: 전국 9개 시험센터에서 상시 응시 가능해요. (국시원 홈페이지 접수)</li>\\n</ul><h3>합격 기준</h3><ul>\\n<li><strong>필기</strong>: 60점 이상 득점해야 해요.</li>\\n<li><strong>실기</strong>: 60점 이상 득점해야 해요.</li>\\n<li><strong>최종 합격</strong>: 필기, 실기 모두 60점 이상 받아야 해요. (과락 기준)</li>\\n</ul><blockquote>\\n<p>처음 CBT 시험이라 긴장했는데, 미리 국시원 모의고사를 풀어보니 훨씬 익숙해져서 도움이 많이 됐어요.</p>\\n</blockquote><p>꾸준히 준비하면 충분히 합격할 수 있는 시험이에요. 최근 합격률은 80% 후반대입니다.</p>"
+    },
+    {
+      "html": "<h2>📚 시험 준비, 이렇게 해보세요!</h2><img alt=\\"📚 시험 준비, 이렇게 해보세요!\\" loading=\\"lazy\\" src=\\"https://po.blomi.kr/api/files/pbc_1943230434/6120405zf61bi26/blomi_generated_1749455946664_0_gh9rse9wt0.png\\"/><p>체계적인 준비로 <strong>요양보호사 시험</strong> 합격률을 높일 수 있어요.</p><h3>효과적인 시험 준비 방법</h3><ol>\\n<li><strong>교재 정독 및 요약</strong>: 이론 내용을 꼼꼼히 읽고 핵심 내용을 자신만의 언어로 정리해요.</li>\\n<li><strong>기출문제 반복 풀이</strong>: 최근 3년간 기출문제를 풀어보며 문제 유형과 해결 능력을 키워요.</li>\\n<li><strong>CBT 모의고사 활용</strong>: 국시원 제공 모의고사를 통해 실제 시험 환경에 익숙해지고 시간 관리 연습을 해요.</li>\\n<li><strong>스터디 그룹 활용</strong>: 함께 공부하며 서로 동기 부여하고 어려운 부분을 해결해요.</li>\\n<li><strong>실기 대비 철저</strong>: 교육원 강사님 팁을 활용하고, ‘벗건입마’ 같은 암기법으로 어려운 부분을 익혀요.</li>\\n<li><strong>시험 당일 준비</strong>: 시험장 위치를 미리 확인하고, 응시표 출력 및 응시 수수료(32,000원) 결제를 잊지 마세요.</li>\\n</ol><blockquote>\\n<p>저는 ‘벗건입마’ 같은 암기법 덕분에 실기 시험에서 헷갈리지 않고 문제를 잘 풀 수 있었어요. 작은 팁이 정말    유용하더라고요.</p>\\n</blockquote><p>꾸준함과 전략적인 접근이 합격의 열쇠입니다.</p>"
+    },
+    {
+      "html": "<h2>🌱 요양보호사, 미래 전망은?</h2><img alt=\\"🌱 요양보호사, 미래 전망은?\\" loading=\\"lazy\\" src=\\"https://po.blomi.kr/api/files/pbc_1943230434/90ej7k17o8e1s1y/blomi_generated_1749455945735_0_vodhdga1s0.png\\"/><p>요양보호사는 안정적이고 보람 있는 미래 유망 직업이에요.</p><p>\\n<a href=\\"https://www.work.go.kr\\">워크넷에서 요양보호사 일자리 찾기</a>\\n</p><h3>밝은 취업 전망</h3><ul>\\n<li><strong>수요 증가</strong>: 고령화 및 정부 돌봄 예산 증가로 인력 수요가 꾸준히 늘고 있어요.</li>\\n<li><strong>다양한 근무지</strong>: 요양원, 재가요양센터, 주간보호센터 등 선택의 폭이 넓어요.</li>\\n<li><strong>유연한 근무</strong>: 특히 재가요양은 시간/지역 조절이 비교적 자유로워요.</li>\\n</ul><h3>직업의 장점</h3><ul>\\n<li><strong>정년 걱정 없음</strong>: 50대, 60대 신규 채용 비율이 높고 오래 일할 수 있어요.</li>\\n<li><strong>창업 가능</strong>: 경력을 쌓아 방문요양센터 등을 직접 운영할 수도 있어요.</li>\\n<li><strong>안정적 수입</strong>: 평균 월 180~220만 원 선이며, 방문요양은 활동량에 따라 수입 증가 가능성이 있어요.</li>\\n<li><strong>높은 보람</strong>: 어르신들의 행복에 기여하며 큰 만족감을 느낄 수 있어요.</li>\\n</ul><blockquote>\\n<p>주변에 요양보호사로 일하시는 분들을 보면, 수입도 안정적이지만 무엇보다 어르신들과의 관계에서 오는 보람을 가장    큰 장점으로 꼽으시더라고요.</p>\\n</blockquote><p>사람을 좋아하는 마음과 책임감만 있다면, 요양보호사는 정말 매력적인 직업이 될 수 있어요.</p>"
+    },
+    {
+      "html": "<h2>📌 마무리</h2><p>\\n<span>지금까지 <span>요양보호사 자격증 취득</span>부터 <span>요양보호사 취업</span>까지의 모든 과정을 자세히 살펴보았어요.</span><span> </span><span><span>요양보호사는 우리 사회의 중요한 구성원으로서 어르신들의 삶에 긍정적인 변화를 가져오는 보람 있는 직업입니다. 자격증 취득 과정이 체계적으로 마련되어 있고, 국비 지원 등 다양한 지원 제도를 활용할 수 있으며, 안정적인 취업 전망까지 갖추고 있죠. 어르신을 향한 따뜻한 마음과 봉사 정신이 있다면, 요양보호사라는 멋진 길에 도전해보세요.</span></span>\\n</p>"
+    },
+    {
+      "html": "<h2>자주 묻는 질문</h2><div class=\\"chat-screen\\">\\n<!-- 질문 (내 메시지) -->\\n<div class=\\"chat-line chat-right\\">\\n<div>\\n<h3 class=\\"chat-bubble chat-bubble-right\\">            요양보호사 자격증은 어떻게 취득하나요?        </h3>\\n</div>\\n</div>\\n<!-- 답변 (상대 메시지) -->\\n<div class=\\"chat-line chat-left\\">\\n<div>\\n<p class=\\"chat-bubble chat-bubble-left\\">            보건복지부 지정 교육기관에서 이론, 실기, 실습 교육을 이수한 후, 한국보건의료인국가시험원에서 시행하는 국가시험에 합격하면 자격증을 발급받을 수 있습니다.        </p>\\n</div>\\n</div>\\n<!-- 질문 -->\\n<div class=\\"chat-line chat-right\\">\\n<div>\\n<h3 class=\\"chat-bubble chat-bubble-right\\">            요양보호사 교육 시간은 얼마나 되나요?        </h3>\\n</div>\\n</div>\\n<!-- 답변 -->\\n<div class=\\"chat-line chat-left\\">\\n<div>\\n<p class=\\"chat-bubble chat-bubble-left\\">            일반 과정은 총 240시간에서 320시간의 교육을 이수해야 합니다. 간호사나 사회복지사 자격증 소지자는 단축 과정(40~50시간) 이수가 가능합니다.        </p>\\n</div>\\n</div>\\n<!-- 질문 -->\\n<div class=\\"chat-line chat-right\\">\\n<div>\\n<h3 class=\\"chat-bubble chat-bubble-right\\">            요양보호사 시험은 어떻게 구성되어 있나요?        </h3>\\n</div>\\n</div>\\n<!-- 답변 -->\\n<div class=\\"chat-line chat-left\\">\\n<div>\\n<p class=\\"chat-bubble chat-bubble-left\\">            요양보호사 시험은 필기시험(35문항)과 실기시험(45문항)으로 구성되어 있으며, 두 과목 모두 100점 만점에 60점 이상을 받아야 합격입니다.        </p>\\n</div>\\n</div>\\n<!-- 질문 -->\\n<div class=\\"chat-line chat-right\\">\\n<div>\\n<h3 class=\\"chat-bubble chat-bubble-right\\">            요양보호사 교육 비용을 지원받을 수 있나요?        </h3>\\n</div>\\n</div>\\n<!-- 답변 -->\\n<div class=\\"chat-line chat-left\\">\\n<div>\\n<p class=\\"chat-bubble chat-bubble-left\\">            네, 국민내일배움카드를 발급받으면 국비 지원을 통해 교육비 부담을 크게 줄일 수 있습니다. 소득 수준이나 고용 상태에 따라 지원 금액은 달라질 수 있습니다.        </p>\\n</div>\\n</div>\\n<!-- 질문 -->\\n<div class=\\"chat-line chat-right\\">\\n<div>\\n<h3 class=\\"chat-bubble chat-bubble-right\\">            요양보호사 취업 전망은 어떤가요?        </h3>\\n</div>\\n</div>\\n<!-- 답변 -->\\n<div class=\\"chat-line chat-left\\">\\n<div>\\n<p class=\\"chat-bubble chat-bubble-left\\">            고령화 사회로 요양 인력 수요가 꾸준히 증가하고 있어 취업 전망이 밝습니다. 요양원, 재가요양센터 등 다양한 곳에서 근무할 수 있으며, 정년 없이 오래 일할 수 있다는            장점이 있습니다.        </p>\\n</div>\\n</div>\\n</div>"
+    }
+  ]
+}
 
-## HTML 컴포넌트 양식:
-
-### ✅ 주요내용 (알림 컴포넌트)
-<div class="alert alert-[info|success|warning|error] mt-4">
-  <div>
-    <span>[내용]</span>
-  </div>
-</div>
-✅ 링크 버튼
-<button class="btn btn-[primary|secondary|accent|ghost|link]">[링크 이름]</button>
-✅ 카드 (요약 또는 소개용)
-<div class="card w-96 bg-base-100 shadow-xl mt-4 bg-blue-500">
-  <div class="card-body">
-    <h2 class="card-title">[제목]</h2>
-    <p>[내용]</p>
-    <div class="card-actions justify-end">
-      <button class="btn btn-primary">[버튼1]</button>
-      <button class="btn btn-secondary">[버튼2]</button>
-    </div>
-  </div>
-</div>
-✅ 인용문
-<blockquote style="background-color: #f9fafb; border-left: 3px solid rgb(156, 163, 175); color: #555555; font-family: 'Noto Sans KR', sans-serif; font-size: 0.95em; margin: 1.5em 0px; padding: 0.8em 1em;">
-  <p style="color: #374151; font-family: 'Noto Sans KR', sans-serif; line-height: 1.7; margin-bottom: 16px;">[인용문 내용]</p>
-</blockquote>
-✅ 표
-<table class="table table-zebra w-full mt-4">
-  <thead><tr><th>항목</th><th>내용</th></tr></thead>
-  <tbody>
-    <tr><td>[항목1]</td><td>[내용1]</td></tr>
-    <tr><td>[항목2]</td><td>[내용2]</td></tr>
-  </tbody>
-</table>
-✅ 리스트
-<ul class="list-disc pl-6 mt-4">
-  <li>[항목1]</li>
-  <li>[항목2]</li>
-</ul>
-출력 방식:
-위 HTML 컴포넌트 중 상황에 맞는 것을 조합해 블로그용 HTML 콘텐츠로 출력해줘.
-
-순수 HTML만 출력하고, 설명은 생략해줘.
 `
