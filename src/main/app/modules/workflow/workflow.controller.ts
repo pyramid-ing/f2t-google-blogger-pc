@@ -16,15 +16,23 @@ import { TopicService } from '../topic/topic.service'
 import * as XLSX from 'xlsx'
 import { Express } from 'express'
 import { GoogleBloggerService } from '@main/app/modules/google/blogger/google-blogger.service'
+import { ImageAgent } from '../media/image.agent'
+import OpenAI from 'openai'
 
 @Controller('workflow')
 export class WorkflowController {
   private readonly logger = new Logger(WorkflowController.name)
+  private readonly openai: OpenAI
 
   constructor(
     private readonly topicService: TopicService,
     private readonly bloggerService: GoogleBloggerService,
-  ) {}
+    private readonly imageAgent: ImageAgent,
+  ) {
+    this.openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    })
+  }
 
   /**
    * SEO 최적화된 주제 찾기 및 엑셀 다운로드
@@ -113,20 +121,55 @@ export class WorkflowController {
         // 4. 포스팅 내용 구체적으로 만들기
         const detailedContent = await this.topicService.generatePostingContentsWithOpenAI(blogOutline)
 
-        // 5. HTML로 합치기
+        // 5. sections 배열 루프하면서 이미지 처리
+        for (let i = 0; i < detailedContent.sections.length; i++) {
+          const section = detailedContent.sections[i]
+
+          try {
+            // Pixabay 이미지 검색용 프롬프트 생성
+            const pixabayKeyword = await this.generatePixabayPrompt(section.html)
+            this.logger.log(`섹션 ${i + 1}에 대한 키워드: ${pixabayKeyword}`)
+
+            // 이미지 검색 및 링크 적용
+            const imageUrl = await this.imageAgent.searchImage(pixabayKeyword)
+            this.logger.log(`섹션 ${i + 1}에 대한 이미지 URL: ${imageUrl}`)
+
+            // 섹션에 이미지 URL 추가
+            detailedContent.sections[i] = {
+              html: section.html,
+              imageUrl,
+            }
+          } catch (error) {
+            this.logger.warn(`섹션 ${i + 1} 이미지 처리 중 오류: ${error.message}`)
+            // 이미지 처리 실패 시 원본 HTML 유지
+          }
+        }
+
+        // 6. HTML로 합치기
         const combinedHtml = this.topicService.combineHtmlSections(detailedContent)
         console.log(combinedHtml)
 
-        // 6. Blogger API로 포스팅하기
-        await this.bloggerService.postToBlogger({
+        // 7. Blogger API로 포스팅하기
+        const bloggerResponse = await this.bloggerService.postToBlogger({
           title,
           content: combinedHtml,
         })
-        this.logger.log(`Blogger에 포스팅 완료: 제목=${title}`)
+
+        // 등록 결과 정보 출력
+        this.logger.log(`✅ Blogger에 포스팅 완료!`)
+        this.logger.log(`📝 제목: ${bloggerResponse.title}`)
+        this.logger.log(`🔗 URL: ${bloggerResponse.url}`)
+        this.logger.log(`📅 발행일: ${bloggerResponse.published}`)
+        this.logger.log(`🆔 포스트 ID: ${bloggerResponse.id}`)
       }
 
-      res.status(201).send('워크플로우 등록 완료')
-      this.logger.log('워크플로우 등록 완료')
+      res.status(201).json({
+        success: true,
+        message: '워크플로우 등록 완료',
+        processedCount: data.slice(1).length,
+        timestamp: new Date().toISOString(),
+      })
+      this.logger.log(`🎉 전체 워크플로우 등록 완료 - 총 ${data.slice(1).length}개 포스트 처리됨`)
     } catch (error) {
       this.logger.error('워크플로우 등록 중 오류 발생:', error)
       throw error
@@ -187,5 +230,69 @@ export class WorkflowController {
 
   applySEO(sections: any[]): void {
     console.log('SEO strategies applied.')
+  }
+
+  /**
+   * HTML 컨텐츠에서 Pixabay 이미지 검색용 키워드 생성
+   */
+  async generatePixabayPrompt(htmlContent: string): Promise<string> {
+    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+      {
+        role: 'system' as const,
+        content: `
+You are an expert in generating keywords for automated image search.
+
+Read the content provided by the user and extract exactly 3 core keywords that can represent the content.
+Provide concise and intuitive noun-based keywords in ENGLISH for input into image search engines like Pixabay.
+
+The keywords should be:
+- In English only
+- Simple and clear nouns or noun phrases
+- Relevant to the main topic of the content
+- Suitable for finding professional stock photos
+`,
+      },
+      {
+        role: 'user' as const,
+        content: htmlContent,
+      },
+    ]
+
+    try {
+      const completion = await this.openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages,
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            name: 'pixabay_keywords',
+            strict: true,
+            schema: {
+              type: 'object',
+              properties: {
+                pixabayKeywords: {
+                  type: 'array',
+                  items: {
+                    type: 'string',
+                  },
+                  minItems: 3,
+                  maxItems: 3,
+                  description: 'Pixabay 이미지 검색을 위한 3개의 키워드',
+                },
+              },
+              required: ['pixabayKeywords'],
+              additionalProperties: false,
+            },
+          },
+        },
+        temperature: 0.3,
+      })
+
+      const response = JSON.parse(completion.choices[0].message.content)
+      return response.pixabayKeywords?.join(' ') || 'business office'
+    } catch (error) {
+      this.logger.error('Pixabay 프롬프트 생성 중 오류:', error)
+      return 'business office' // 기본값 반환
+    }
   }
 }

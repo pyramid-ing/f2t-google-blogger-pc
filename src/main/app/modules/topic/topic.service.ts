@@ -55,6 +55,14 @@ export class TopicService {
    * Combine HTML sections into a single HTML string
    */
   combineHtmlSections(blogPostHtml: BlogPostHtml): string {
-    return blogPostHtml.sections.map(section => section.html).join('\n')
+    return blogPostHtml.sections
+      .map(section => {
+        let html = section.html
+        if (section.imageUrl) {
+          html += `\n<img src="${section.imageUrl}" alt="section image" style="width: 100%; height: auto; margin: 10px 0;" />`
+        }
+        return html
+      })
+      .join('\n')
   }
 }
