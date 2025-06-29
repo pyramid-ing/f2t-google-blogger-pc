@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { BlogOutline, BlogPostHtml, OpenAiService, Topic } from './openai.service'
+import { BlogOutline, BlogPostHtml, OpenAiService, Topic } from 'src/main/app/modules/ai/openai.service'
 
 @Injectable()
 export class TopicService {

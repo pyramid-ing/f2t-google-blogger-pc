@@ -3,8 +3,8 @@ import axios from 'axios'
 import { SettingsService } from '../settings/settings.service'
 
 @Injectable()
-export class ImageAgent {
-  private readonly logger = new Logger(ImageAgent.name)
+export class ImagePixabayService {
+  private readonly logger = new Logger(ImagePixabayService.name)
 
   constructor(private readonly settingsService: SettingsService) {}
 

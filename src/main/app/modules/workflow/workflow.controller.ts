@@ -16,7 +16,7 @@ import { TopicService } from '../topic/topic.service'
 import * as XLSX from 'xlsx'
 import { Express } from 'express'
 import { GoogleBloggerService } from '@main/app/modules/google/blogger/google-blogger.service'
-import { ImageAgent } from '../media/image.agent'
+import { ImagePixabayService } from 'src/main/app/modules/media/image-pixabay.service'
 import { SettingsService } from '../settings/settings.service'
 import OpenAI from 'openai'
 
@@ -27,7 +27,7 @@ export class WorkflowController {
   constructor(
     private readonly topicService: TopicService,
     private readonly bloggerService: GoogleBloggerService,
-    private readonly imageAgent: ImageAgent,
+    private readonly imageAgent: ImagePixabayService,
     private readonly settingsService: SettingsService,
   ) {}
 

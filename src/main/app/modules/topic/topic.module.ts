@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common'
 import { TopicService } from './topic.service'
-import { OpenAiService } from './openai.service'
+import { OpenAiService } from 'src/main/app/modules/ai/openai.service'
 import { SettingsModule } from '../settings/settings.module'
 
 @Module({

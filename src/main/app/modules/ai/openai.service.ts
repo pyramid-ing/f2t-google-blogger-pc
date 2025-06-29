@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common'
 import OpenAI from 'openai'
-import { tableOfContentsPrompt, postingContentsPrompt } from './prompts'
-import { SettingsService } from '../settings/settings.service'
+import { tableOfContentsPrompt, postingContentsPrompt } from 'src/main/app/modules/topic/prompts'
+import { SettingsService } from 'src/main/app/modules/settings/settings.service'
 
 export interface Topic {
   title: string

@@ -1,9 +1,8 @@
 import { Module } from '@nestjs/common'
-import { AIService } from './ai.service'
-import { YoutubeAgent } from './youtube.agent'
+import { OpenAiService } from '@main/app/modules/ai/openai.service'
 
 @Module({
-  providers: [AIService, YoutubeAgent],
-  exports: [AIService, YoutubeAgent],
+  providers: [OpenAiService],
+  exports: [OpenAiService],
 })
 export class AIModule {}

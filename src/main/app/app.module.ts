@@ -12,6 +12,7 @@ import { TopicModule } from './modules/topic/topic.module'
 import { WorkflowModule } from './modules/workflow/workflow.module'
 import { PrismaService } from './shared/prisma.service'
 import { GoogleModule } from '@main/app/modules/google/google.module'
+import { AIModule } from '@main/app/modules/ai/ai.module'
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { GoogleModule } from '@main/app/modules/google/google.module'
       isGlobal: true,
     }),
     ScheduleModule.forRoot(),
+    AIModule,
     SettingsModule,
     GoogleModule,
     TopicModule,
