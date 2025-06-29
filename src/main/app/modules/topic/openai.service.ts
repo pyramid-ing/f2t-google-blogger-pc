@@ -21,6 +21,7 @@ export interface BlogOutline {
 export interface BlogPostHtml {
   sections: {
     html: string // HTML content for each section
+    imageUrl?: string // Optional image URL for each section
   }[]
 }
 
@@ -42,7 +43,7 @@ export class OpenAiService {
   async generateSeoTitles(topic: string, limit: number = 3): Promise<Topic[]> {
     this.logger.log(`OpenAI로 주제 "${topic}"에 대해 ${limit}개의 제목을 생성합니다.`)
 
-    const prompt = `
+    const systemPrompt = `
 사용자가 구글과 네이버에서 상위노출을 목표로 블로그 글을 작성할 수 있도록 돕는 것입니다.
 
 제목 최적화 지원:
@@ -50,15 +51,6 @@ export class OpenAiService {
 - 검색 의도를 반영하며, 메인 키워드를 자연스럽게 포함
 - 제목 길이는 모바일 환경에 적합한 20자 미만 유지
 
-주제: ${topic}
-
-응답 형식:
-[
-  {
-    "title": "제목",
-    "content": "제목에 대한 설명"
-  }
-]
 `
 
     try {
@@ -67,19 +59,51 @@ export class OpenAiService {
         messages: [
           {
             role: 'system',
-            content:
-              '당신은 SEO 전문가입니다. 사용자의 주제에 맞는 최적화된 제목을 JSON 형식으로 제안해주세요. 예: { "titles": ["제목1", "제목2", "제목3"] }',
+            content: systemPrompt,
           },
           {
             role: 'user',
-            content: prompt,
+            content: `주제: ${topic}`,
           },
         ],
-        response_format: { type: 'json_object' },
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            name: 'seo_titles',
+            strict: true,
+            schema: {
+              type: 'object',
+              properties: {
+                titles: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      title: {
+                        type: 'string',
+                        description: 'SEO 최적화된 제목',
+                      },
+                      content: {
+                        type: 'string',
+                        description: '제목에 대한 설명',
+                      },
+                    },
+                    required: ['title', 'content'],
+                    additionalProperties: false,
+                  },
+                  minItems: 1,
+                  maxItems: 10,
+                },
+              },
+              required: ['titles'],
+              additionalProperties: false,
+            },
+          },
+        },
       })
 
       const response = JSON.parse(completion.choices[0].message.content)
-      return response.map(item => ({ title: item.title, content: item.content })) || []
+      return response.titles || []
     } catch (error) {
       this.logger.error('OpenAI API 호출 중 오류 발생:', error)
       throw new Error(`OpenAI API 오류: ${error.message}`)
