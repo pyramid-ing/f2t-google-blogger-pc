@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common'
 import OpenAI from 'openai'
 import { tableOfContentsPrompt, postingContentsPrompt } from './prompts'
+import { SettingsService } from '../settings/settings.service'
 
 export interface Topic {
   title: string
@@ -28,12 +29,19 @@ export interface BlogPostHtml {
 @Injectable()
 export class OpenAiService {
   private readonly logger = new Logger(OpenAiService.name)
-  private readonly openai: OpenAI
 
-  constructor() {
-    this.openai = new OpenAI({
-      apiKey:
-        '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',
+  constructor(private readonly settingsService: SettingsService) {}
+
+  private async getOpenAI(): Promise<OpenAI> {
+    const settings = await this.settingsService.getAppSettings()
+    const apiKey = settings.openaiApiKey
+
+    if (!apiKey) {
+      throw new Error('OpenAI API 키가 설정되지 않았습니다. 설정에서 API 키를 입력해주세요.')
+    }
+
+    return new OpenAI({
+      apiKey,
     })
   }
 
@@ -54,7 +62,8 @@ export class OpenAiService {
 `
 
     try {
-      const completion = await this.openai.chat.completions.create({
+      const openai = await this.getOpenAI()
+      const completion = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
           {
@@ -119,7 +128,8 @@ export class OpenAiService {
     const systemPrompt = tableOfContentsPrompt
 
     try {
-      const completion = await this.openai.chat.completions.create({
+      const openai = await this.getOpenAI()
+      const completion = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
           {
@@ -181,7 +191,8 @@ export class OpenAiService {
     const systemPrompt = postingContentsPrompt
 
     try {
-      const completion = await this.openai.chat.completions.create({
+      const openai = await this.getOpenAI()
+      const completion = await openai.chat.completions.create({
         model: 'gpt-4o',
         messages: [
           {

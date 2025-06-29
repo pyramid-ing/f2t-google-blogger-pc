@@ -17,20 +17,30 @@ import * as XLSX from 'xlsx'
 import { Express } from 'express'
 import { GoogleBloggerService } from '@main/app/modules/google/blogger/google-blogger.service'
 import { ImageAgent } from '../media/image.agent'
+import { SettingsService } from '../settings/settings.service'
 import OpenAI from 'openai'
 
 @Controller('workflow')
 export class WorkflowController {
   private readonly logger = new Logger(WorkflowController.name)
-  private readonly openai: OpenAI
 
   constructor(
     private readonly topicService: TopicService,
     private readonly bloggerService: GoogleBloggerService,
     private readonly imageAgent: ImageAgent,
-  ) {
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
+    private readonly settingsService: SettingsService,
+  ) {}
+
+  private async getOpenAI(): Promise<OpenAI> {
+    const settings = await this.settingsService.getAppSettings()
+    const apiKey = settings.openaiApiKey || process.env.OPENAI_API_KEY
+
+    if (!apiKey) {
+      throw new Error('OpenAI API 키가 설정되지 않았습니다. 설정에서 API 키를 입력해주세요.')
+    }
+
+    return new OpenAI({
+      apiKey,
     })
   }
 
@@ -259,7 +269,8 @@ The keywords should be:
     ]
 
     try {
-      const completion = await this.openai.chat.completions.create({
+      const openai = await this.getOpenAI()
+      const completion = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages,
         response_format: {

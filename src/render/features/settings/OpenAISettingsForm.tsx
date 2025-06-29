@@ -1,7 +1,7 @@
 import { Button, Form, Input, message, Alert, Space } from 'antd'
 import { CheckCircleOutlined, LoadingOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
 import React, { useEffect, useState, useCallback } from 'react'
-import { getOpenAIApiKeyFromServer, saveOpenAIApiKeyToServer, validateOpenAIApiKey } from '../../api'
+import { getAppSettingsFromServer, saveAppSettingsToServer, validateOpenAIApiKey } from '../../api'
 
 interface ValidationState {
   status: 'idle' | 'validating' | 'valid' | 'invalid'
@@ -17,7 +17,8 @@ const OpenAISettingsForm: React.FC = () => {
 
   useEffect(() => {
     ;(async () => {
-      const key = await getOpenAIApiKeyFromServer()
+      const settings = await getAppSettingsFromServer()
+      const key = settings.openaiApiKey || ''
       form.setFieldsValue({ openAIApiKey: key })
 
       // 기존 키가 있으면 자동 검증
@@ -86,7 +87,12 @@ const OpenAISettingsForm: React.FC = () => {
         return
       }
 
-      await saveOpenAIApiKeyToServer(values.openAIApiKey)
+      // 현재 설정을 가져와서 openaiApiKey만 업데이트
+      const currentSettings = await getAppSettingsFromServer()
+      await saveAppSettingsToServer({
+        ...currentSettings,
+        openaiApiKey: values.openAIApiKey,
+      })
       message.success('OpenAI API 키가 저장되었습니다.')
     } catch {
       message.error('저장에 실패했습니다.')

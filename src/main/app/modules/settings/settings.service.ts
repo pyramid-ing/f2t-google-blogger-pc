@@ -9,6 +9,13 @@ interface AppSettings {
   oauth2ClientSecret?: string // OAuth2 Client Secret
   oauth2RefreshToken?: string
   bloggerBlogId?: string
+
+  // AI 설정
+  openaiApiKey?: string // OpenAI API 키
+
+  // 이미지 설정
+  imageType?: 'ai' | 'pixabay' // 이미지 생성 방식
+  pixabayApiKey?: string // Pixabay API 키
 }
 
 @Injectable()
