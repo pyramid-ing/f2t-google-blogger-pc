@@ -3,7 +3,7 @@ import React, { useState } from 'react'
 import AppSettingsForm from './AppSettingsForm'
 import GoogleSettingsForm from './GoogleSettingsForm'
 import ImageSettingsForm from './ImageSettingsForm'
-import OpenAISettingsForm from './OpenAISettingsForm'
+import AISettingsForm from './AISettingsForm'
 
 const SettingsTabs: React.FC = () => {
   const [activeTab, setActiveTab] = useState('general')
@@ -31,9 +31,9 @@ const SettingsTabs: React.FC = () => {
           children: <ImageSettingsForm />,
         },
         {
-          key: 'openai',
-          label: 'OpenAI',
-          children: <OpenAISettingsForm />,
+          key: 'ai',
+          label: 'AI',
+          children: <AISettingsForm />,
         },
       ]}
     />

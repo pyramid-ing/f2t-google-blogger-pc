@@ -9,7 +9,7 @@ interface ValidationState {
   model?: string
 }
 
-const OpenAISettingsForm: React.FC = () => {
+const AISettingsForm: React.FC = () => {
   const [form] = Form.useForm()
   const [validation, setValidation] = useState<ValidationState>({ status: 'idle' })
   const [isValidating, setIsValidating] = useState(false)
@@ -18,12 +18,16 @@ const OpenAISettingsForm: React.FC = () => {
   useEffect(() => {
     ;(async () => {
       const settings = await getAppSettingsFromServer()
-      const key = settings.openaiApiKey || ''
-      form.setFieldsValue({ openAIApiKey: key })
+      const openaiKey = settings.openaiApiKey || ''
+      const perplexityKey = settings.perplexityApiKey || ''
+      form.setFieldsValue({
+        openAIApiKey: openaiKey,
+        perplexityApiKey: perplexityKey,
+      })
 
       // 기존 키가 있으면 자동 검증
-      if (key) {
-        await handleValidateKey(key)
+      if (openaiKey) {
+        await handleValidateKey(openaiKey)
       }
     })()
   }, [form])
@@ -79,21 +83,22 @@ const OpenAISettingsForm: React.FC = () => {
     [debounceTimer],
   )
 
-  const onFinish = async (values: { openAIApiKey: string }) => {
+  const onFinish = async (values: { openAIApiKey: string; perplexityApiKey: string }) => {
     try {
       // 저장 전에 한 번 더 검증
       if (validation.status !== 'valid') {
-        message.warning('유효한 API 키를 입력한 후 저장해주세요.')
+        message.warning('유효한 OpenAI API 키를 입력한 후 저장해주세요.')
         return
       }
 
-      // 현재 설정을 가져와서 openaiApiKey만 업데이트
+      // 현재 설정을 가져와서 API 키들 업데이트
       const currentSettings = await getAppSettingsFromServer()
       await saveAppSettingsToServer({
         ...currentSettings,
         openaiApiKey: values.openAIApiKey,
+        perplexityApiKey: values.perplexityApiKey,
       })
-      message.success('OpenAI API 키가 저장되었습니다.')
+      message.success('AI API 키들이 저장되었습니다.')
     } catch {
       message.error('저장에 실패했습니다.')
     }
@@ -172,7 +177,7 @@ const OpenAISettingsForm: React.FC = () => {
 
   return (
     <div>
-      <h3 style={{ marginBottom: '20px', fontSize: '16px', fontWeight: 600 }}>OpenAI 설정</h3>
+      <h3 style={{ marginBottom: '20px', fontSize: '16px', fontWeight: 600 }}>AI</h3>
       <Form form={form} layout="vertical" onFinish={onFinish} style={{ maxWidth: 500 }}>
         <Form.Item
           label="OpenAI API 키"
@@ -185,6 +190,14 @@ const OpenAISettingsForm: React.FC = () => {
 
         {renderValidationStatus()}
 
+        <Form.Item
+          label="Perplexity API 키"
+          name="perplexityApiKey"
+          extra="포스팅에 관련 링크를 추가하기 위한 Perplexity API 키를 입력하세요. (선택사항)"
+        >
+          <Input.Password placeholder="pplx-..." autoComplete="off" />
+        </Form.Item>
+
         <Form.Item style={{ marginTop: 16 }}>
           <Button type="primary" htmlType="submit" disabled={validation.status !== 'valid'}>
             저장
@@ -195,4 +208,4 @@ const OpenAISettingsForm: React.FC = () => {
   )
 }
 
-export default OpenAISettingsForm
+export default AISettingsForm

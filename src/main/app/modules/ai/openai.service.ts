@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common'
 import OpenAI from 'openai'
 import { tableOfContentsPrompt, postingContentsPrompt } from 'src/main/app/modules/topic/prompts'
 import { SettingsService } from 'src/main/app/modules/settings/settings.service'
+import { LinkResult } from './perplexity.service'
 
 export interface Topic {
   title: string
@@ -23,6 +24,7 @@ export interface BlogPostHtml {
   sections: {
     html: string // HTML content for each section
     imageUrl?: string // Optional image URL for each section
+    links?: LinkResult[] // Optional related links for each section
   }[]
 }
 

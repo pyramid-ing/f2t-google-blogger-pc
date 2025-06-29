@@ -12,6 +12,7 @@ interface AppSettings {
 
   // AI 설정
   openaiApiKey?: string // OpenAI API 키
+  perplexityApiKey?: string // Perplexity API 키
 
   // 이미지 설정
   imageType?: 'ai' | 'pixabay' // 이미지 생성 방식

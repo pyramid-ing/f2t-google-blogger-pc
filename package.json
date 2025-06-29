@@ -59,6 +59,7 @@
     "ghost-cursor": "^1.4.1",
     "google-auth-library": "^10.1.0",
     "googleapis": "^150.0.1",
+    "iconv-lite": "^0.6.3",
     "lodash": "^4.17.21",
     "multer": "2.0.1",
     "nest-winston": "^1.10.2",
