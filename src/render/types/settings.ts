@@ -12,6 +12,6 @@ export interface AppSettings {
   perplexityApiKey?: string // Perplexity API 키
 
   // 이미지 설정
-  imageType?: 'ai' | 'pixabay' // 이미지 생성 방식
+  imageType?: 'ai' | 'pixabay' | 'none' // 이미지 생성 방식 (none: 사용안함)
   pixabayApiKey?: string // Pixabay API 키
 }

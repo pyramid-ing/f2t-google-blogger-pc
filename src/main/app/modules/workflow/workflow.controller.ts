@@ -181,17 +181,8 @@ export class WorkflowController {
           let imageUrl: string | undefined
           let links: LinkResult[] = []
 
-          // try {
-          //   // Pixabay 이미지 검색용 프롬프트 생성
-          //   const pixabayKeyword = await this.openAiService.generatePixabayPrompt(section.html)
-          //   this.logger.log(`섹션 ${i + 1}에 대한 키워드: ${pixabayKeyword}`)
-          //
-          //   // 이미지 검색 및 링크 적용
-          //   imageUrl = await this.imageAgent.searchImage(pixabayKeyword)
-          //   this.logger.log(`섹션 ${i + 1}에 대한 이미지 URL: ${imageUrl}`)
-          // } catch (error) {
-          //   this.logger.warn(`섹션 ${i + 1} 이미지 처리 중 오류: ${error.message}`)
-          // }
+          // 이미지 생성 처리
+          imageUrl = await this.generateImageBySettings(section.html, i + 1)
 
           try {
             // Perplexity를 통한 관련 링크 생성
@@ -294,5 +285,50 @@ export class WorkflowController {
 
   applySEO(sections: any[]): void {
     console.log('SEO strategies applied.')
+  }
+
+  /**
+   * 설정에 따라 이미지를 생성하는 함수
+   * @param html - 섹션의 HTML 내용
+   * @param sectionIndex - 섹션 번호
+   * @returns 이미지 URL 또는 undefined
+   */
+  async generateImageBySettings(html: string, sectionIndex: number): Promise<string | undefined> {
+    try {
+      // 현재 이미지 설정 가져오기
+      const settings = await this.settingsService.getAppSettings()
+      const imageType = settings.imageType || 'none'
+
+      switch (imageType) {
+        case 'pixabay':
+          try {
+            // Pixabay 이미지 검색용 프롬프트 생성
+            const pixabayKeyword = await this.openAiService.generatePixabayPrompt(html)
+            this.logger.log(`섹션 ${sectionIndex}에 대한 키워드: ${pixabayKeyword}`)
+
+            // 이미지 검색 및 링크 적용
+            const imageUrl = await this.imageAgent.searchImage(pixabayKeyword)
+            this.logger.log(`섹션 ${sectionIndex}에 대한 이미지 URL: ${imageUrl}`)
+            return imageUrl
+          } catch (error) {
+            this.logger.warn(`섹션 ${sectionIndex} Pixabay 이미지 처리 중 오류: ${error.message}`)
+            return undefined
+          }
+
+        case 'ai':
+          // AI 이미지 생성 로직 (향후 구현)
+          this.logger.log(`섹션 ${sectionIndex}: AI 이미지 생성은 아직 구현되지 않았습니다.`)
+          return undefined
+
+        case 'none':
+        default:
+          // 이미지를 사용하지 않음
+          this.logger.log(`섹션 ${sectionIndex}: 이미지 사용 안함 설정`)
+          return undefined
+      }
+    } catch (error) {
+      this.logger.warn(`섹션 ${sectionIndex} 이미지 처리 중 오류: ${error.message}`)
+      return undefined
+    }
   }
 }

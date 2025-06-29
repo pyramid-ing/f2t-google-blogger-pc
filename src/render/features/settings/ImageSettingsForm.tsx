@@ -65,6 +65,7 @@ const ImageSettingsForm: React.FC = () => {
           <Radio.Group>
             <Radio value="ai">AI 생성</Radio>
             <Radio value="pixabay">Pixabay 검색</Radio>
+            <Radio value="none">사용안함</Radio>
           </Radio.Group>
         </Form.Item>
 
