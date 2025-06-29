@@ -1,10 +1,12 @@
 import { Tabs } from 'antd'
 import React, { useState } from 'react'
 import AppSettingsForm from './AppSettingsForm'
+import GoogleSettingsForm from './GoogleSettingsForm'
+import ImageSettingsForm from './ImageSettingsForm'
 import OpenAISettingsForm from './OpenAISettingsForm'
 
 const SettingsTabs: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('app')
+  const [activeTab, setActiveTab] = useState('general')
 
   return (
     <Tabs
@@ -14,9 +16,19 @@ const SettingsTabs: React.FC = () => {
       size="large"
       items={[
         {
-          key: 'app',
-          label: '앱 설정',
+          key: 'general',
+          label: '일반',
           children: <AppSettingsForm />,
+        },
+        {
+          key: 'google',
+          label: '구글',
+          children: <GoogleSettingsForm />,
+        },
+        {
+          key: 'image',
+          label: '이미지',
+          children: <ImageSettingsForm />,
         },
         {
           key: 'openai',
