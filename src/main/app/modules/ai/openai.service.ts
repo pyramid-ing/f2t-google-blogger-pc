@@ -240,4 +240,69 @@ export class OpenAiService {
       throw new Error(`OpenAI API 오류: ${error.message}`)
     }
   }
+
+  /**
+   * HTML 컨텐츠에서 Pixabay 이미지 검색용 키워드 생성
+   */
+  async generatePixabayPrompt(htmlContent: string): Promise<string> {
+    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+      {
+        role: 'system' as const,
+        content: `
+You are an expert in generating keywords for automated image search.
+
+Read the content provided by the user and extract exactly 3 core keywords that can represent the content.
+Provide concise and intuitive noun-based keywords in ENGLISH for input into image search engines like Pixabay.
+
+The keywords should be:
+- In English only
+- Simple and clear nouns or noun phrases
+- Relevant to the main topic of the content
+- Suitable for finding professional stock photos
+`,
+      },
+      {
+        role: 'user' as const,
+        content: htmlContent,
+      },
+    ]
+
+    try {
+      const openai = await this.getOpenAI()
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages,
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            name: 'pixabay_keywords',
+            strict: true,
+            schema: {
+              type: 'object',
+              properties: {
+                pixabayKeywords: {
+                  type: 'array',
+                  items: {
+                    type: 'string',
+                  },
+                  minItems: 3,
+                  maxItems: 3,
+                  description: 'Pixabay 이미지 검색을 위한 3개의 키워드',
+                },
+              },
+              required: ['pixabayKeywords'],
+              additionalProperties: false,
+            },
+          },
+        },
+        temperature: 0.3,
+      })
+
+      const response = JSON.parse(completion.choices[0].message.content)
+      return response.pixabayKeywords?.join(' ') || 'business office'
+    } catch (error) {
+      this.logger.error('Pixabay 프롬프트 생성 중 오류:', error)
+      return 'business office' // 기본값 반환
+    }
+  }
 }
