@@ -14,4 +14,8 @@ export interface AppSettings {
   // 이미지 설정
   imageType?: 'ai' | 'pixabay' | 'none' // 이미지 생성 방식 (none: 사용안함)
   pixabayApiKey?: string // Pixabay API 키
+
+  // 광고 설정
+  adEnabled?: boolean // 광고 활성화 여부
+  adScript?: string // 광고 스크립트 코드
 }

@@ -175,11 +175,12 @@ export class WorkflowController {
           ],
         }
 
-        // 5. sections 배열 루프하면서 이미지 및 링크 처리
+        // 5. sections 배열 루프하면서 이미지, 링크 및 광고 처리
         for (let i = 0; i < detailedContent.sections.length; i++) {
           const section = detailedContent.sections[i]
           let imageUrl: string | undefined
           let links: LinkResult[] = []
+          let sectionHtml = section.html
 
           // 이미지 생성 처리
           imageUrl = await this.generateImageBySettings(section.html, i + 1)
@@ -192,9 +193,19 @@ export class WorkflowController {
             this.logger.warn(`섹션 ${i + 1} 링크 처리 중 오류: ${error.message}`)
           }
 
-          // 섹션에 이미지 URL과 링크 추가
+          // 광고 스크립트 추가
+          try {
+            const adScript = await this.insertAdScript(section.html, i + 1)
+            if (adScript) {
+              sectionHtml = adScript
+            }
+          } catch (error) {
+            this.logger.warn(`섹션 ${i + 1} 광고 삽입 중 오류: ${error.message}`)
+          }
+
+          // 섹션에 이미지 URL, 링크 및 광고가 추가된 HTML 적용
           detailedContent.sections[i] = {
-            html: section.html,
+            html: sectionHtml,
             imageUrl,
             links,
           }
@@ -329,6 +340,36 @@ export class WorkflowController {
     } catch (error) {
       this.logger.warn(`섹션 ${sectionIndex} 이미지 처리 중 오류: ${error.message}`)
       return undefined
+    }
+  }
+
+  /**
+   * 설정에 따라 광고 스크립트를 삽입하는 함수
+   * @param html - 섹션의 HTML 내용
+   * @param sectionIndex - 섹션 번호
+   * @returns 광고가 삽입된 HTML 또는 undefined
+   */
+  async insertAdScript(html: string, sectionIndex: number): Promise<string | undefined> {
+    try {
+      // 현재 광고 설정 가져오기
+      const settings = await this.settingsService.getAppSettings()
+      const adEnabled = settings.adEnabled || false
+      const adScript = settings.adScript
+
+      // 광고가 비활성화되어 있거나 광고 스크립트가 없으면 원본 HTML 반환
+      if (!adEnabled || !adScript || adScript.trim() === '') {
+        this.logger.log(`섹션 ${sectionIndex}: 광고 삽입 안함 (활성화: ${adEnabled}, 스크립트 존재: ${!!adScript})`)
+        return html
+      }
+
+      // 광고 스크립트를 섹션 끝에 추가
+      const htmlWithAd = `${html}\n\n<div class="ad-section" style="margin: 20px 0; text-align: center;">\n${adScript}\n</div>`
+
+      this.logger.log(`섹션 ${sectionIndex}: 광고 스크립트 삽입 완료`)
+      return htmlWithAd
+    } catch (error) {
+      this.logger.warn(`섹션 ${sectionIndex} 광고 삽입 중 오류: ${error.message}`)
+      return html
     }
   }
 }
