@@ -203,7 +203,7 @@ export class WorkflowController {
             this.logger.warn(`섹션 ${i + 1} 광고 삽입 중 오류: ${error.message}`)
           }
 
-          // 섹션에 이미지 URL, 링크 및 광고가 추가된 HTML 적용
+          // 섹션에 이미지 URL, 링크, 광고가 추가된 HTML 및 AI 이미지 프롬프트 적용
           detailedContent.sections[i] = {
             html: sectionHtml,
             imageUrl,
@@ -327,9 +327,19 @@ export class WorkflowController {
           }
 
         case 'ai':
-          // AI 이미지 생성 로직 (향후 구현)
-          this.logger.log(`섹션 ${sectionIndex}: AI 이미지 생성은 아직 구현되지 않았습니다.`)
-          return undefined
+          try {
+            // HTML 콘텐츠를 분석해서 AI 이미지 프롬프트 생성
+            const aiImagePrompt = await this.openAiService.generateAiImagePrompt(html)
+            this.logger.log(`섹션 ${sectionIndex}에 대한 AI 이미지 프롬프트: ${aiImagePrompt}`)
+
+            // OpenAI DALL-E로 이미지 생성
+            const imageUrl = await this.openAiService.generateImage(aiImagePrompt)
+            this.logger.log(`섹션 ${sectionIndex}에 대한 AI 생성 이미지 URL: ${imageUrl}`)
+            return imageUrl
+          } catch (error) {
+            this.logger.warn(`섹션 ${sectionIndex} AI 이미지 생성 중 오류: ${error.message}`)
+            return undefined
+          }
 
         case 'none':
         default:

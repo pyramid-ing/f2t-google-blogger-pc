@@ -25,6 +25,7 @@ export interface BlogPostHtml {
     html: string // HTML content for each section
     imageUrl?: string // Optional image URL for each section
     links?: LinkResult[] // Optional related links for each section
+    aiImagePrompt?: string // Optional AI image prompt for each section
   }[]
 }
 
@@ -305,6 +306,100 @@ The keywords should be:
     } catch (error) {
       this.logger.error('Pixabay 프롬프트 생성 중 오류:', error)
       return 'business office' // 기본값 반환
+    }
+  }
+
+  /**
+   * HTML 콘텐츠를 분석해서 AI 이미지 생성용 영어 프롬프트 생성
+   */
+  async generateAiImagePrompt(htmlContent: string): Promise<string> {
+    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+      {
+        role: 'system' as const,
+        content: `
+You are an expert in creating detailed image prompts for AI image generation systems like DALL-E.
+
+Read the HTML content provided by the user and create a descriptive English prompt that captures the main theme and visual elements that would best represent the content.
+
+The prompt should be:
+- In English only
+- Descriptive and visual
+- Professional and high-quality style
+- Suitable for blog post illustrations
+- Include relevant objects, scenes, colors, and mood
+- Around 50-100 words maximum
+- Focus on creating visually appealing, stock-photo-like images
+
+Example format: "A professional illustration of [main concept], featuring [visual elements], with [color scheme/mood], high quality, clean background, modern style"
+`,
+      },
+      {
+        role: 'user' as const,
+        content: htmlContent,
+      },
+    ]
+
+    try {
+      const openai = await this.getOpenAI()
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages,
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            name: 'ai_image_prompt',
+            strict: true,
+            schema: {
+              type: 'object',
+              properties: {
+                imagePrompt: {
+                  type: 'string',
+                  description: 'AI 이미지 생성을 위한 영어 프롬프트',
+                },
+              },
+              required: ['imagePrompt'],
+              additionalProperties: false,
+            },
+          },
+        },
+        temperature: 0.7,
+      })
+
+      const response = JSON.parse(completion.choices[0].message.content)
+      return response.imagePrompt || 'A professional business illustration with modern clean style'
+    } catch (error) {
+      this.logger.error('AI 이미지 프롬프트 생성 중 오류:', error)
+      return 'A professional business illustration with modern clean style' // 기본값 반환
+    }
+  }
+
+  /**
+   * OpenAI DALL-E를 사용하여 이미지 생성
+   */
+  async generateImage(prompt: string): Promise<string> {
+    this.logger.log(`OpenAI DALL-E로 이미지 생성: ${prompt}`)
+
+    try {
+      const openai = await this.getOpenAI()
+      const response = await openai.images.generate({
+        model: 'dall-e-3',
+        prompt,
+        n: 1,
+        size: '512x512',
+        quality: 'standard',
+        style: 'natural',
+      })
+
+      const imageUrl = response.data[0]?.url
+      if (!imageUrl) {
+        throw new Error('이미지 URL을 받지 못했습니다.')
+      }
+
+      this.logger.log(`이미지 생성 완료: ${imageUrl}`)
+      return imageUrl
+    } catch (error) {
+      this.logger.error('OpenAI DALL-E 이미지 생성 중 오류:', error)
+      throw new Error(`이미지 생성 오류: ${error.message}`)
     }
   }
 }
