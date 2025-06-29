@@ -61,13 +61,9 @@ export class TopicService {
 
         // 관련 링크 추가 (내용 후, 이미지 전)
         if (section.links && section.links.length > 0) {
-          html +=
-            '\n<div style="margin: 15px 0; padding: 12px; background-color: #f8f9fa; border-left: 4px solid #007bff; border-radius: 4px;">'
-          html += '\n<p style="margin: 0 0 8px 0; font-weight: 600; color: #495057; font-size: 14px;">📚 관련 자료:</p>'
           section.links.forEach(linkResult => {
             html += `\n<a href="${linkResult.link}" target="_blank" rel="noopener noreferrer" style="display: block; margin: 4px 0; color: #007bff; text-decoration: none; font-size: 14px; padding: 2px 0;">🔗 ${linkResult.name}</a>`
           })
-          html += '\n</div>'
         }
 
         // 이미지 추가 (링크 후)
