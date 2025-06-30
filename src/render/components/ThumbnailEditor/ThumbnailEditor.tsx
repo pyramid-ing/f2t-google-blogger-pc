@@ -56,10 +56,12 @@ const BackgroundImage: React.FC<{ imageUrl: string }> = ({ imageUrl }) => {
 const EditableText: React.FC<{
   element: TextElement
   isSelected: boolean
+  isEditing: boolean
   onSelect: () => void
   onTransform: (id: string, attrs: any) => void
+  onDoubleClick: () => void
   fontsLoaded: boolean
-}> = ({ element, isSelected, onSelect, onTransform, fontsLoaded }) => {
+}> = ({ element, isSelected, isEditing, onSelect, onTransform, onDoubleClick, fontsLoaded }) => {
   const textRef = useRef<Konva.Text>(null)
   const transformerRef = useRef<Konva.Transformer>(null)
 
@@ -76,6 +78,12 @@ const EditableText: React.FC<{
     onSelect()
   }
 
+  const handleDoubleClick = (e: any) => {
+    console.log('텍스트 더블클릭됨:', element.id)
+    e.cancelBubble = true // 이벤트 버블링 중단
+    onDoubleClick()
+  }
+
   return (
     <>
       <KonvaText
@@ -87,11 +95,13 @@ const EditableText: React.FC<{
         fontSize={element.fontSize}
         fontFamily={element.fontFamily}
         fill={element.color}
-        opacity={element.opacity}
+        opacity={isEditing ? 0.3 : element.opacity}
         align={element.textAlign}
-        draggable
+        draggable={!isEditing}
         onClick={handleSelect}
         onTap={handleSelect}
+        onDblClick={handleDoubleClick}
+        onDbltap={handleDoubleClick}
         onDragEnd={e => {
           onTransform(element.id, {
             x: e.target.x(),
@@ -178,6 +188,18 @@ const ThumbnailEditor: React.FC<ThumbnailEditorProps> = ({
     snapToGrid: false,
   })
 
+  // 텍스트 인라인 편집 상태
+  const [editingElementId, setEditingElementId] = useState<string | null>(null)
+  const [editingText, setEditingText] = useState<string>('')
+  const [editingPosition, setEditingPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
+
+  // 클립보드 상태
+  const [clipboardElement, setClipboardElement] = useState<TextElement | null>(null)
+
+  // 히스토리 상태 (Undo/Redo)
+  const [history, setHistory] = useState<ThumbnailLayout[]>([])
+  const [historyIndex, setHistoryIndex] = useState<number>(-1)
+
   const fontFamilyOptions = [
     { value: 'BMDOHYEON', label: '배민 도현체' },
     { value: 'NanumGothic', label: '나눔고딕' },
@@ -238,6 +260,14 @@ const ThumbnailEditor: React.FC<ThumbnailEditorProps> = ({
     }
   }, [initialLayout, initialName, initialDescription, isCreatingNew, form])
 
+  // 히스토리 초기값 설정
+  useEffect(() => {
+    if (layout && history.length === 0) {
+      setHistory([{ ...layout }])
+      setHistoryIndex(0)
+    }
+  }, [layout, history.length])
+
   const loadBackgroundImage = async (backgroundImage: string) => {
     if (!backgroundImage) return
 
@@ -284,6 +314,7 @@ const ThumbnailEditor: React.FC<ThumbnailEditorProps> = ({
   // 요소 선택
   const selectElement = useCallback((elementId: string | null) => {
     console.log('선택된 요소 ID:', elementId)
+
     setEditorState(prev => ({
       ...prev,
       selectedElementId: elementId,
@@ -330,8 +361,286 @@ const ThumbnailEditor: React.FC<ThumbnailEditorProps> = ({
     }))
   }, [])
 
+  // 텍스트 편집 시작
+  const startTextEditing = useCallback(
+    (elementId: string) => {
+      // 이미 편집 중이면 이전 편집 완료
+      if (editingElementId && editingElementId !== elementId) {
+        transformElement(editingElementId, { text: editingText })
+      }
+
+      const element = layout.elements.find(el => el.id === elementId)
+      if (element && stageRef.current) {
+        const stage = stageRef.current
+        const stageBox = stage.container().getBoundingClientRect()
+
+        setEditingElementId(elementId)
+        setEditingText(element.text)
+        setEditingPosition({
+          x: stageBox.left + element.x * editorState.zoom + 10,
+          y: stageBox.top + element.y * editorState.zoom + 10,
+        })
+      }
+    },
+    [layout.elements, editorState.zoom, editingElementId, editingText, transformElement],
+  )
+
+  // 텍스트 편집 완료
+  const finishTextEditing = useCallback(() => {
+    if (editingElementId) {
+      transformElement(editingElementId, { text: editingText })
+      setEditingElementId(null)
+      setEditingText('')
+    }
+  }, [editingElementId, editingText, transformElement])
+
+  // 텍스트 편집 취소
+  const cancelTextEditing = useCallback(() => {
+    setEditingElementId(null)
+    setEditingText('')
+  }, [])
+
+  // 히스토리에 현재 상태 추가
+  const addToHistory = useCallback(
+    (newLayout: ThumbnailLayout) => {
+      setHistory(prev => {
+        const newHistory = prev.slice(0, historyIndex + 1)
+        newHistory.push({ ...newLayout })
+        // 히스토리 크기 제한 (최대 50개)
+        if (newHistory.length > 50) {
+          newHistory.shift()
+          return newHistory
+        }
+        return newHistory
+      })
+      setHistoryIndex(prev => Math.min(prev + 1, 49))
+    },
+    [historyIndex],
+  )
+
+  // 실행 취소
+  const undo = useCallback(() => {
+    if (historyIndex > 0) {
+      const prevLayout = history[historyIndex - 1]
+      setLayout(prevLayout)
+      setHistoryIndex(prev => prev - 1)
+      setEditorState(prev => ({ ...prev, selectedElementId: null }))
+    }
+  }, [history, historyIndex])
+
+  // 다시 실행
+  const redo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      const nextLayout = history[historyIndex + 1]
+      setLayout(nextLayout)
+      setHistoryIndex(prev => prev + 1)
+      setEditorState(prev => ({ ...prev, selectedElementId: null }))
+    }
+  }, [history, historyIndex])
+
+  // 요소 복사
+  const copyElement = useCallback(() => {
+    const selectedElement = layout.elements.find(el => el.id === editorState.selectedElementId)
+    if (selectedElement) {
+      setClipboardElement({ ...selectedElement })
+      console.log('요소 복사됨:', selectedElement.text)
+    }
+  }, [layout.elements, editorState.selectedElementId])
+
+  // 요소 붙여넣기
+  const pasteElement = useCallback(() => {
+    if (clipboardElement) {
+      const newElement: TextElement = {
+        ...clipboardElement,
+        id: Date.now().toString(),
+        x: clipboardElement.x + 20, // 약간 오프셋
+        y: clipboardElement.y + 20,
+        zIndex: layout.elements.length + 1,
+      }
+
+      const newLayout = {
+        ...layout,
+        elements: [...layout.elements, newElement],
+        updatedAt: new Date().toISOString(),
+      }
+
+      addToHistory(layout)
+      setLayout(newLayout)
+      setEditorState(prev => ({ ...prev, selectedElementId: newElement.id }))
+      console.log('요소 붙여넣기됨:', newElement.text)
+    }
+  }, [clipboardElement, layout, addToHistory])
+
+  // 요소 복제
+  const duplicateElement = useCallback(() => {
+    const selectedElement = layout.elements.find(el => el.id === editorState.selectedElementId)
+    if (selectedElement) {
+      const newElement: TextElement = {
+        ...selectedElement,
+        id: Date.now().toString(),
+        x: selectedElement.x + 20,
+        y: selectedElement.y + 20,
+        zIndex: layout.elements.length + 1,
+      }
+
+      const newLayout = {
+        ...layout,
+        elements: [...layout.elements, newElement],
+        updatedAt: new Date().toISOString(),
+      }
+
+      addToHistory(layout)
+      setLayout(newLayout)
+      setEditorState(prev => ({ ...prev, selectedElementId: newElement.id }))
+      console.log('요소 복제됨:', newElement.text)
+    }
+  }, [layout, editorState.selectedElementId, addToHistory])
+
+  // 선택된 요소 삭제 (키보드)
+  const deleteSelectedElement = useCallback(() => {
+    if (editorState.selectedElementId && !editingElementId) {
+      addToHistory(layout)
+      deleteElement(editorState.selectedElementId)
+      console.log('요소 삭제됨 (키보드)')
+    }
+  }, [editorState.selectedElementId, editingElementId, layout, addToHistory, deleteElement])
+
+  // 방향키로 요소 이동
+  const moveElement = useCallback(
+    (direction: 'up' | 'down' | 'left' | 'right', distance: number = 5) => {
+      if (editorState.selectedElementId && !editingElementId) {
+        const deltaMap = {
+          up: { x: 0, y: -distance },
+          down: { x: 0, y: distance },
+          left: { x: -distance, y: 0 },
+          right: { x: distance, y: 0 },
+        }
+
+        const delta = deltaMap[direction]
+        const element = layout.elements.find(el => el.id === editorState.selectedElementId)
+
+        if (element) {
+          const newX = Math.max(0, Math.min(1000 - element.width, element.x + delta.x))
+          const newY = Math.max(0, Math.min(1000 - element.height, element.y + delta.y))
+
+          transformElement(editorState.selectedElementId, { x: newX, y: newY })
+        }
+      }
+    },
+    [editorState.selectedElementId, editingElementId, layout.elements, transformElement],
+  )
+
   // 선택된 요소 가져오기
   const selectedElement = layout.elements.find(el => el.id === editorState.selectedElementId)
+
+  // 키보드 이벤트 처리 (모든 함수들이 선언된 후에 배치)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 편집 중이면 키보드 이벤트 무시 (Escape 제외)
+      if (editingElementId && e.key !== 'Escape') {
+        return
+      }
+
+      // Input, TextArea 등에서 입력 중이면 무시
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        return
+      }
+
+      const isCtrl = e.ctrlKey || e.metaKey
+      const isShift = e.shiftKey
+
+      switch (e.key) {
+        case 'Delete':
+        case 'Backspace':
+          e.preventDefault()
+          deleteSelectedElement()
+          break
+
+        case 'c':
+          if (isCtrl) {
+            e.preventDefault()
+            copyElement()
+          }
+          break
+
+        case 'v':
+          if (isCtrl) {
+            e.preventDefault()
+            pasteElement()
+          }
+          break
+
+        case 'd':
+          if (isCtrl) {
+            e.preventDefault()
+            duplicateElement()
+          }
+          break
+
+        case 'z':
+          if (isCtrl && !isShift) {
+            e.preventDefault()
+            undo()
+          } else if (isCtrl && isShift) {
+            e.preventDefault()
+            redo()
+          }
+          break
+
+        case 'y':
+          if (isCtrl) {
+            e.preventDefault()
+            redo()
+          }
+          break
+
+        case 'ArrowUp':
+          e.preventDefault()
+          moveElement('up', isShift ? 1 : 5)
+          break
+
+        case 'ArrowDown':
+          e.preventDefault()
+          moveElement('down', isShift ? 1 : 5)
+          break
+
+        case 'ArrowLeft':
+          e.preventDefault()
+          moveElement('left', isShift ? 1 : 5)
+          break
+
+        case 'ArrowRight':
+          e.preventDefault()
+          moveElement('right', isShift ? 1 : 5)
+          break
+
+        case 'Escape':
+          if (editingElementId) {
+            cancelTextEditing()
+          } else if (editorState.selectedElementId) {
+            setEditorState(prev => ({ ...prev, selectedElementId: null }))
+          }
+          break
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [
+    editingElementId,
+    editorState.selectedElementId,
+    deleteSelectedElement,
+    copyElement,
+    pasteElement,
+    duplicateElement,
+    undo,
+    redo,
+    moveElement,
+    cancelTextEditing,
+  ])
 
   // 배경 이미지 업로드
   const handleBackgroundUpload = async (file: File) => {
@@ -510,7 +819,7 @@ const ThumbnailEditor: React.FC<ThumbnailEditorProps> = ({
         )}
 
         {/* 에디터 설정 */}
-        <Card title="에디터 설정" size="small">
+        <Card title="에디터 설정" size="small" className="mb-4">
           <Space direction="vertical" style={{ width: '100%' }}>
             <div>
               <Text strong>확대/축소</Text>
@@ -532,6 +841,28 @@ const ThumbnailEditor: React.FC<ThumbnailEditorProps> = ({
               격자 {editorState.showGrid ? '숨기기' : '보기'}
             </Button>
           </Space>
+        </Card>
+
+        {/* 키보드 단축키 안내 */}
+        <Card title="키보드 단축키" size="small">
+          <div style={{ fontSize: '11px', color: '#666' }}>
+            <div style={{ marginBottom: '4px' }}>
+              <strong>기본 조작:</strong>
+            </div>
+            <div style={{ marginBottom: '2px' }}>• 더블클릭: 텍스트 편집</div>
+            <div style={{ marginBottom: '2px' }}>• Del/Backspace: 삭제</div>
+            <div style={{ marginBottom: '2px' }}>• 방향키: 이동 (Shift+방향키: 1px씩)</div>
+            <div style={{ marginBottom: '4px' }}>• Esc: 선택 해제</div>
+
+            <div style={{ marginBottom: '4px' }}>
+              <strong>편집:</strong>
+            </div>
+            <div style={{ marginBottom: '2px' }}>• Ctrl+C: 복사</div>
+            <div style={{ marginBottom: '2px' }}>• Ctrl+V: 붙여넣기</div>
+            <div style={{ marginBottom: '2px' }}>• Ctrl+D: 복제</div>
+            <div style={{ marginBottom: '2px' }}>• Ctrl+Z: 실행취소</div>
+            <div style={{ marginBottom: '2px' }}>• Ctrl+Y: 다시실행</div>
+          </div>
         </Card>
       </div>
 
@@ -564,6 +895,12 @@ const ThumbnailEditor: React.FC<ThumbnailEditorProps> = ({
             scaleX={editorState.zoom}
             scaleY={editorState.zoom}
             onClick={e => {
+              // 편집 중이면 편집 완료
+              if (editingElementId) {
+                finishTextEditing()
+                return
+              }
+
               // 텍스트가 아닌 다른 요소를 클릭했을 때 선택 해제
               const targetType = e.target.nodeType || e.target.constructor.name
               if (targetType !== 'Text') {
@@ -581,13 +918,45 @@ const ThumbnailEditor: React.FC<ThumbnailEditorProps> = ({
                   key={element.id}
                   element={element}
                   isSelected={editorState.selectedElementId === element.id}
+                  isEditing={element.id === editingElementId}
                   onSelect={() => selectElement(element.id)}
                   onTransform={transformElement}
+                  onDoubleClick={() => startTextEditing(element.id)}
                   fontsLoaded={fontsLoaded}
                 />
               ))}
             </Layer>
           </Stage>
+
+          {/* 텍스트 인라인 편집 오버레이 */}
+          {editingElementId && (
+            <TextArea
+              value={editingText}
+              onChange={e => setEditingText(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && e.ctrlKey) {
+                  finishTextEditing()
+                } else if (e.key === 'Escape') {
+                  cancelTextEditing()
+                }
+              }}
+              onBlur={finishTextEditing}
+              autoFocus
+              autoSize={{ minRows: 2, maxRows: 6 }}
+              style={{
+                position: 'absolute',
+                left: editingPosition.x,
+                top: editingPosition.y,
+                zIndex: 1000,
+                minWidth: '250px',
+                fontSize: '14px',
+                border: '2px solid #1890ff',
+                borderRadius: '4px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              }}
+              placeholder="텍스트 입력 (템플릿: {{제목}}, {{부제목}})&#10;Ctrl+Enter: 완료, Esc: 취소"
+            />
+          )}
         </div>
       </div>
     </div>
