@@ -16,6 +16,32 @@ export interface ThumbnailOptions {
   fontFamily?: string
 }
 
+interface ThumbnailLayoutElement {
+  id: string
+  type: 'title' | 'subtitle'
+  text: string
+  x: number
+  y: number
+  width: number
+  height: number
+  fontSize: number
+  fontFamily: string
+  color: string
+  textAlign: 'left' | 'center' | 'right'
+  fontWeight: 'normal' | 'bold'
+  opacity: number
+  rotation: number
+  zIndex: number
+}
+
+interface ThumbnailLayoutData {
+  id: string
+  backgroundImage: string
+  elements: ThumbnailLayoutElement[]
+  createdAt: string
+  updatedAt: string
+}
+
 @Injectable()
 export class ThumbnailGeneratorService {
   private readonly logger = new Logger(ThumbnailGeneratorService.name)
@@ -303,5 +329,158 @@ export class ThumbnailGeneratorService {
       this.logger.error(`배경이미지 삭제 실패: ${filePath}`, error)
       return false
     }
+  }
+
+  // 레이아웃 기반 썸네일 생성
+  async generateThumbnailWithLayout(backgroundImagePath: string, layout: ThumbnailLayoutData): Promise<Buffer> {
+    // 사이즈를 1000x1000으로 고정
+    const width = 1000
+    const height = 1000
+
+    const browser = await chromium.launch({
+      headless: true,
+      executablePath: process.env.PLAYWRIGHT_BROWSERS_PATH,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    })
+
+    try {
+      const page = await browser.newPage()
+      await page.setViewportSize({ width, height })
+
+      const html = this.generateLayoutHTML(backgroundImagePath, layout, width, height)
+
+      await page.setContent(html)
+
+      const screenshot = await page.screenshot({
+        type: 'png',
+        clip: {
+          x: 0,
+          y: 0,
+          width,
+          height,
+        },
+      })
+
+      return screenshot
+    } catch (error) {
+      this.logger.error('레이아웃 썸네일 생성 중 오류 발생:', error)
+      throw new Error(`레이아웃 썸네일 생성 실패: ${error.message}`)
+    } finally {
+      await browser.close()
+    }
+  }
+
+  private generateLayoutHTML(
+    backgroundImagePath: string,
+    layout: ThumbnailLayoutData,
+    width: number,
+    height: number,
+  ): string {
+    // 배경 스타일 설정
+    let backgroundStyle = 'background: #4285f4;' // 기본 배경색
+
+    if (backgroundImagePath && fs.existsSync(backgroundImagePath)) {
+      const backgroundImageBase64 = this.convertImageToBase64(backgroundImagePath)
+      backgroundStyle = `
+        background-image: url('data:image/png;base64,${backgroundImageBase64}');
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+      `
+    }
+
+    // 요소들을 z-index 순으로 정렬
+    const sortedElements = [...layout.elements].sort((a, b) => a.zIndex - b.zIndex)
+
+    // 각 요소의 HTML 생성
+    const elementsHTML = sortedElements
+      .map(element => {
+        const justifyContent =
+          element.textAlign === 'left' ? 'flex-start' : element.textAlign === 'right' ? 'flex-end' : 'center'
+
+        return `
+          <div class="text-element" style="
+            position: absolute;
+            left: ${element.x}%;
+            top: ${element.y}%;
+            width: ${element.width}%;
+            height: ${element.height}%;
+            display: flex;
+            align-items: center;
+            justify-content: ${justifyContent};
+            z-index: ${element.zIndex};
+            transform: rotate(${element.rotation}deg);
+          ">
+            <div style="
+              color: ${element.color};
+              font-size: ${element.fontSize}px;
+              font-family: ${element.fontFamily}, 'Nanum Gothic', 'NanumSquare', sans-serif;
+              font-weight: ${element.fontWeight};
+              opacity: ${element.opacity};
+              text-align: ${element.textAlign};
+              word-wrap: break-word;
+              text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+              line-height: 1.2;
+              width: 100%;
+            ">
+              ${this.escapeHtml(element.text)}
+            </div>
+          </div>
+        `
+      })
+      .join('')
+
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    
+    <!-- 한국 폰트 임포트 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <style>
+        @import url('http://fonts.googleapis.com/earlyaccess/nanumgothic.css');
+        @import url('https://cdn.rawgit.com/moonspam/NanumSquare/master/nanumsquare.css');
+        
+        @font-face {
+            font-family: 'BMDOHYEON';
+            src: url('https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_one@1.0/BMDOHYEON.woff') format('woff');
+            font-weight: normal;
+            font-style: normal;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            width: ${width}px;
+            height: ${height}px;
+            ${backgroundStyle}
+            font-family: 'BMDOHYEON', 'Nanum Gothic', 'NanumSquare', sans-serif;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.2);
+            z-index: 1;
+        }
+    </style>
+</head>
+<body>
+    ${backgroundImagePath && fs.existsSync(backgroundImagePath) ? '<div class="overlay"></div>' : ''}
+    ${elementsHTML}
+</body>
+</html>
+    `
   }
 }

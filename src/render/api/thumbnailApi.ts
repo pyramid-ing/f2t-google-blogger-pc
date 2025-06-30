@@ -21,6 +21,38 @@ export interface BackgroundImageInfo {
   base64?: string
 }
 
+export interface ThumbnailLayoutElement {
+  id: string
+  type: 'title' | 'subtitle'
+  text: string
+  x: number
+  y: number
+  width: number
+  height: number
+  fontSize: number
+  fontFamily: string
+  color: string
+  textAlign: 'left' | 'center' | 'right'
+  fontWeight: 'normal' | 'bold'
+  opacity: number
+  rotation: number
+  zIndex: number
+}
+
+export interface ThumbnailLayoutData {
+  id: string
+  backgroundImage: string
+  elements: ThumbnailLayoutElement[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ThumbnailLayoutGenerateRequest {
+  backgroundImageFileName: string
+  layout: ThumbnailLayoutData
+  uploadToGCS?: boolean
+}
+
 export const thumbnailApi = {
   // 썸네일 생성
   generateThumbnail: async (request: GenerateThumbnailRequest): Promise<ThumbnailResponse> => {
@@ -68,6 +100,18 @@ export const thumbnailApi = {
   // 배경이미지 삭제
   deleteBackgroundImage: async (fileName: string): Promise<{ success: boolean; error?: string }> => {
     const response = await api.delete(`/api/thumbnail/background/${fileName}`)
+    return response.data
+  },
+
+  // 레이아웃 기반 썸네일 생성
+  generateThumbnailWithLayout: async (request: ThumbnailLayoutGenerateRequest): Promise<ThumbnailResponse> => {
+    const response = await api.post('/api/thumbnail/layout/generate', request)
+    return response.data
+  },
+
+  // 레이아웃 기반 썸네일 미리보기
+  previewThumbnailWithLayout: async (request: ThumbnailLayoutGenerateRequest): Promise<ThumbnailResponse> => {
+    const response = await api.post('/api/thumbnail/layout/preview', request)
     return response.data
   },
 }

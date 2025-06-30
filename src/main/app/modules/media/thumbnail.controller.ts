@@ -37,6 +37,38 @@ interface BackgroundImageInfo {
   filePath: string
 }
 
+interface ThumbnailLayoutElement {
+  id: string
+  type: 'title' | 'subtitle'
+  text: string
+  x: number
+  y: number
+  width: number
+  height: number
+  fontSize: number
+  fontFamily: string
+  color: string
+  textAlign: 'left' | 'center' | 'right'
+  fontWeight: 'normal' | 'bold'
+  opacity: number
+  rotation: number
+  zIndex: number
+}
+
+interface ThumbnailLayoutData {
+  id: string
+  backgroundImage: string
+  elements: ThumbnailLayoutElement[]
+  createdAt: string
+  updatedAt: string
+}
+
+interface GenerateThumbnailWithLayoutRequest {
+  backgroundImageFileName: string
+  layout: ThumbnailLayoutData
+  uploadToGCS?: boolean
+}
+
 @Controller('api/thumbnail')
 export class ThumbnailController {
   private readonly logger = new Logger(ThumbnailController.name)
@@ -325,6 +357,104 @@ export class ThumbnailController {
       return {
         success: false,
         error: error.message || '배경이미지 삭제 중 오류가 발생했습니다.',
+      }
+    }
+  }
+
+  @Post('layout/generate')
+  async generateThumbnailWithLayout(@Body() request: GenerateThumbnailWithLayoutRequest): Promise<ThumbnailResponse> {
+    try {
+      const { backgroundImageFileName, layout, uploadToGCS = true } = request
+
+      if (!backgroundImageFileName) {
+        throw new HttpException('배경이미지가 필요합니다.', HttpStatus.BAD_REQUEST)
+      }
+
+      if (!layout || !layout.elements || layout.elements.length === 0) {
+        throw new HttpException('레이아웃 요소가 필요합니다.', HttpStatus.BAD_REQUEST)
+      }
+
+      // 배경이미지 경로 설정
+      const backgroundImagePath = this.thumbnailGenerator.getBackgroundImagePath(backgroundImageFileName)
+
+      // 레이아웃 생성을 위한 썸네일 생성기 호출 (새로운 메서드 필요)
+      const imageBuffer = await this.thumbnailGenerator.generateThumbnailWithLayout(backgroundImagePath, layout)
+
+      // 설정 값 가져오기 (GCS 업로드용)
+      const appSettings = await this.settings.getAppSettings()
+
+      // GCS 업로드 여부 확인
+      if (uploadToGCS && appSettings.gcsProjectId && appSettings.gcsKeyContent && appSettings.gcsBucketName) {
+        try {
+          const uploadResult = await this.gcsUpload.uploadImage(imageBuffer, {
+            contentType: 'image/png',
+            isPublic: true,
+          })
+
+          return {
+            success: true,
+            imageUrl: uploadResult.url,
+            fileName: uploadResult.fileName,
+          }
+        } catch (uploadError) {
+          this.logger.error('GCS 업로드 실패, base64로 응답:', uploadError)
+
+          // GCS 업로드 실패 시 base64로 응답
+          const base64 = imageBuffer.toString('base64')
+          return {
+            success: true,
+            base64: `data:image/png;base64,${base64}`,
+            error: `GCS 업로드 실패: ${uploadError.message}`,
+          }
+        }
+      } else {
+        // GCS 업로드 안 함 - base64로 응답
+        const base64 = imageBuffer.toString('base64')
+        return {
+          success: true,
+          base64: `data:image/png;base64,${base64}`,
+        }
+      }
+    } catch (error) {
+      this.logger.error('레이아웃 썸네일 생성 실패:', error)
+
+      return {
+        success: false,
+        error: error.message || '레이아웃 썸네일 생성 중 오류가 발생했습니다.',
+      }
+    }
+  }
+
+  @Post('layout/preview')
+  async previewThumbnailWithLayout(@Body() request: GenerateThumbnailWithLayoutRequest): Promise<ThumbnailResponse> {
+    try {
+      const { backgroundImageFileName, layout } = request
+
+      if (!backgroundImageFileName) {
+        throw new HttpException('배경이미지가 필요합니다.', HttpStatus.BAD_REQUEST)
+      }
+
+      if (!layout || !layout.elements || layout.elements.length === 0) {
+        throw new HttpException('레이아웃 요소가 필요합니다.', HttpStatus.BAD_REQUEST)
+      }
+
+      // 배경이미지 경로 설정
+      const backgroundImagePath = this.thumbnailGenerator.getBackgroundImagePath(backgroundImageFileName)
+
+      // 레이아웃 생성을 위한 썸네일 생성기 호출
+      const imageBuffer = await this.thumbnailGenerator.generateThumbnailWithLayout(backgroundImagePath, layout)
+      const base64 = imageBuffer.toString('base64')
+
+      return {
+        success: true,
+        base64: `data:image/png;base64,${base64}`,
+      }
+    } catch (error) {
+      this.logger.error('레이아웃 썸네일 미리보기 생성 실패:', error)
+
+      return {
+        success: false,
+        error: error.message || '레이아웃 썸네일 미리보기 생성 중 오류가 발생했습니다.',
       }
     }
   }

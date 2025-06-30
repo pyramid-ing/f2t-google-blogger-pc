@@ -1,0 +1,154 @@
+.thumbnail-editor {
+  width: 100%;
+  height: 100%;
+}
+
+.canvas-container {
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+  aspect-ratio: 1 / 1; /* 1000x1000 정사각형 */
+  max-width: 600px;
+  max-height: 600px;
+}
+
+.canvas-container.show-grid {
+  background-image: 
+    linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.draggable-element {
+  position: absolute;
+  cursor: move;
+  user-select: none;
+  transition: box-shadow 0.2s ease;
+}
+
+.draggable-element:hover {
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.3);
+}
+
+.draggable-element.selected {
+  box-shadow: 0 0 0 2px #1890ff;
+}
+
+.draggable-element.dragging {
+  z-index: 1000;
+  transform: rotate(2deg);
+}
+
+.resize-handle {
+  position: absolute;
+  background: #1890ff;
+  border: 2px solid white;
+  border-radius: 50%;
+  width: 12px;
+  height: 12px;
+  z-index: 1001;
+}
+
+.resize-handle.nw {
+  top: -6px;
+  left: -6px;
+  cursor: nw-resize;
+}
+
+.resize-handle.ne {
+  top: -6px;
+  right: -6px;
+  cursor: ne-resize;
+}
+
+.resize-handle.sw {
+  bottom: -6px;
+  left: -6px;
+  cursor: sw-resize;
+}
+
+.resize-handle.se {
+  bottom: -6px;
+  right: -6px;
+  cursor: se-resize;
+}
+
+.resize-handle.n {
+  top: -6px;
+  left: 50%;
+  margin-left: -6px;
+  cursor: n-resize;
+}
+
+.resize-handle.e {
+  right: -6px;
+  top: 50%;
+  margin-top: -6px;
+  cursor: e-resize;
+}
+
+.resize-handle.s {
+  bottom: -6px;
+  left: 50%;
+  margin-left: -6px;
+  cursor: s-resize;
+}
+
+.resize-handle.w {
+  left: -6px;
+  top: 50%;
+  margin-top: -6px;
+  cursor: w-resize;
+}
+
+.element-text {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  word-break: break-word;
+  line-height: 1.2;
+}
+
+.toolbar {
+  border-bottom: 1px solid #f0f0f0;
+  padding: 8px 16px;
+  background: white;
+  z-index: 100;
+}
+
+.properties-panel {
+  height: 100%;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.properties-panel .ant-form-item {
+  margin-bottom: 12px;
+}
+
+.properties-panel .ant-typography {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+/* 스크롤바 스타일링 */
+.properties-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.properties-panel::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.properties-panel::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.properties-panel::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+} 

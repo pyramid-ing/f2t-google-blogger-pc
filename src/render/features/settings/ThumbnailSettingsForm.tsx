@@ -1,30 +1,32 @@
 import React, { useState, useEffect } from 'react'
 import {
-  Card,
   Form,
-  Input,
-  Switch,
   Button,
-  ColorPicker,
-  InputNumber,
+  Switch,
+  Card,
+  Input,
   Select,
-  message,
   Upload,
+  message,
   Row,
   Col,
   Image,
   Alert,
   Popconfirm,
   Typography,
+  Modal,
 } from 'antd'
 import { EyeOutlined, UploadOutlined, DeleteOutlined, PictureOutlined } from '@ant-design/icons'
 import { AppSettings } from '../../types/settings'
-import { saveAppSettingsToServer, thumbnailApi, BackgroundImageInfo } from '../../api'
+import { ThumbnailLayout } from '../../types/thumbnail'
+import { thumbnailApi, BackgroundImageInfo } from '../../api'
+import ThumbnailEditor from '../../components/ThumbnailEditor/ThumbnailEditor'
+import { ThumbnailLayoutGenerateRequest } from '../../api/thumbnailApi'
 
 const { Dragger } = Upload
 const { Option } = Select
-const { TextArea } = Input
 const { Text } = Typography
+const { TextArea } = Input
 
 interface ThumbnailSettingsFormProps {
   initialSettings?: AppSettings
@@ -34,25 +36,26 @@ interface ThumbnailSettingsFormProps {
 export const ThumbnailSettingsForm: React.FC<ThumbnailSettingsFormProps> = ({ initialSettings = {}, onSave }) => {
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
-  const [testingGCS, setTestingGCS] = useState(false)
-  const [previewImage, setPreviewImage] = useState<string>('')
   const [generatingPreview, setGeneratingPreview] = useState(false)
-  const [backgroundImages, setBackgroundImages] = useState<BackgroundImageInfo[]>([])
   const [uploadingBackground, setUploadingBackground] = useState(false)
+  const [backgroundImages, setBackgroundImages] = useState<BackgroundImageInfo[]>([])
+  const [previewImage, setPreviewImage] = useState<string>('')
   const [selectedBackgroundImage, setSelectedBackgroundImage] = useState<string>('')
   const [hoveredImage, setHoveredImage] = useState<string>('')
+  const [currentBackgroundBase64, setCurrentBackgroundBase64] = useState<string>('')
+
+  // 에디터 다이얼로그 상태 추가
+  const [editorVisible, setEditorVisible] = useState<boolean>(false)
+
+  // 에디터 관련 상태
+  const [currentLayout, setCurrentLayout] = useState<ThumbnailLayout | undefined>()
+  const [savedLayouts, setSavedLayouts] = useState<Record<string, ThumbnailLayout>>({}) // 배경별 레이아웃 저장
 
   // 폼 초기값 설정
   useEffect(() => {
     form.setFieldsValue({
       thumbnailEnabled: initialSettings.thumbnailEnabled || false,
       thumbnailBackgroundImage: initialSettings.thumbnailBackgroundImage || '',
-      thumbnailTextColor: initialSettings.thumbnailTextColor || '#ffffff',
-      thumbnailFontSize: initialSettings.thumbnailFontSize || 48,
-      thumbnailFontFamily: initialSettings.thumbnailFontFamily || 'BMDOHYEON',
-      gcsProjectId: initialSettings.gcsProjectId || '',
-      gcsKeyContent: initialSettings.gcsKeyContent || '',
-      gcsBucketName: initialSettings.gcsBucketName || '',
     })
 
     setSelectedBackgroundImage(initialSettings.thumbnailBackgroundImage || '')
@@ -62,6 +65,35 @@ export const ThumbnailSettingsForm: React.FC<ThumbnailSettingsFormProps> = ({ in
   useEffect(() => {
     loadBackgroundImages()
   }, [])
+
+  // 선택된 배경 이미지 변경 시 base64 로드
+  useEffect(() => {
+    const loadBackgroundBase64 = async () => {
+      if (selectedBackgroundImage) {
+        try {
+          const result = await thumbnailApi.getBackgroundImage(selectedBackgroundImage)
+          if (result.success && result.base64) {
+            setCurrentBackgroundBase64(result.base64)
+
+            // 해당 배경에 저장된 레이아웃이 있으면 로드
+            if (savedLayouts[selectedBackgroundImage]) {
+              setCurrentLayout(savedLayouts[selectedBackgroundImage])
+            } else {
+              setCurrentLayout(undefined) // 새로운 배경이면 레이아웃 초기화
+            }
+          }
+        } catch (error) {
+          console.error('배경 이미지 로드 실패:', error)
+          setCurrentBackgroundBase64('')
+        }
+      } else {
+        setCurrentBackgroundBase64('')
+        setCurrentLayout(undefined)
+      }
+    }
+
+    loadBackgroundBase64()
+  }, [selectedBackgroundImage, savedLayouts])
 
   const loadBackgroundImages = async () => {
     try {
@@ -94,17 +126,8 @@ export const ThumbnailSettingsForm: React.FC<ThumbnailSettingsFormProps> = ({ in
       setLoading(true)
       const values = await form.validateFields()
 
-      // 색상 값이 객체인 경우 hex 값으로 변환
       const settings: Partial<AppSettings> = {
         ...values,
-        thumbnailBackgroundColor:
-          typeof values.thumbnailBackgroundColor === 'object'
-            ? values.thumbnailBackgroundColor.toHexString()
-            : values.thumbnailBackgroundColor,
-        thumbnailTextColor:
-          typeof values.thumbnailTextColor === 'object'
-            ? values.thumbnailTextColor.toHexString()
-            : values.thumbnailTextColor,
         thumbnailBackgroundImage: selectedBackgroundImage,
       }
 
@@ -118,42 +141,9 @@ export const ThumbnailSettingsForm: React.FC<ThumbnailSettingsFormProps> = ({ in
     }
   }
 
-  const testGCSConnection = async () => {
-    try {
-      setTestingGCS(true)
-      const result = await thumbnailApi.testGCSConnection()
-
-      if (result.success) {
-        message.success('GCS 연결 테스트 성공!')
-      } else {
-        message.error(`GCS 연결 실패: ${result.error}`)
-      }
-    } catch (error) {
-      console.error('GCS 연결 테스트 실패:', error)
-      message.error('GCS 연결 테스트 중 오류가 발생했습니다.')
-    } finally {
-      setTestingGCS(false)
-    }
-  }
-
   const generatePreview = async () => {
     try {
       setGeneratingPreview(true)
-
-      const values = await form.validateFields(['thumbnailTextColor', 'thumbnailFontSize', 'thumbnailFontFamily'])
-
-      // 현재 폼 값으로 설정 임시 업데이트
-      const tempSettings = {
-        ...values,
-        thumbnailTextColor:
-          typeof values.thumbnailTextColor === 'object'
-            ? values.thumbnailTextColor.toHexString()
-            : values.thumbnailTextColor,
-        thumbnailBackgroundImage: selectedBackgroundImage,
-      }
-
-      // 임시로 설정 저장 (UI 반영용)
-      await saveAppSettingsToServer(tempSettings)
 
       const result = await thumbnailApi.previewThumbnail({
         title: '썸네일 미리보기',
@@ -233,7 +223,74 @@ export const ThumbnailSettingsForm: React.FC<ThumbnailSettingsFormProps> = ({ in
     }
   }
 
-  const fontFamilyOptions = ['BMDOHYEON', 'Nanum Gothic', 'NanumSquare']
+  // 에디터 다이얼로그 닫기 처리
+  const handleEditorClose = () => {
+    setEditorVisible(false)
+    // 에디터 닫을 때 현재 레이아웃 저장
+    if (currentLayout && selectedBackgroundImage) {
+      setSavedLayouts(prev => ({
+        ...prev,
+        [selectedBackgroundImage]: currentLayout,
+      }))
+    }
+  }
+
+  // 에디터 핸들러들
+  const handleLayoutSave = (layout: ThumbnailLayout) => {
+    // 배경별 레이아웃 저장
+    setSavedLayouts(prev => ({
+      ...prev,
+      [selectedBackgroundImage]: layout,
+    }))
+    setCurrentLayout(layout)
+    message.success('레이아웃이 저장되었습니다.')
+  }
+
+  const handleLayoutPreview = async (layout: ThumbnailLayout) => {
+    if (!selectedBackgroundImage) {
+      message.error('배경이미지를 먼저 선택해주세요.')
+      return
+    }
+
+    try {
+      setGeneratingPreview(true)
+
+      // API 호출을 위한 데이터 변환
+      const layoutRequest: ThumbnailLayoutGenerateRequest = {
+        backgroundImageFileName: selectedBackgroundImage,
+        layout: {
+          id: layout.id,
+          backgroundImage: selectedBackgroundImage,
+          elements: layout.elements,
+          createdAt: layout.createdAt,
+          updatedAt: layout.updatedAt,
+        },
+        uploadToGCS: false,
+      }
+
+      const response = await thumbnailApi.previewThumbnailWithLayout(layoutRequest)
+
+      if (response.success && response.base64) {
+        setPreviewImage(response.base64)
+        message.success('미리보기가 생성되었습니다!')
+      } else {
+        throw new Error(response.error || '미리보기 생성에 실패했습니다.')
+      }
+    } catch (error) {
+      console.error('미리보기 생성 실패:', error)
+      message.error(`미리보기 생성 실패: ${error.message}`)
+    } finally {
+      setGeneratingPreview(false)
+    }
+  }
+
+  // 배경 이미지 클릭 시 에디터로 이동
+  const handleBackgroundImageClick = (fileName: string) => {
+    setSelectedBackgroundImage(fileName)
+    form.setFieldValue('thumbnailBackgroundImage', fileName)
+    setEditorVisible(true)
+    message.success('에디터에서 레이아웃을 편집해보세요!')
+  }
 
   return (
     <div>
@@ -243,24 +300,6 @@ export const ThumbnailSettingsForm: React.FC<ThumbnailSettingsFormProps> = ({ in
             <Col span={12}>
               <Form.Item name="thumbnailEnabled" label="썸네일 생성 활성화" valuePropName="checked">
                 <Switch />
-              </Form.Item>
-
-              <Form.Item name="thumbnailTextColor" label="텍스트 색상" dependencies={['thumbnailEnabled']}>
-                <ColorPicker showText />
-              </Form.Item>
-
-              <Form.Item name="thumbnailFontSize" label="폰트 크기" dependencies={['thumbnailEnabled']}>
-                <InputNumber min={20} max={100} addonAfter="px" />
-              </Form.Item>
-
-              <Form.Item name="thumbnailFontFamily" label="폰트 패밀리" dependencies={['thumbnailEnabled']}>
-                <Select>
-                  {fontFamilyOptions.map(font => (
-                    <Option key={font} value={font}>
-                      {font}
-                    </Option>
-                  ))}
-                </Select>
               </Form.Item>
 
               <Alert
@@ -298,37 +337,10 @@ export const ThumbnailSettingsForm: React.FC<ThumbnailSettingsFormProps> = ({ in
         </Form>
       </Card>
 
-      <Card title="GCS 업로드 설정" style={{ marginBottom: 16 }}>
+      <Card title="썸네일 템플릿" style={{ marginBottom: 16 }}>
         <Alert
-          message="Google Cloud Storage 설정"
-          description="썸네일을 GCS에 업로드하여 공개 URL로 제공할 수 있습니다."
-          type="info"
-          style={{ marginBottom: 16 }}
-        />
-
-        <Form form={form} layout="vertical">
-          <Form.Item name="gcsProjectId" label="GCS 프로젝트 ID">
-            <Input placeholder="Google Cloud 프로젝트 ID를 입력하세요" />
-          </Form.Item>
-
-          <Form.Item name="gcsBucketName" label="GCS 버킷명">
-            <Input placeholder="GCS 버킷명을 입력하세요" />
-          </Form.Item>
-
-          <Form.Item name="gcsKeyContent" label="GCS 서비스 계정 키 (JSON)">
-            <TextArea rows={6} placeholder="GCS 서비스 계정 키의 JSON 내용을 입력하세요" />
-          </Form.Item>
-
-          <Button onClick={testGCSConnection} loading={testingGCS}>
-            GCS 연결 테스트
-          </Button>
-        </Form>
-      </Card>
-
-      <Card title="배경이미지 설정" style={{ marginBottom: 16 }}>
-        <Alert
-          message="배경이미지 설정"
-          description="썸네일에 사용할 배경이미지를 업로드하고 관리할 수 있습니다. 이미지가 없으면 배경색이 사용됩니다."
+          message="썸네일 템플릿 선택"
+          description="원하는 템플릿을 클릭하면 에디터가 열려 텍스트와 스타일을 자유롭게 편집할 수 있습니다."
           type="info"
           style={{ marginBottom: 16 }}
         />
@@ -346,7 +358,7 @@ export const ThumbnailSettingsForm: React.FC<ThumbnailSettingsFormProps> = ({ in
               <Button
                 icon={<UploadOutlined />}
                 loading={uploadingBackground}
-                style={{ marginBottom: 16, width: '100%' }}
+                style={{ marginBottom: 16, width: '200px' }}
               >
                 배경이미지 업로드
               </Button>
@@ -355,19 +367,14 @@ export const ThumbnailSettingsForm: React.FC<ThumbnailSettingsFormProps> = ({ in
             {backgroundImages.length > 0 && (
               <div>
                 <Text strong style={{ marginBottom: 16, display: 'block' }}>
-                  배경이미지 선택
+                  썸네일 템플릿 (클릭하면 에디터로 편집)
                 </Text>
                 <div
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
-                    gap: '12px',
-                    maxHeight: '400px',
-                    overflowY: 'auto',
-                    padding: '8px',
-                    border: '1px solid #f0f0f0',
-                    borderRadius: '6px',
-                    backgroundColor: '#fafafa',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+                    gap: '16px',
+                    marginTop: '16px',
                   }}
                 >
                   {backgroundImages.map(image => (
@@ -376,36 +383,78 @@ export const ThumbnailSettingsForm: React.FC<ThumbnailSettingsFormProps> = ({ in
                       style={{
                         position: 'relative',
                         cursor: 'pointer',
-                        borderRadius: '8px',
+                        borderRadius: '12px',
                         overflow: 'hidden',
                         border:
                           selectedBackgroundImage === image.fileName ? '3px solid #1890ff' : '3px solid transparent',
-                        transition: 'all 0.2s ease',
+                        transition: 'all 0.3s ease',
                         aspectRatio: '1',
-                        transform:
-                          hoveredImage === image.fileName && selectedBackgroundImage !== image.fileName
-                            ? 'scale(1.05)'
-                            : 'scale(1)',
+                        transform: hoveredImage === image.fileName ? 'scale(1.05)' : 'scale(1)',
+                        boxShadow:
+                          hoveredImage === image.fileName ? '0 8px 24px rgba(0,0,0,0.15)' : '0 2px 8px rgba(0,0,0,0.1)',
                       }}
-                      onClick={() => {
-                        setSelectedBackgroundImage(image.fileName)
-                        form.setFieldValue('thumbnailBackgroundImage', image.fileName)
-                      }}
+                      onClick={() => handleBackgroundImageClick(image.fileName)}
                       onMouseEnter={() => setHoveredImage(image.fileName)}
                       onMouseLeave={() => setHoveredImage('')}
                     >
                       {image.base64 ? (
-                        <Image
-                          src={image.base64}
-                          alt={image.fileName}
-                          width="100%"
-                          height="100%"
-                          style={{
-                            objectFit: 'cover',
-                            borderRadius: '6px',
-                          }}
-                          preview={false}
-                        />
+                        <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                          <Image
+                            src={image.base64}
+                            alt={image.fileName}
+                            width="100%"
+                            height="100%"
+                            style={{
+                              objectFit: 'cover',
+                              borderRadius: '8px',
+                            }}
+                            preview={false}
+                          />
+
+                          {/* 썸네일 텍스트 오버레이 */}
+                          <div
+                            style={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              background: 'rgba(0, 0, 0, 0.3)',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              padding: '12px',
+                              borderRadius: '8px',
+                            }}
+                          >
+                            <div
+                              style={{
+                                color: 'white',
+                                fontSize: '14px',
+                                fontWeight: 'bold',
+                                textAlign: 'center',
+                                textShadow: '1px 1px 2px rgba(0, 0, 0, 0.8)',
+                                marginBottom: '4px',
+                                lineHeight: '1.2',
+                              }}
+                            >
+                              샘플 제목
+                            </div>
+                            <div
+                              style={{
+                                color: 'white',
+                                fontSize: '10px',
+                                textAlign: 'center',
+                                textShadow: '1px 1px 2px rgba(0, 0, 0, 0.8)',
+                                opacity: 0.9,
+                                lineHeight: '1.2',
+                              }}
+                            >
+                              부제목 텍스트
+                            </div>
+                          </div>
+                        </div>
                       ) : (
                         <div
                           style={{
@@ -415,10 +464,10 @@ export const ThumbnailSettingsForm: React.FC<ThumbnailSettingsFormProps> = ({ in
                             alignItems: 'center',
                             justifyContent: 'center',
                             backgroundColor: '#f5f5f5',
-                            borderRadius: '6px',
+                            borderRadius: '8px',
                           }}
                         >
-                          <PictureOutlined style={{ fontSize: '32px', color: '#bfbfbf' }} />
+                          <PictureOutlined style={{ fontSize: '48px', color: '#bfbfbf' }} />
                         </div>
                       )}
 
@@ -427,29 +476,50 @@ export const ThumbnailSettingsForm: React.FC<ThumbnailSettingsFormProps> = ({ in
                         <div
                           style={{
                             position: 'absolute',
-                            top: '8px',
-                            right: '8px',
-                            width: '24px',
-                            height: '24px',
+                            top: '12px',
+                            right: '12px',
+                            width: '28px',
+                            height: '28px',
                             backgroundColor: '#1890ff',
                             borderRadius: '50%',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
                           }}
                         >
-                          <span style={{ color: 'white', fontSize: '14px', fontWeight: 'bold' }}>✓</span>
+                          <span style={{ color: 'white', fontSize: '16px', fontWeight: 'bold' }}>✓</span>
                         </div>
                       )}
+
+                      {/* 에디터 이동 표시 */}
+                      <div
+                        style={{
+                          position: 'absolute',
+                          bottom: '12px',
+                          left: '12px',
+                          right: '12px',
+                          opacity: hoveredImage === image.fileName ? 1 : 0,
+                          transition: 'opacity 0.3s ease',
+                          background: 'rgba(0,0,0,0.7)',
+                          color: 'white',
+                          padding: '4px 8px',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          textAlign: 'center',
+                        }}
+                      >
+                        클릭하여 에디터 열기
+                      </div>
 
                       {/* 삭제 버튼 */}
                       <div
                         style={{
                           position: 'absolute',
-                          top: '8px',
-                          left: '8px',
+                          top: '12px',
+                          left: '12px',
                           opacity: hoveredImage === image.fileName ? 1 : 0,
-                          transition: 'opacity 0.2s ease',
+                          transition: 'opacity 0.3s ease',
                         }}
                       >
                         <Popconfirm
@@ -468,8 +538,8 @@ export const ThumbnailSettingsForm: React.FC<ThumbnailSettingsFormProps> = ({ in
                             icon={<DeleteOutlined />}
                             onClick={e => e.stopPropagation()}
                             style={{
-                              width: '24px',
-                              height: '24px',
+                              width: '28px',
+                              height: '28px',
                               padding: 0,
                               display: 'flex',
                               alignItems: 'center',
@@ -483,75 +553,39 @@ export const ThumbnailSettingsForm: React.FC<ThumbnailSettingsFormProps> = ({ in
                 </div>
               </div>
             )}
-
-            {selectedBackgroundImage && (
-              <div style={{ marginTop: 16 }}>
-                <Button
-                  type="dashed"
-                  onClick={() => {
-                    setSelectedBackgroundImage('')
-                    form.setFieldValue('thumbnailBackgroundImage', '')
-                  }}
-                  style={{ width: '100%' }}
-                >
-                  배경이미지 선택 해제
-                </Button>
-              </div>
-            )}
-          </Col>
-
-          <Col span={12}>
-            {selectedBackgroundImage && (
-              <div>
-                <Text strong style={{ marginBottom: 16, display: 'block' }}>
-                  선택된 배경이미지
-                </Text>
-                <div
-                  style={{
-                    border: '2px solid #1890ff',
-                    borderRadius: '8px',
-                    padding: '8px',
-                    textAlign: 'center',
-                    backgroundColor: '#fafafa',
-                  }}
-                >
-                  {(() => {
-                    const selectedImage = backgroundImages.find(img => img.fileName === selectedBackgroundImage)
-                    return selectedImage?.base64 ? (
-                      <Image
-                        src={selectedImage.base64}
-                        alt={selectedBackgroundImage}
-                        style={{
-                          width: '100%',
-                          maxHeight: '300px',
-                          objectFit: 'contain',
-                          borderRadius: '6px',
-                        }}
-                      />
-                    ) : (
-                      <div
-                        style={{
-                          height: '200px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          backgroundColor: '#f5f5f5',
-                          borderRadius: '6px',
-                        }}
-                      >
-                        <PictureOutlined style={{ fontSize: '64px', color: '#bfbfbf' }} />
-                      </div>
-                    )
-                  })()}
-                </div>
-              </div>
-            )}
           </Col>
         </Row>
       </Card>
 
+      {/* 에디터 모달 */}
+      <Modal
+        title="썸네일 에디터"
+        open={editorVisible}
+        onCancel={handleEditorClose}
+        width="90vw"
+        style={{ top: 20 }}
+        footer={null}
+        destroyOnClose={true}
+      >
+        {selectedBackgroundImage ? (
+          <ThumbnailEditor
+            backgroundImage={currentBackgroundBase64}
+            onSave={handleLayoutSave}
+            onPreview={handleLayoutPreview}
+            initialLayout={currentLayout}
+          />
+        ) : (
+          <Alert
+            message="배경 이미지를 선택해주세요"
+            description="에디터를 사용하려면 먼저 썸네일 템플릿을 선택해주세요."
+            type="info"
+            showIcon
+          />
+        )}
+      </Modal>
+
       <div style={{ textAlign: 'center', marginTop: 24 }}>
-        <Button type="primary" size="large" onClick={handleSave} loading={loading}>
+        <Button type="primary" onClick={handleSave} loading={loading} size="large">
           설정 저장
         </Button>
       </div>
