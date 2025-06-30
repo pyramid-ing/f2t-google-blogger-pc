@@ -1,5 +1,18 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react'
-import { Card, Button, Select, Slider, ColorPicker, Space, Typography, Input, Form, Upload, message } from 'antd'
+import {
+  Card,
+  Button,
+  Select,
+  Slider,
+  ColorPicker,
+  Space,
+  Typography,
+  Input,
+  InputNumber,
+  Form,
+  Upload,
+  message,
+} from 'antd'
 import { AppstoreOutlined, SaveOutlined, PlusOutlined, DeleteOutlined, UploadOutlined } from '@ant-design/icons'
 import { Stage, Layer, Text as KonvaText, Image as KonvaImage, Transformer, Line } from 'react-konva'
 import { TextElement, ThumbnailLayout, EditorState } from '../../types/thumbnail'
@@ -442,11 +455,14 @@ const ThumbnailEditor: React.FC<ThumbnailEditorProps> = ({
 
               <div>
                 <Text strong>폰트 크기</Text>
-                <Slider
+                <InputNumber
                   min={12}
-                  max={100}
+                  max={200}
+                  step={1}
+                  precision={0}
                   value={selectedElement.fontSize}
-                  onChange={value => transformElement(selectedElement.id, { fontSize: value })}
+                  onChange={value => transformElement(selectedElement.id, { fontSize: value || 12 })}
+                  style={{ width: '100%' }}
                 />
               </div>
 
