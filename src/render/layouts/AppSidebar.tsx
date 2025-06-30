@@ -137,7 +137,7 @@ const AppSidebar: React.FC = () => {
 
   return (
     <Sider width={200} style={{ position: 'relative' }}>
-      <Logo>윈소프트 디씨 포스팅 봇</Logo>
+      <Logo>블로그 스팟 포스팅 봇</Logo>
       <Menu
         theme="dark"
         selectedKeys={[getSelectedKey()]}

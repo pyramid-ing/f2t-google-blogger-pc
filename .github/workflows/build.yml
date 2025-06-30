@@ -1,0 +1,76 @@
+name: Build and Release Electron App
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch: # 수동 실행 가능
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      # 1. 리포지토리 클론
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Node.js 환경 설정
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # 3. pnpm 설치
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.1
+          run_install: false # 자동 설치 비활성화
+
+      # 4. pnpm 캐시 설정
+      - name: Get pnpm store directory
+        shell: pwsh
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $env:GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      # 5. pnpm 의존성 설치
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          pnpm config set network-timeout 300000
+          pnpm config set fetch-retries 5
+          pnpm config set fetch-retry-factor 2
+          pnpm config set fetch-retry-mintimeout 10000
+          pnpm config set fetch-retry-maxtimeout 60000
+          pnpm install --frozen-lockfile --prefer-offline
+
+      # 6. Prisma Client 생성
+      - name: Generate Prisma Client
+        run: pnpm prisma generate
+
+      # 7. 초기 DB 빌드
+      - name: Build initial database
+        run: node scripts/build-initial-db.js
+
+      # 8. Electron 빌드
+      - name: Build Windows App
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: pnpm build
+        shell: pwsh
+
+      # 9. 빌드된 파일 업로드
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: f2t-google-blogger-windows
+          path: dist/electron
