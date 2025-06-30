@@ -31,6 +31,12 @@ export interface IElectronAPI {
   onDownloadProgress: (callback: (progress: DownloadProgress) => void) => void
   onUpdateDownloaded: (callback: (info: UpdateInfo) => void) => void
   removeAllListeners: (channel: string) => void
+
+  // IPC 통신 API
+  invoke: (channel: string, data?: any) => Promise<any>
+  send: (channel: string, data?: any) => void
+  on: (channel: string, callback: (event: any, data: any) => void) => void
+  removeListener: (channel: string, callback: (event: any, data: any) => void) => void
 }
 
 declare global {

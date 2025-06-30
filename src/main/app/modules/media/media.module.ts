@@ -4,10 +4,11 @@ import { ThumbnailGeneratorService } from './thumbnail-generator.service'
 import { GCSUploadService } from './gcs-upload.service'
 import { ThumbnailController } from './thumbnail.controller'
 import { SettingsModule } from '../settings/settings.module'
+import { AIModule } from '../ai/ai.module'
 import { PrismaService } from '../../shared/prisma.service'
 
 @Module({
-  imports: [SettingsModule],
+  imports: [SettingsModule, AIModule],
   controllers: [ThumbnailController],
   providers: [ImagePixabayService, ThumbnailGeneratorService, GCSUploadService, PrismaService],
   exports: [ImagePixabayService, ThumbnailGeneratorService, GCSUploadService],

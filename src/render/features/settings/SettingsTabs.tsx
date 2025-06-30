@@ -4,7 +4,6 @@ import AppSettingsForm from './AppSettingsForm'
 import GoogleSettingsForm from './GoogleSettingsForm'
 import ImageSettingsForm from './ImageSettingsForm'
 import AISettingsForm from './AISettingsForm'
-import { ThumbnailSettingsForm } from './ThumbnailSettingsForm'
 import { getAppSettingsFromServer, saveAppSettingsToServer } from '../../api'
 import { AppSettings } from '../../types/settings'
 
@@ -61,11 +60,11 @@ const SettingsTabs: React.FC = () => {
           label: '이미지',
           children: <ImageSettingsForm />,
         },
-        {
-          key: 'thumbnail',
-          label: '썸네일',
-          children: <ThumbnailSettingsForm initialSettings={settings} onSave={handleSaveThumbnailSettings} />,
-        },
+        // {
+        //   key: 'thumbnail',
+        //   label: '썸네일',
+        //   children: <ThumbnailSettingsForm initialSettings={settings} onSave={handleSaveThumbnailSettings} />,
+        // },
         {
           key: 'ai',
           label: 'AI',

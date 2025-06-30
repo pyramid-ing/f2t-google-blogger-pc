@@ -22,4 +22,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   removeAllListeners: (channel: string) => {
     ipcRenderer.removeAllListeners(channel)
   },
+
+  // IPC 통신 API
+  invoke: (channel: string, data?: any) => ipcRenderer.invoke(channel, data),
+  send: (channel: string, data?: any) => ipcRenderer.send(channel, data),
+  on: (channel: string, callback: (event: any, data: any) => void) => {
+    ipcRenderer.on(channel, callback)
+  },
+  removeListener: (channel: string, callback: (event: any, data: any) => void) => {
+    ipcRenderer.removeListener(channel, callback)
+  },
 })

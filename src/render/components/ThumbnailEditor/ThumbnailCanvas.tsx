@@ -1,10 +1,11 @@
 import React from 'react'
-import { Stage, Layer } from 'react-konva'
+import { Stage, Layer, Text, Image as KonvaImage } from 'react-konva'
 import { Button, Space } from 'antd'
 import { SaveOutlined } from '@ant-design/icons'
 import { BackgroundImage, EditableText, Grid } from './ThumbnailEditorComponents'
 import { ThumbnailLayout, EditorState, TextElement } from '../../types/thumbnail'
 import Konva from 'konva'
+import useImage from 'use-image'
 
 interface ThumbnailCanvasProps {
   layout: ThumbnailLayout
@@ -146,5 +147,175 @@ export const ThumbnailCanvas: React.FC<ThumbnailCanvasProps> = ({
           })()}
       </div>
     </div>
+  )
+}
+
+// 간단한 썸네일 캔버스 (표시 전용, title/subtitle 템플릿 치환)
+interface SimpleThumbnailCanvasProps {
+  title: string
+  subtitle: string
+  backgroundImagePath?: string
+  width?: number
+  height?: number
+  onReady?: (getDataUrl: () => string) => void
+}
+
+// 기본 썸네일 레이아웃 템플릿
+const DEFAULT_THUMBNAIL_LAYOUT = {
+  id: 'default',
+  backgroundImage: 'background_8453dcbb73d2f44c.png',
+  elements: [
+    {
+      id: 'title',
+      text: '{{제목}}',
+      x: 10,
+      y: 30,
+      width: 80,
+      height: 20,
+      fontSize: 60,
+      fontFamily: 'BMDOHYEON',
+      color: '#ffffff',
+      textAlign: 'center' as const,
+      fontWeight: 'bold' as const,
+      opacity: 1,
+      rotation: 0,
+      zIndex: 2,
+    },
+    {
+      id: 'subtitle',
+      text: '{{부제목}}',
+      x: 10,
+      y: 55,
+      width: 80,
+      height: 15,
+      fontSize: 36,
+      fontFamily: 'BMDOHYEON',
+      color: '#ffffff',
+      textAlign: 'center' as const,
+      fontWeight: 'normal' as const,
+      opacity: 0.9,
+      rotation: 0,
+      zIndex: 2,
+    },
+  ],
+}
+
+// 배경 이미지 컴포넌트
+const SimpleBackgroundImage: React.FC<{
+  src: string
+  width: number
+  height: number
+}> = ({ src, width, height }) => {
+  const [image] = useImage(src, 'anonymous')
+
+  if (!image) return null
+
+  return <KonvaImage image={image} width={width} height={height} listening={false} />
+}
+
+// 텍스트 엘리먼트 컴포넌트
+const SimpleTextElement: React.FC<{
+  element: any
+  width: number
+  height: number
+}> = ({ element, width, height }) => {
+  const x = (element.x / 100) * width
+  const y = (element.y / 100) * height
+  const elementWidth = (element.width / 100) * width
+  const elementHeight = (element.height / 100) * height
+
+  return (
+    <Text
+      x={x}
+      y={y}
+      width={elementWidth}
+      height={elementHeight}
+      text={element.text}
+      fontSize={element.fontSize}
+      fontFamily={element.fontFamily}
+      fill={element.color}
+      align={element.textAlign}
+      verticalAlign="middle"
+      fontStyle={element.fontWeight === 'bold' ? 'bold' : 'normal'}
+      opacity={element.opacity}
+      rotation={element.rotation}
+      listening={false}
+    />
+  )
+}
+
+export const SimpleThumbnailCanvas: React.FC<SimpleThumbnailCanvasProps> = ({
+  title,
+  subtitle,
+  backgroundImagePath,
+  width = 1000,
+  height = 1000,
+  onReady,
+}) => {
+  const stageRef = React.useRef<Konva.Stage>(null)
+
+  // 템플릿 변수 치환
+  const replaceTemplate = (text: string, variables: { [key: string]: string }): string => {
+    return text.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
+      return variables[key] || match
+    })
+  }
+
+  // 변수 맵핑
+  const variables = {
+    제목: title,
+    부제목: subtitle,
+    title,
+    subtitle,
+  }
+
+  // 레이아웃 요소를 변수로 치환
+  const processedElements = DEFAULT_THUMBNAIL_LAYOUT.elements.map(element => ({
+    ...element,
+    text: replaceTemplate(element.text, variables),
+  }))
+
+  // z-index 순 정렬
+  const sortedElements = [...processedElements].sort((a, b) => a.zIndex - b.zIndex)
+
+  // toDataUrl 함수 생성
+  const getDataUrl = React.useCallback(() => {
+    if (stageRef.current) {
+      return stageRef.current.toDataURL({
+        mimeType: 'image/png',
+        quality: 1,
+        pixelRatio: 2,
+      })
+    }
+    return ''
+  }, [])
+
+  // Stage가 준비되면 onReady 콜백 호출
+  React.useEffect(() => {
+    if (stageRef.current && onReady) {
+      // 약간의 지연 후 준비 완료 (이미지 로딩 대기)
+      const timer = setTimeout(() => {
+        onReady(getDataUrl)
+      }, 1000)
+
+      return () => clearTimeout(timer)
+    }
+  }, [onReady, getDataUrl])
+
+  // 배경 이미지 경로 설정
+  const finalBackgroundPath = backgroundImagePath || './static/thumbnail/backgrounds/background_8453dcbb73d2f44c.png'
+
+  return (
+    <Stage ref={stageRef} width={width} height={height}>
+      <Layer>
+        {/* 배경 이미지 */}
+        <SimpleBackgroundImage src={finalBackgroundPath} width={width} height={height} />
+
+        {/* 텍스트 요소들 */}
+        {sortedElements.map(element => (
+          <SimpleTextElement key={element.id} element={element} width={width} height={height} />
+        ))}
+      </Layer>
+    </Stage>
   )
 }

@@ -78,6 +78,34 @@ export interface UpdateThumbnailLayoutRequest {
   isDefault?: boolean
 }
 
+// React-Konva 기반 썸네일 생성 인터페이스
+export interface ThumbnailKonvaRequest {
+  layout: {
+    id: string
+    backgroundImage: string
+    elements: Array<{
+      id: string
+      text: string
+      x: number
+      y: number
+      width: number
+      height: number
+      fontSize: number
+      fontFamily: string
+      color: string
+      textAlign: 'left' | 'center' | 'right'
+      fontWeight: 'normal' | 'bold'
+      opacity: number
+      rotation: number
+      zIndex: number
+    }>
+    createdAt: string
+    updatedAt: string
+  }
+  variables: { [key: string]: string }
+  backgroundImagePath?: string
+}
+
 export const thumbnailApi = {
   // 썸네일 생성
   generateThumbnail: async (request: GenerateThumbnailRequest): Promise<ThumbnailResponse> => {
@@ -174,5 +202,33 @@ export const thumbnailApi = {
   deleteThumbnailLayout: async (id: string): Promise<{ success: boolean; error?: string }> => {
     const response = await api.delete(`/api/thumbnail/layouts/${id}`)
     return response.data
+  },
+
+  // React-Konva를 사용한 썸네일 생성 (렌더 프로세스에서 직접 처리)
+  generateThumbnailWithKonva: async (request: ThumbnailKonvaRequest): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      // 렌더 프로세스에서 직접 처리하므로 별도 API 호출 불필요
+      // 대신 컴포넌트를 동적으로 생성하여 썸네일 추출
+
+      try {
+        // React 컴포넌트를 동적으로 렌더링하여 썸네일 생성
+        // 이 부분은 실제 사용할 때 구현
+        resolve('data:image/png;base64,...') // 임시 반환값
+      } catch (error) {
+        reject(error)
+      }
+    })
+  },
+
+  // 메인 프로세스에 React-Konva 썸네일 생성 요청
+  requestKonvaThumbnailGeneration: async (contentHtml: string): Promise<string> => {
+    try {
+      // IPC를 통해 메인 프로세스에서 렌더 프로세스로 썸네일 생성 요청
+      const result = await window.electronAPI.invoke('generate-konva-thumbnail', { contentHtml })
+      return result.thumbnailUrl || null
+    } catch (error) {
+      console.error('Konva 썸네일 생성 요청 실패:', error)
+      throw error
+    }
   },
 }

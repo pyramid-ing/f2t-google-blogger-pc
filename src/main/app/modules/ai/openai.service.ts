@@ -29,6 +29,12 @@ export interface BlogPostHtml {
   }[]
 }
 
+// 썸네일 데이터 인터페이스 추가
+export interface ThumbnailData {
+  title: string // 제목: 10자 이내
+  subtitle: string // 부제목: 10자 이내
+}
+
 @Injectable()
 export class OpenAiService {
   private readonly logger = new Logger(OpenAiService.name)
@@ -400,6 +406,79 @@ Example format: "A professional illustration of [main concept], featuring [visua
     } catch (error) {
       this.logger.error('OpenAI DALL-E 이미지 생성 중 오류:', error)
       throw new Error(`이미지 생성 오류: ${error.message}`)
+    }
+  }
+
+  /**
+   * HTML 컨텐츠를 분석하여 썸네일용 제목과 부제목 생성
+   */
+  async generateThumbnailData(contentHtml: string): Promise<ThumbnailData> {
+    this.logger.log('OpenAI로 썸네일 텍스트 데이터를 생성합니다.')
+
+    const systemPrompt = `
+포스팅의 대표이미지로 사용할 썸네일에 들어갈 텍스트 생성기입니다.
+
+HTML 본문 내용을 분석하여 썸네일에 적합한 텍스트를 생성해주세요:
+- 제목: 핵심 내용을 담은 임팩트 있는 제목 (10자 이내)
+- 부제목: 제목을 보완하는 설명 (10자 이내)
+
+생성 기준:
+- 한국어로 생성
+- 제목은 핵심 키워드를 포함하되 임팩트 있게
+- 부제목은 제목을 보완하거나 구체적인 설명
+- 썸네일에서 시각적으로 잘 보이도록 간결하고 명확하게
+- 각각 정확히 10자 이내로 제한
+`
+
+    try {
+      const openai = await this.getOpenAI()
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: systemPrompt,
+          },
+          {
+            role: 'user',
+            content: contentHtml,
+          },
+        ],
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            name: 'thumbnail_data',
+            strict: true,
+            schema: {
+              type: 'object',
+              properties: {
+                title: {
+                  type: 'string',
+                  description: '썸네일 제목 (10자 이내)',
+                  maxLength: 10,
+                },
+                subtitle: {
+                  type: 'string',
+                  description: '썸네일 부제목 (10자 이내)',
+                  maxLength: 10,
+                },
+              },
+              required: ['title', 'subtitle'],
+              additionalProperties: false,
+            },
+          },
+        },
+        temperature: 0.7,
+      })
+
+      const response: ThumbnailData = JSON.parse(completion.choices[0].message.content)
+
+      this.logger.log(`썸네일 텍스트 생성 완료 - 제목: "${response.title}", 부제목: "${response.subtitle}"`)
+
+      return response
+    } catch (error) {
+      this.logger.error('OpenAI API 호출 중 오류 발생:', error)
+      throw new Error(`썸네일 텍스트 생성 오류: ${error.message}`)
     }
   }
 }

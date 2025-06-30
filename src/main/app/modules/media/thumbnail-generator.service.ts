@@ -1,8 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { chromium } from 'playwright'
 import { SettingsService } from '../settings/settings.service'
+import { OpenAiService } from '../ai/openai.service'
+import { PrismaService } from '../../shared/prisma.service'
+import { BrowserWindow } from 'electron'
 import * as path from 'path'
 import * as fs from 'fs'
+// Canvas 기반 썸네일 생성을 위한 import (설치 후 활성화)
+// import { createCanvas, loadImage, CanvasRenderingContext2D } from 'canvas'
 
 export interface ThumbnailOptions {
   title: string
@@ -49,7 +54,11 @@ interface TemplateVariables {
 export class ThumbnailGeneratorService {
   private readonly logger = new Logger(ThumbnailGeneratorService.name)
 
-  constructor(private readonly settingsService: SettingsService) {}
+  constructor(
+    private readonly settingsService: SettingsService,
+    private readonly openAiService: OpenAiService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   async generateThumbnail(options: ThumbnailOptions): Promise<Buffer> {
     const {
@@ -501,5 +510,588 @@ export class ThumbnailGeneratorService {
 </body>
 </html>
     `
+  }
+
+  /**
+   * HTML 컨텐츠를 분석하여 썸네일 이미지 생성 (DB 레이아웃 사용)
+   */
+  async generateThumbnailImage(contentHtml: string): Promise<string | null>
+  /**
+   * 제목과 설명으로 썸네일 이미지 생성 (React-Konva 방식)
+   */
+  async generateThumbnailImage(title: string, description?: string): Promise<string | null>
+  async generateThumbnailImage(contentOrTitle: string, description?: string): Promise<string | null> {
+    try {
+      // 두 번째 매개변수가 있으면 title/description 방식으로 처리
+      if (description !== undefined) {
+        this.logger.log(`제목과 설명으로 썸네일 이미지 생성: 제목="${contentOrTitle}", 설명="${description}"`)
+
+        // HTML 형태로 변환하여 기존 로직 재활용
+        const mockHtml = `
+          <html>
+            <body>
+              <h1>${contentOrTitle}</h1>
+              <p>${description || ''}</p>
+            </body>
+          </html>
+        `
+
+        return this.generateThumbnailImageWithKonva(mockHtml, {
+          title: contentOrTitle,
+          subtitle: description || '',
+        })
+      } else {
+        // 기존 HTML 컨텐츠 방식
+        this.logger.log('HTML 컨텐츠로부터 썸네일 이미지 생성을 시작합니다.')
+
+        // OpenAI를 사용하여 썸네일 텍스트 데이터 생성
+        const thumbnailData = await this.openAiService.generateThumbnailData(contentOrTitle)
+
+        // React-Konva 방식으로 썸네일 생성
+        return this.generateThumbnailImageWithKonva(contentOrTitle)
+      }
+    } catch (error) {
+      this.logger.error('썸네일 이미지 생성 중 오류 발생:', error)
+      return null
+    }
+  }
+
+  /**
+   * 기본 레이아웃으로 썸네일 생성 (DB에 레이아웃이 없는 경우)
+   */
+  private async generateThumbnailWithBasicLayout(thumbnailData: {
+    title: string
+    subtitle: string
+  }): Promise<string | null> {
+    try {
+      // 기본 배경 이미지 경로 설정
+      const backgroundImages = this.getBackgroundImages()
+      const defaultBackgroundPath =
+        backgroundImages.length > 0 ? this.getBackgroundImagePath(backgroundImages[0]) : undefined
+
+      // 썸네일 옵션 설정
+      const thumbnailOptions: ThumbnailOptions = {
+        title: thumbnailData.title,
+        subtitle: thumbnailData.subtitle,
+        backgroundImagePath: defaultBackgroundPath,
+        textColor: '#ffffff',
+        fontSize: 60,
+        fontFamily: 'BMDOHYEON',
+      }
+
+      // 썸네일 이미지 생성
+      const thumbnailBuffer = await this.generateThumbnail(thumbnailOptions)
+
+      // 생성된 썸네일을 파일로 저장
+      const timestamp = Date.now()
+      const fileName = `thumbnail_basic_${timestamp}.png`
+      const savedPath = await this.saveBackgroundImage(thumbnailBuffer, fileName)
+
+      // 로컬 파일 경로를 URL로 변환
+      const thumbnailUrl = `file://${savedPath}`
+
+      this.logger.log(`기본 레이아웃 썸네일 이미지 생성 완료: ${thumbnailUrl}`)
+
+      return thumbnailUrl
+    } catch (error) {
+      this.logger.error('기본 레이아웃 썸네일 생성 중 오류 발생:', error)
+      return null
+    }
+  }
+
+  /**
+   * Canvas 기반 썸네일 생성 (일관된 템플릿 작업용)
+   * TODO: canvas 패키지 설치 후 활성화
+   */
+  async generateThumbnailWithCanvas(
+    backgroundImagePath: string,
+    layout: ThumbnailLayoutData,
+    variables: TemplateVariables = {},
+  ): Promise<Buffer> {
+    /*
+    const width = 1000
+    const height = 1000
+
+    // Canvas 생성
+    const canvas = createCanvas(width, height)
+    const ctx = canvas.getContext('2d')
+
+    try {
+      // 배경 설정
+      await this.drawBackground(ctx, backgroundImagePath, width, height)
+
+      // 레이아웃 요소들을 z-index 순으로 정렬하여 그리기
+      const sortedElements = [...layout.elements].sort((a, b) => a.zIndex - b.zIndex)
+
+      for (const element of sortedElements) {
+        await this.drawTextElement(ctx, element, variables)
+      }
+
+      // Canvas를 Buffer로 변환
+      return canvas.toBuffer('image/png')
+    } catch (error) {
+      this.logger.error('Canvas 썸네일 생성 중 오류:', error)
+      throw new Error(`Canvas 썸네일 생성 실패: ${error.message}`)
+    }
+    */
+
+    // 임시로 기본 썸네일 생성 방식 사용
+    throw new Error('Canvas 패키지 설치 후 사용 가능합니다.')
+  }
+
+  /**
+   * Canvas에 배경 그리기
+   * TODO: canvas 패키지 설치 후 활성화
+   */
+  private async drawBackground(
+    ctx: any, // CanvasRenderingContext2D
+    backgroundImagePath: string,
+    width: number,
+    height: number,
+  ): Promise<void> {
+    // Canvas 패키지 설치 후 구현
+    throw new Error('Canvas 패키지 설치 후 사용 가능합니다.')
+  }
+
+  /**
+   * Canvas에 텍스트 요소 그리기
+   * TODO: canvas 패키지 설치 후 활성화
+   */
+  private async drawTextElement(
+    ctx: any, // CanvasRenderingContext2D
+    element: ThumbnailLayoutElement,
+    variables: TemplateVariables,
+  ): Promise<void> {
+    // Canvas 패키지 설치 후 구현
+    throw new Error('Canvas 패키지 설치 후 사용 가능합니다.')
+  }
+
+  /**
+   * Canvas 기반으로 썸네일 이미지 생성 (개선된 버전)
+   */
+  async generateThumbnailImageWithCanvas(contentHtml: string): Promise<string | null> {
+    try {
+      this.logger.log('Canvas를 사용하여 썸네일 이미지 생성을 시작합니다.')
+
+      // OpenAI를 사용하여 썸네일 텍스트 데이터 생성
+      const thumbnailData = await this.openAiService.generateThumbnailData(contentHtml)
+
+      // DB에서 기본 썸네일 레이아웃 가져오기 (임시로 하드코딩)
+      // TODO: Prisma 타입 오류 해결 후 활성화
+      /*
+      let thumbnailLayout = await this.prisma.thumbnailLayout.findFirst({
+        where: { isDefault: true },
+        orderBy: { createdAt: 'desc' },
+      })
+
+      if (!thumbnailLayout) {
+        thumbnailLayout = await this.prisma.thumbnailLayout.findFirst({
+          orderBy: { createdAt: 'desc' },
+        })
+      }
+      */
+
+      // 임시 기본 레이아웃 (나중에 DB에서 가져오도록 수정)
+      const defaultLayout: ThumbnailLayoutData = {
+        id: 'default',
+        backgroundImage: 'background_8453dcbb73d2f44c.png',
+        elements: [
+          {
+            id: 'title',
+            text: '{{제목}}',
+            x: 10, // 10%
+            y: 30, // 30%
+            width: 80, // 80%
+            height: 20, // 20%
+            fontSize: 60,
+            fontFamily: 'BMDOHYEON',
+            color: '#ffffff',
+            textAlign: 'center',
+            fontWeight: 'bold',
+            opacity: 1,
+            rotation: 0,
+            zIndex: 2,
+          },
+          {
+            id: 'subtitle',
+            text: '{{부제목}}',
+            x: 10, // 10%
+            y: 55, // 55%
+            width: 80, // 80%
+            height: 15, // 15%
+            fontSize: 36,
+            fontFamily: 'BMDOHYEON',
+            color: '#ffffff',
+            textAlign: 'center',
+            fontWeight: 'normal',
+            opacity: 0.9,
+            rotation: 0,
+            zIndex: 2,
+          },
+        ],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+
+      // 배경 이미지 경로 설정
+      const backgroundImagePath = this.getBackgroundImagePath(defaultLayout.backgroundImage)
+
+      // 템플릿 변수 설정
+      const templateVariables: TemplateVariables = {
+        제목: thumbnailData.title,
+        부제목: thumbnailData.subtitle,
+        title: thumbnailData.title,
+        subtitle: thumbnailData.subtitle,
+      }
+
+      // Canvas 기반 썸네일 생성 (임시로 기본 방식 사용)
+      // TODO: canvas 패키지 설치 후 Canvas 방식 사용
+      const thumbnailOptions: ThumbnailOptions = {
+        title: thumbnailData.title,
+        subtitle: thumbnailData.subtitle,
+        backgroundImagePath,
+        textColor: '#ffffff',
+        fontSize: 60,
+        fontFamily: 'BMDOHYEON',
+      }
+
+      const thumbnailBuffer = await this.generateThumbnail(thumbnailOptions)
+
+      // 생성된 썸네일을 파일로 저장
+      const timestamp = Date.now()
+      const fileName = `thumbnail_canvas_${timestamp}.png`
+      const savedPath = await this.saveBackgroundImage(thumbnailBuffer, fileName)
+
+      // 로컬 파일 경로를 URL로 변환
+      const thumbnailUrl = `file://${savedPath}`
+
+      this.logger.log(`Canvas 썸네일 이미지 생성 완료: ${thumbnailUrl}`)
+
+      return thumbnailUrl
+    } catch (error) {
+      this.logger.error('Canvas 썸네일 이미지 생성 중 오류 발생:', error)
+      return null
+    }
+  }
+
+  /**
+   * React-Konva 기반 썸네일 생성 (Playwright + HTML 템플릿 방식)
+   */
+  async generateThumbnailImageWithKonva(
+    contentHtml: string,
+    predefinedData?: { title: string; subtitle: string },
+  ): Promise<string | null> {
+    try {
+      this.logger.log('렌더 프로세스 라우팅 방식으로 썸네일 이미지 생성을 시작합니다.')
+
+      // predefinedData가 제공되면 사용, 없으면 OpenAI로 생성
+      const thumbnailData = predefinedData || (await this.openAiService.generateThumbnailData(contentHtml))
+
+      // 레이아웃 데이터 (임시)
+      const defaultLayout: ThumbnailLayoutData = {
+        id: 'default',
+        backgroundImage: 'background_8453dcbb73d2f44c.png',
+        elements: [
+          {
+            id: 'title',
+            text: '{{제목}}',
+            x: 10,
+            y: 30,
+            width: 80,
+            height: 20,
+            fontSize: 60,
+            fontFamily: 'BMDOHYEON',
+            color: '#ffffff',
+            textAlign: 'center',
+            fontWeight: 'bold',
+            opacity: 1,
+            rotation: 0,
+            zIndex: 2,
+          },
+          {
+            id: 'subtitle',
+            text: '{{부제목}}',
+            x: 10,
+            y: 55,
+            width: 80,
+            height: 15,
+            fontSize: 36,
+            fontFamily: 'BMDOHYEON',
+            color: '#ffffff',
+            textAlign: 'center',
+            fontWeight: 'normal',
+            opacity: 0.9,
+            rotation: 0,
+            zIndex: 2,
+          },
+        ],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+
+      // 배경 이미지 절대 경로 설정 (file:// URL로)
+      const backgroundImagePath = this.getBackgroundImagePath(defaultLayout.backgroundImage)
+      const backgroundImageUrl = `file://${backgroundImagePath}`
+
+      // 템플릿 변수 설정
+      const templateVariables: TemplateVariables = {
+        제목: thumbnailData.title,
+        부제목: thumbnailData.subtitle,
+        title: thumbnailData.title,
+        subtitle: thumbnailData.subtitle,
+      }
+
+      this.logger.log('렌더 프로세스 라우팅으로 썸네일 생성 시작')
+
+      // 렌더 프로세스 라우팅으로 썸네일 생성
+      const dataUrl = await this.generateThumbnailWithPlaywright({
+        layout: defaultLayout,
+        variables: templateVariables,
+        backgroundImagePath: backgroundImageUrl,
+      })
+
+      if (!dataUrl) {
+        this.logger.warn('렌더 프로세스 라우팅 썸네일 생성 실패, 기본 방식으로 대체합니다.')
+        return this.generateThumbnailImageWithCanvas(contentHtml)
+      }
+
+      // dataURL을 Buffer로 변환하여 파일로 저장
+      const thumbnailUrl = await this.saveDataUrlAsFile(dataUrl)
+
+      this.logger.log(`렌더 프로세스 라우팅 썸네일 이미지 생성 완료: ${thumbnailUrl}`)
+
+      return thumbnailUrl
+    } catch (error) {
+      this.logger.error('렌더 프로세스 라우팅 썸네일 이미지 생성 중 오류 발생:', error)
+      return null
+    }
+  }
+
+  /**
+   * Playwright로 독립 HTML 페이지에서 썸네일 생성
+   */
+  private async generateThumbnailWithPlaywright(config: {
+    layout: ThumbnailLayoutData
+    variables: TemplateVariables
+    backgroundImagePath: string
+  }): Promise<string | null> {
+    try {
+      // 메인 윈도우 가져오기
+      const windows = BrowserWindow.getAllWindows()
+      const mainWindow = windows.find(window => !window.isDestroyed())
+
+      if (!mainWindow) {
+        throw new Error('메인 윈도우를 찾을 수 없습니다.')
+      }
+
+      this.logger.log('Electron 렌더 프로세스 라우팅을 통한 썸네일 생성 시작')
+
+      // 현재 URL 백업
+      const currentUrl = await mainWindow.webContents.executeJavaScript('window.location.href')
+
+      // 설정을 URL 파라미터로 인코딩
+      const configParam = encodeURIComponent(JSON.stringify(config))
+      const thumbnailUrl = `/thumbnail-generator?config=${configParam}`
+
+      this.logger.log(`썸네일 페이지로 이동: ${thumbnailUrl}`)
+
+      // 썸네일 페이지로 이동
+      await mainWindow.webContents.executeJavaScript(`
+        window.location.hash = '${thumbnailUrl}'
+      `)
+
+      // 페이지 로딩 및 컴포넌트 준비 대기 (최대 10초)
+      await mainWindow.webContents.executeJavaScript(`
+        new Promise((resolve, reject) => {
+          let attempts = 0
+          const maxAttempts = 100 // 10초
+          
+          const checkReady = () => {
+            attempts++
+            if (window.thumbnailReady) {
+              resolve(true)
+            } else if (attempts >= maxAttempts) {
+              reject(new Error('썸네일 페이지 준비 타임아웃'))
+            } else {
+              setTimeout(checkReady, 100)
+            }
+          }
+          checkReady()
+        })
+      `)
+
+      this.logger.log('썸네일 페이지 준비 완료, 캡쳐 시작')
+
+      // 캡쳐 실행
+      const dataUrl = await mainWindow.webContents.executeJavaScript(`
+        window.captureThumbnail ? window.captureThumbnail() : null
+      `)
+
+      // 원래 페이지로 복원
+      this.logger.log('원래 페이지로 복원 중...')
+      await mainWindow.webContents.executeJavaScript(`
+        window.location.href = '${currentUrl}'
+      `)
+
+      if (!dataUrl || !dataUrl.startsWith('data:image/')) {
+        throw new Error('유효하지 않은 썸네일 캡쳐 결과')
+      }
+
+      this.logger.log('Electron 렌더 프로세스 썸네일 생성 성공')
+      return dataUrl
+    } catch (error) {
+      this.logger.error('Electron 렌더 프로세스 썸네일 생성 실패:', error)
+
+      // 오류 발생 시 메인 페이지로 복원 시도
+      try {
+        const windows = BrowserWindow.getAllWindows()
+        const mainWindow = windows.find(window => !window.isDestroyed())
+        if (mainWindow) {
+          await mainWindow.webContents.executeJavaScript(`
+            window.location.hash = '/'
+          `)
+        }
+      } catch (restoreError) {
+        this.logger.error('페이지 복원 실패:', restoreError)
+      }
+
+      return null
+    }
+  }
+
+  /**
+   * 렌더 프로세스에 썸네일 생성 요청 (직접 실행 방식) - 레거시
+   */
+  private async requestThumbnailFromRenderer(request: any): Promise<string | null> {
+    try {
+      // 메인 윈도우 찾기
+      const mainWindow = BrowserWindow.getAllWindows().find(window => !window.isDestroyed())
+
+      if (!mainWindow) {
+        this.logger.error('메인 윈도우를 찾을 수 없습니다.')
+        return null
+      }
+
+      this.logger.log('렌더 프로세스에서 직접 React-Konva 썸네일 생성 요청 시작')
+
+      // 더 직접적이고 빠른 방식으로 렌더 프로세스에서 JavaScript 실행
+      const result = await mainWindow.webContents.executeJavaScript(`
+        new Promise((resolve, reject) => {
+          try {
+            // Konva 썸네일 생성 요청 데이터
+            const requestData = ${JSON.stringify(request)};
+            
+            // 우선순위: 동기식 > 직접 > 기존 함수
+            if (typeof window.generateThumbnailSync === 'function') {
+              console.log('동기식 썸네일 생성 함수 사용 (가장 빠른 방식)');
+              window.generateThumbnailSync(requestData)
+                .then(dataUrl => resolve({ success: true, dataUrl, method: 'sync' }))
+                .catch(error => {
+                  console.warn('동기식 방식 실패, 직접 방식으로 폴백:', error.message);
+                  // 동기식 방식 실패 시 직접 방식으로 폴백
+                  if (typeof window.generateThumbnailDirectly === 'function') {
+                    window.generateThumbnailDirectly(requestData)
+                      .then(dataUrl => resolve({ success: true, dataUrl, method: 'direct' }))
+                      .catch(directError => {
+                        console.warn('직접 방식도 실패, 기존 방식으로 폴백:', directError.message);
+                        // 직접 방식도 실패 시 기존 방식으로 폴백
+                        if (typeof window.generateKonvaThumbnail === 'function') {
+                          window.generateKonvaThumbnail(requestData)
+                            .then(dataUrl => resolve({ success: true, dataUrl, method: 'legacy' }))
+                            .catch(legacyError => resolve({ success: false, error: legacyError.message }));
+                        } else {
+                          resolve({ success: false, error: '모든 썸네일 생성 함수를 찾을 수 없습니다.' });
+                        }
+                      });
+                  } else {
+                    resolve({ success: false, error: '폴백 썸네일 생성 함수를 찾을 수 없습니다.' });
+                  }
+                });
+            } else if (typeof window.generateThumbnailDirectly === 'function') {
+              console.log('직접 썸네일 생성 함수 사용 (빠른 방식)');
+              window.generateThumbnailDirectly(requestData)
+                .then(dataUrl => resolve({ success: true, dataUrl, method: 'direct' }))
+                .catch(error => {
+                  console.warn('직접 방식 실패, 기존 방식으로 폴백:', error.message);
+                  // 직접 방식 실패 시 기존 방식으로 폴백
+                  if (typeof window.generateKonvaThumbnail === 'function') {
+                    window.generateKonvaThumbnail(requestData)
+                      .then(dataUrl => resolve({ success: true, dataUrl, method: 'fallback' }))
+                      .catch(fallbackError => resolve({ success: false, error: fallbackError.message }));
+                  } else {
+                    resolve({ success: false, error: '폴백 썸네일 생성 함수를 찾을 수 없습니다.' });
+                  }
+                });
+            } else if (typeof window.generateKonvaThumbnail === 'function') {
+              console.log('기존 썸네일 생성 함수 사용');
+              window.generateKonvaThumbnail(requestData)
+                .then(dataUrl => resolve({ success: true, dataUrl, method: 'legacy' }))
+                .catch(error => resolve({ success: false, error: error.message }));
+            } else {
+              resolve({ success: false, error: '썸네일 생성 함수를 찾을 수 없습니다.' });
+            }
+          } catch (error) {
+            resolve({ success: false, error: error.message });
+          }
+        });
+      `)
+
+      if (result.success) {
+        this.logger.log(`React-Konva 썸네일 생성 성공 (방식: ${result.method})`)
+        return result.dataUrl
+      } else {
+        this.logger.error(`React-Konva 썸네일 생성 실패: ${result.error}`)
+        return null
+      }
+    } catch (error) {
+      this.logger.error('렌더 프로세스 JavaScript 실행 오류:', error)
+      return null
+    }
+  }
+
+  /**
+   * dataURL을 파일로 저장
+   */
+  private async saveDataUrlAsFile(dataUrl: string): Promise<string> {
+    try {
+      // base64 데이터 추출
+      const base64Data = dataUrl.replace(/^data:image\/\w+;base64,/, '')
+      const buffer = Buffer.from(base64Data, 'base64')
+
+      // 파일명 생성
+      const timestamp = Date.now()
+      const fileName = `thumbnail_konva_${timestamp}.png`
+
+      // 파일 저장
+      const savedPath = await this.saveBackgroundImage(buffer, fileName)
+
+      // URL 형식으로 반환
+      return `file://${savedPath}`
+    } catch (error) {
+      this.logger.error('dataURL 파일 저장 중 오류:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 렌더 프로세스 라우팅 방식 테스트 함수
+   */
+  async testRouterBasedThumbnailGeneration(): Promise<void> {
+    try {
+      this.logger.log('🧪 렌더 프로세스 라우팅 썸네일 생성 테스트 시작')
+
+      const testTitle = '테스트 제목'
+      const testDescription = '테스트 설명'
+
+      const result = await this.generateThumbnailImage(testTitle, testDescription)
+
+      if (result) {
+        this.logger.log(`✅ 테스트 성공! 썸네일 생성 완료: ${result}`)
+      } else {
+        this.logger.error('❌ 테스트 실패: 썸네일 생성 결과가 null')
+      }
+    } catch (error) {
+      this.logger.error('❌ 테스트 중 오류 발생:', error)
+    }
   }
 }

@@ -206,7 +206,7 @@ export class WorkflowController {
   }
 
   /**
-   * 썸네일 이미지를 생성하는 함수
+   * 썸네일 이미지를 생성하는 함수 (React-Konva 방식)
    * @param title - 포스트 제목
    * @param subtitle - 포스트 부제목 (선택사항)
    * @returns 썸네일 이미지 URL 또는 undefined
@@ -221,38 +221,45 @@ export class WorkflowController {
         return undefined
       }
 
-      // 배경이미지 경로 설정
-      let backgroundImagePath: string | undefined
-      if (settings.thumbnailBackgroundImage) {
-        backgroundImagePath = this.thumbnailGenerator.getBackgroundImagePath(settings.thumbnailBackgroundImage)
+      // React-Konva 방식으로 썸네일 생성
+      const thumbnailUrl = await this.thumbnailGenerator.generateThumbnailImage(title, subtitle)
+
+      if (thumbnailUrl) {
+        this.logger.log(`React-Konva 방식 썸네일 생성 완료: ${thumbnailUrl}`)
+
+        // 로컬 파일 URL인 경우 GCS 업로드 시도
+        if (thumbnailUrl.startsWith('file://')) {
+          try {
+            // 파일을 Buffer로 읽어오기
+            const fs = require('fs')
+            const filePath = thumbnailUrl.replace('file://', '')
+            const thumbnailBuffer = fs.readFileSync(filePath)
+
+            // GCS에 업로드
+            const uploadResult = await this.gcsUpload.uploadImage(thumbnailBuffer, {
+              contentType: 'image/png',
+              isPublic: true,
+            })
+
+            // 업로드 성공 시 로컬 파일 삭제
+            try {
+              fs.unlinkSync(filePath)
+            } catch (deleteError) {
+              this.logger.warn(`로컬 썸네일 파일 삭제 실패: ${deleteError.message}`)
+            }
+
+            return uploadResult.url
+          } catch (uploadError) {
+            this.logger.error('GCS 업로드 실패:', uploadError)
+            // 업로드 실패 시 로컬 URL 반환
+            return thumbnailUrl
+          }
+        }
+
+        return thumbnailUrl
       }
 
-      // 썸네일 생성
-      const thumbnailBuffer = await this.thumbnailGenerator.generateThumbnail({
-        title,
-        subtitle,
-        backgroundColor: settings.thumbnailBackgroundColor || '#4285f4',
-        backgroundImagePath,
-        textColor: settings.thumbnailTextColor || '#ffffff',
-        fontSize: settings.thumbnailFontSize || 48,
-        width: settings.thumbnailWidth || 1200,
-        height: settings.thumbnailHeight || 630,
-        fontFamily: settings.thumbnailFontFamily || 'Arial, sans-serif',
-      })
-
-      // 항상 GCS에 업로드 시도
-      try {
-        const uploadResult = await this.gcsUpload.uploadImage(thumbnailBuffer, {
-          contentType: 'image/png',
-          isPublic: true,
-        })
-        return uploadResult.url
-      } catch (uploadError) {
-        this.logger.error('GCS 업로드 실패, base64로 변환:', uploadError)
-        // GCS 업로드 실패 시 base64로 변환
-        const base64 = thumbnailBuffer.toString('base64')
-        return `data:image/png;base64,${base64}`
-      }
+      return undefined
     } catch (error) {
       this.logger.error('썸네일 생성 실패:', error)
       return undefined
