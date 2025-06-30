@@ -32,6 +32,9 @@ export class EnvConfig {
     LoggerConfig.initialize()
 
     this.setupEngineNames()
+
+    process.env.PLAYWRIGHT_BROWSERS_PATH = this.getDefaultChromePath()
+
     if (this.isPackaged) {
       this.setupPackagedEnvironment()
       this.initializeDatabase()
@@ -91,7 +94,6 @@ export class EnvConfig {
     process.env.DATABASE_URL = this.dbUrl
     process.env.PRISMA_QUERY_ENGINE_BINARY = enginePath
     process.env.PRISMA_QUERY_ENGINE_LIBRARY = libPath
-    process.env.PUPPETEER_EXECUTABLE_PATH = this.getDefaultChromePath()
     process.env.COOKIE_DIR = path.join(this.resourcePath, 'cookies')
   }
 
