@@ -1,18 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react'
-import {
-  Card,
-  Button,
-  Select,
-  Slider,
-  ColorPicker,
-  Space,
-  Typography,
-  Input,
-  InputNumber,
-  Form,
-  Upload,
-  message,
-} from 'antd'
+import { Card, Button, Select, ColorPicker, Space, Typography, Input, InputNumber, Form, Upload, message } from 'antd'
 import { AppstoreOutlined, SaveOutlined, PlusOutlined, DeleteOutlined, UploadOutlined } from '@ant-design/icons'
 import { Stage, Layer, Text as KonvaText, Image as KonvaImage, Transformer, Line } from 'react-konva'
 import { TextElement, ThumbnailLayout, EditorState } from '../../types/thumbnail'
@@ -183,7 +170,6 @@ const ThumbnailEditor: React.FC<ThumbnailEditorProps> = ({
     selectedElementId: null,
     isDragging: false,
     isResizing: false,
-    zoom: 0.6,
     showGrid: true,
     snapToGrid: false,
   })
@@ -377,12 +363,12 @@ const ThumbnailEditor: React.FC<ThumbnailEditorProps> = ({
         setEditingElementId(elementId)
         setEditingText(element.text)
         setEditingPosition({
-          x: stageBox.left + element.x * editorState.zoom + 10,
-          y: stageBox.top + element.y * editorState.zoom + 10,
+          x: stageBox.left + element.x + 10,
+          y: stageBox.top + element.y + 10,
         })
       }
     },
-    [layout.elements, editorState.zoom, editingElementId, editingText, transformElement],
+    [layout.elements, editingElementId, editingText, transformElement],
   )
 
   // 텍스트 편집 완료
@@ -820,27 +806,14 @@ const ThumbnailEditor: React.FC<ThumbnailEditorProps> = ({
 
         {/* 에디터 설정 */}
         <Card title="에디터 설정" size="small" className="mb-4">
-          <Space direction="vertical" style={{ width: '100%' }}>
-            <div>
-              <Text strong>확대/축소</Text>
-              <Slider
-                min={0.1}
-                max={2}
-                step={0.1}
-                value={editorState.zoom}
-                onChange={value => setEditorState(prev => ({ ...prev, zoom: value }))}
-              />
-            </div>
-
-            <Button
-              icon={<AppstoreOutlined />}
-              onClick={() => setEditorState(prev => ({ ...prev, showGrid: !prev.showGrid }))}
-              type={editorState.showGrid ? 'primary' : 'default'}
-              block
-            >
-              격자 {editorState.showGrid ? '숨기기' : '보기'}
-            </Button>
-          </Space>
+          <Button
+            icon={<AppstoreOutlined />}
+            onClick={() => setEditorState(prev => ({ ...prev, showGrid: !prev.showGrid }))}
+            type={editorState.showGrid ? 'primary' : 'default'}
+            block
+          >
+            격자 {editorState.showGrid ? '숨기기' : '보기'}
+          </Button>
         </Card>
 
         {/* 키보드 단축키 안내 */}
@@ -890,10 +863,8 @@ const ThumbnailEditor: React.FC<ThumbnailEditorProps> = ({
         >
           <Stage
             ref={stageRef}
-            width={1000 * editorState.zoom}
-            height={1000 * editorState.zoom}
-            scaleX={editorState.zoom}
-            scaleY={editorState.zoom}
+            width={1000}
+            height={1000}
             onClick={e => {
               // 편집 중이면 편집 완료
               if (editingElementId) {

@@ -38,7 +38,6 @@ export interface EditorState {
   selectedElementId: string | null
   isDragging: boolean
   isResizing: boolean
-  zoom: number
   showGrid: boolean
   snapToGrid: boolean
 }
