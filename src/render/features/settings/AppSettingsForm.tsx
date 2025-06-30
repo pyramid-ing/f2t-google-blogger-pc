@@ -29,7 +29,13 @@ const AppSettingsForm: React.FC = () => {
   const handleSave = async (values: AppSettings) => {
     setLoading(true)
     try {
-      await saveAppSettingsToServer(values)
+      const settings = await getAppSettingsFromServer()
+
+      await saveAppSettingsToServer({
+        ...settings,
+        adEnabled: values.adEnabled,
+        adScript: values.adScript,
+      })
       setSettings(values)
       message.success('설정이 저장되었습니다.')
     } catch (error) {
