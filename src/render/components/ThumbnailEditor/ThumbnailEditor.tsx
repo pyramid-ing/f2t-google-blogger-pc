@@ -7,6 +7,19 @@ import { thumbnailApi } from '../../api'
 import Konva from 'konva'
 import useImage from 'use-image'
 
+// 웹 폰트 로딩을 위한 CSS 스타일
+const fontStyles = `
+  @import url('http://fonts.googleapis.com/earlyaccess/nanumgothic.css');
+  @import url('https://cdn.rawgit.com/moonspam/NanumSquare/master/nanumsquare.css');
+  
+  @font-face {
+    font-family: 'BMDOHYEON';
+    src: url('https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_one@1.0/BMDOHYEON.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+  }
+`
+
 const { Option } = Select
 const { Text } = Typography
 const { TextArea } = Input
@@ -32,7 +45,8 @@ const EditableText: React.FC<{
   isSelected: boolean
   onSelect: () => void
   onTransform: (id: string, attrs: any) => void
-}> = ({ element, isSelected, onSelect, onTransform }) => {
+  fontsLoaded: boolean
+}> = ({ element, isSelected, onSelect, onTransform, fontsLoaded }) => {
   const textRef = useRef<Konva.Text>(null)
   const transformerRef = useRef<Konva.Transformer>(null)
 
@@ -52,6 +66,7 @@ const EditableText: React.FC<{
   return (
     <>
       <KonvaText
+        key={`${element.id}-${element.fontFamily}-${fontsLoaded}`}
         ref={textRef}
         x={element.x}
         y={element.y}
@@ -140,6 +155,7 @@ const ThumbnailEditor: React.FC<ThumbnailEditorProps> = ({
 
   const [layout, setLayout] = useState<ThumbnailLayout>(initialLayout || createDefaultLayout())
   const [backgroundImageBase64, setBackgroundImageBase64] = useState<string>('')
+  const [fontsLoaded, setFontsLoaded] = useState<boolean>(false)
   const [editorState, setEditorState] = useState<EditorState>({
     selectedElementId: null,
     isDragging: false,
@@ -154,6 +170,41 @@ const ThumbnailEditor: React.FC<ThumbnailEditorProps> = ({
     { value: 'NanumGothic', label: '나눔고딕' },
     { value: 'NanumSquare', label: '나눔스퀘어' },
   ]
+
+  // 폰트 로딩
+  useEffect(() => {
+    const loadFonts = async () => {
+      try {
+        // CSS 스타일 추가
+        if (!document.getElementById('thumbnail-fonts')) {
+          const style = document.createElement('style')
+          style.id = 'thumbnail-fonts'
+          style.innerHTML = fontStyles
+          document.head.appendChild(style)
+        }
+
+        // 폰트 로딩 대기
+        if ('fonts' in document) {
+          await Promise.all([
+            document.fonts.load('1em BMDOHYEON'),
+            document.fonts.load('1em NanumGothic'),
+            document.fonts.load('1em NanumSquare'),
+          ])
+        }
+
+        // 폰트 로딩 완료 후 잠시 대기
+        setTimeout(() => {
+          setFontsLoaded(true)
+          console.log('폰트 로딩 완료')
+        }, 1000)
+      } catch (error) {
+        console.error('폰트 로딩 실패:', error)
+        setFontsLoaded(true) // 실패해도 계속 진행
+      }
+    }
+
+    loadFonts()
+  }, [])
 
   // 초기값 설정
   useEffect(() => {
@@ -232,10 +283,30 @@ const ThumbnailEditor: React.FC<ThumbnailEditorProps> = ({
 
   // 요소 변형
   const transformElement = useCallback((elementId: string, attrs: Partial<TextElement>) => {
+    console.log('요소 변형:', elementId, attrs)
     setLayout(prev => ({
       ...prev,
-      elements: prev.elements.map(el => (el.id === elementId ? { ...el, ...attrs } : el)),
+      elements: prev.elements.map(el => {
+        if (el.id === elementId) {
+          const updated = { ...el, ...attrs }
+          console.log('업데이트된 요소:', updated)
+          return updated
+        }
+        return el
+      }),
     }))
+
+    // 폰트 변경 시 stage 강제 업데이트
+    if (attrs.fontFamily && stageRef.current) {
+      setTimeout(() => {
+        try {
+          stageRef.current?.batchDraw()
+          console.log('Stage 강제 업데이트 완료')
+        } catch (error) {
+          console.error('Stage 업데이트 실패:', error)
+        }
+      }, 100)
+    }
   }, [])
 
   // 요소 삭제
@@ -482,6 +553,7 @@ const ThumbnailEditor: React.FC<ThumbnailEditorProps> = ({
                   isSelected={editorState.selectedElementId === element.id}
                   onSelect={() => selectElement(element.id)}
                   onTransform={transformElement}
+                  fontsLoaded={fontsLoaded}
                 />
               ))}
             </Layer>
