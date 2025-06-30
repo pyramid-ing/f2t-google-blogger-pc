@@ -43,6 +43,12 @@ const EditableText: React.FC<{
     }
   }, [isSelected])
 
+  const handleSelect = (e: any) => {
+    console.log('텍스트 클릭됨:', element.id)
+    e.cancelBubble = true // 이벤트 버블링 중단
+    onSelect()
+  }
+
   return (
     <>
       <KonvaText
@@ -56,8 +62,8 @@ const EditableText: React.FC<{
         opacity={element.opacity}
         align={element.textAlign}
         draggable
-        onClick={onSelect}
-        onTap={onSelect}
+        onClick={handleSelect}
+        onTap={handleSelect}
         onDragEnd={e => {
           onTransform(element.id, {
             x: e.target.x(),
@@ -213,6 +219,7 @@ const ThumbnailEditor: React.FC<ThumbnailEditorProps> = ({
 
   // 요소 선택
   const selectElement = useCallback((elementId: string | null) => {
+    console.log('선택된 요소 ID:', elementId)
     setEditorState(prev => ({
       ...prev,
       selectedElementId: elementId,
@@ -451,7 +458,13 @@ const ThumbnailEditor: React.FC<ThumbnailEditorProps> = ({
             height={1000 * editorState.zoom}
             scaleX={editorState.zoom}
             scaleY={editorState.zoom}
-            onClick={() => selectElement(null)}
+            onClick={e => {
+              // 텍스트가 아닌 다른 요소를 클릭했을 때 선택 해제
+              const targetType = e.target.nodeType || e.target.constructor.name
+              if (targetType !== 'Text') {
+                selectElement(null)
+              }
+            }}
           >
             <Layer>
               <Grid visible={editorState.showGrid} />
