@@ -107,6 +107,9 @@ importers:
       iconv-lite:
         specifier: ^0.6.3
         version: 0.6.3
+      konva:
+        specifier: ^9.3.20
+        version: 9.3.20
       lodash:
         specifier: ^4.17.21
         version: 4.17.21
@@ -131,6 +134,9 @@ importers:
       react-dom:
         specifier: ^18.3.1
         version: 18.3.1(react@18.3.1)
+      react-konva:
+        specifier: ^18.2.10
+        version: 18.2.10(@types/react@18.3.23)(konva@9.3.20)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-router-dom:
         specifier: ^7.0.1
         version: 7.6.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -149,6 +155,9 @@ importers:
       ts-morph:
         specifier: ^13.0.2
         version: 13.0.3
+      use-image:
+        specifier: ^1.1.4
+        version: 1.1.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       winston:
         specifier: ^3.17.0
         version: 3.17.0
@@ -1358,6 +1367,11 @@ packages:
     resolution: {integrity: sha512-MEe3UeoENYVFXzoXEWsvcpg6ZvlrFNlOQ7EOsvhI3CfAXwzPfO8Qwuxd40nepsYKqyyVQnTdEfv68q91yLcKrQ==}
     peerDependencies:
       '@types/react': ^18.0.0
+
+  '@types/react-reconciler@0.28.9':
+    resolution: {integrity: sha512-HHM3nxyUZ3zAylX8ZEyrDNd2XZOnQ0D5XfunJF5FLQnZbHHYq4UWvW1QfelQNXv1ICNkwYhfxjwfnqivYB6bFg==}
+    peerDependencies:
+      '@types/react': '*'
 
   '@types/react@18.3.23':
     resolution: {integrity: sha512-/LDXMQh55EzZQ0uVAZmKKhfENivEvWz6E+EYzh+/MCjMhNsotd+ZHhBGIjFDTi6+fz0OhQQQLbTgdQIxxCsC0w==}
@@ -2864,6 +2878,11 @@ packages:
     resolution: {integrity: sha512-RKYVTCjAnRthyJes037NX/IiqeidgN1xc3j1RjFfECFp28A1GVwK9nA+i0rJPaHqSZwygLzRnFlzUuHFoWWy+Q==}
     engines: {node: '>=6'}
 
+  its-fine@1.2.5:
+    resolution: {integrity: sha512-fXtDA0X0t0eBYAGLVM5YsgJGsJ5jEmqZEPrGbzdf5awjv0xE7nqv3TVnvtUF060Tkes15DbDAKW/I48vsb6SyA==}
+    peerDependencies:
+      react: '>=18.0'
+
   jackspeak@3.4.3:
     resolution: {integrity: sha512-OGlZQpz2yfahA/Rd1Y8Cd9SIEsqvXkLVoSw/cgwhnhFMDbsQFeZYoJJ7bIZBS9BcamUW96asq/npPWugM+RQBw==}
 
@@ -2948,6 +2967,9 @@ packages:
 
   keyv@4.5.4:
     resolution: {integrity: sha512-oxVHkHR/EJf2CNXnWxRLW6mg7JyCCUcG0DtEGmL2ctUo1PNTin1PUil+r/+4r5MpVgC/fn1kjsx7mjSujKqIpw==}
+
+  konva@9.3.20:
+    resolution: {integrity: sha512-7XPD/YtgfzC8b1c7z0hhY5TF1IO/pBYNa29zMTA2PeBaqI0n5YplUeo4JRuRcljeAF8lWtW65jePZZF7064c8w==}
 
   kuler@2.0.0:
     resolution: {integrity: sha512-Xq9nH7KlWZmXAtodXDDRE7vs6DU1gTU8zYDHDiWLSip45Egwq3plLHzPn27NgvzL2r1LMPC1vdqh98sQxtqj4A==}
@@ -3851,6 +3873,19 @@ packages:
   react-is@18.3.1:
     resolution: {integrity: sha512-/LLMVyas0ljjAtoYiPqYiL8VWXzUUdThrmU5+n20DZv+a+ClRoevUzw5JxU+Ieh5/c87ytoTBV9G1FiKfNJdmg==}
 
+  react-konva@18.2.10:
+    resolution: {integrity: sha512-ohcX1BJINL43m4ynjZ24MxFI1syjBdrXhqVxYVDw2rKgr3yuS0x/6m1Y2Z4sl4T/gKhfreBx8KHisd0XC6OT1g==}
+    peerDependencies:
+      konva: ^8.0.1 || ^7.2.5 || ^9.0.0
+      react: '>=18.0.0'
+      react-dom: '>=18.0.0'
+
+  react-reconciler@0.29.2:
+    resolution: {integrity: sha512-zZQqIiYgDCTP/f1N/mAR10nJGrPD2ZR+jDSEsKWJHYC7Cm2wodlwbR3upZRdC3cjIjSlTLNVyO7Iu0Yy7t2AYg==}
+    engines: {node: '>=0.10.0'}
+    peerDependencies:
+      react: ^18.3.1
+
   react-refresh@0.17.0:
     resolution: {integrity: sha512-z6F7K9bV85EfseRCp2bzrpyQ0Gkw1uLoCel9XBVWPg/TjRj94SkJzUTGfOa4bs7iJvBWtQG0Wq7wnI0syw3EBQ==}
     engines: {node: '>=0.10.0'}
@@ -4511,6 +4546,12 @@ packages:
 
   url-template@2.0.8:
     resolution: {integrity: sha512-XdVKMF4SJ0nP/O7XIPB0JwAEuT9lDIYnNsK8yGVe43y0AWoKeJNdv3ZNWh7ksJ6KqQFjOO6ox/VEitLnaVNufw==}
+
+  use-image@1.1.4:
+    resolution: {integrity: sha512-P+swhszzHHgEb2X2yQ+vQNPCq/8Ks3hyfdXAVN133pvnvK7UK++bUaZUa5E+A3S02Mw8xOCBr9O6CLhk2fjrWA==}
+    peerDependencies:
+      react: '>=16.8.0'
+      react-dom: '>=16.8.0'
 
   utf8-byte-length@1.0.5:
     resolution: {integrity: sha512-Xn0w3MtiQ6zoz2vFyUVruaCL53O/DwUvkEeOvj+uulMm0BkUGYWmBYVyElqZaSLhY6ZD0ulfU3aBra2aVT4xfA==}
@@ -5824,6 +5865,10 @@ snapshots:
   '@types/range-parser@1.2.7': {}
 
   '@types/react-dom@18.3.7(@types/react@18.3.23)':
+    dependencies:
+      '@types/react': 18.3.23
+
+  '@types/react-reconciler@0.28.9(@types/react@18.3.23)':
     dependencies:
       '@types/react': 18.3.23
 
@@ -7699,6 +7744,13 @@ snapshots:
 
   iterare@1.2.1: {}
 
+  its-fine@1.2.5(@types/react@18.3.23)(react@18.3.1):
+    dependencies:
+      '@types/react-reconciler': 0.28.9(@types/react@18.3.23)
+      react: 18.3.1
+    transitivePeerDependencies:
+      - '@types/react'
+
   jackspeak@3.4.3:
     dependencies:
       '@isaacs/cliui': 8.0.2
@@ -7792,6 +7844,8 @@ snapshots:
   keyv@4.5.4:
     dependencies:
       json-buffer: 3.0.1
+
+  konva@9.3.20: {}
 
   kuler@2.0.0: {}
 
@@ -8730,6 +8784,24 @@ snapshots:
 
   react-is@18.3.1: {}
 
+  react-konva@18.2.10(@types/react@18.3.23)(konva@9.3.20)(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+    dependencies:
+      '@types/react-reconciler': 0.28.9(@types/react@18.3.23)
+      its-fine: 1.2.5(@types/react@18.3.23)(react@18.3.1)
+      konva: 9.3.20
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      react-reconciler: 0.29.2(react@18.3.1)
+      scheduler: 0.23.2
+    transitivePeerDependencies:
+      - '@types/react'
+
+  react-reconciler@0.29.2(react@18.3.1):
+    dependencies:
+      loose-envify: 1.4.0
+      react: 18.3.1
+      scheduler: 0.23.2
+
   react-refresh@0.17.0: {}
 
   react-router-dom@7.6.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
@@ -9434,6 +9506,11 @@ snapshots:
       punycode: 2.3.1
 
   url-template@2.0.8: {}
+
+  use-image@1.1.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+    dependencies:
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
 
   utf8-byte-length@1.0.5: {}
 

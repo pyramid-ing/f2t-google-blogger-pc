@@ -565,7 +565,7 @@ export const ThumbnailSettingsForm: React.FC<ThumbnailSettingsFormProps> = ({ in
         width="90vw"
         style={{ top: 20 }}
         footer={null}
-        destroyOnClose={true}
+        destroyOnHidden={true}
       >
         {selectedBackgroundImage ? (
           <ThumbnailEditor
