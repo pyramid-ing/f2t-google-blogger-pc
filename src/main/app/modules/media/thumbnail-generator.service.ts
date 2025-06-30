@@ -26,14 +26,15 @@ export class ThumbnailGeneratorService {
     const {
       title,
       subtitle = '',
-      backgroundColor = '#4285f4',
       backgroundImagePath,
       textColor = '#ffffff',
       fontSize = 48,
-      width = 1024,
-      height = 1024,
-      fontFamily = 'Arial, sans-serif',
+      fontFamily = 'BMDOHYEON',
     } = options
+
+    // 사이즈를 1000x1000으로 고정
+    const width = 1000
+    const height = 1000
 
     const browser = await chromium.launch({
       headless: true,
@@ -48,7 +49,6 @@ export class ThumbnailGeneratorService {
       const html = this.generateThumbnailHTML({
         title,
         subtitle,
-        backgroundColor,
         backgroundImagePath,
         textColor,
         fontSize,
@@ -79,11 +79,10 @@ export class ThumbnailGeneratorService {
   }
 
   private generateThumbnailHTML(options: ThumbnailOptions & { width: number; height: number }): string {
-    const { title, subtitle, backgroundColor, backgroundImagePath, textColor, fontSize, fontFamily, width, height } =
-      options
+    const { title, subtitle, backgroundImagePath, textColor, fontSize, fontFamily, width, height } = options
 
-    // 배경 스타일 결정
-    let backgroundStyle = `background: ${backgroundColor};`
+    // 배경 스타일 결정 - 배경색은 제거하고 배경이미지만 사용
+    let backgroundStyle = 'background: #4285f4;' // 기본 배경색 (이미지가 없을 때만)
 
     if (backgroundImagePath && fs.existsSync(backgroundImagePath)) {
       // 배경이미지가 있는 경우
@@ -101,7 +100,21 @@ export class ThumbnailGeneratorService {
 <html>
 <head>
     <meta charset="UTF-8">
+    
+    <!-- 한국 폰트 임포트 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <style>
+        @import url('http://fonts.googleapis.com/earlyaccess/nanumgothic.css');
+        @import url('https://cdn.rawgit.com/moonspam/NanumSquare/master/nanumsquare.css');
+        
+        @font-face {
+            font-family: 'BMDOHYEON';
+            src: url('https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_one@1.0/BMDOHYEON.woff') format('woff');
+            font-weight: normal;
+            font-style: normal;
+        }
+        
         * {
             margin: 0;
             padding: 0;
@@ -116,7 +129,7 @@ export class ThumbnailGeneratorService {
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            font-family: ${fontFamily};
+            font-family: ${fontFamily}, 'Nanum Gothic', 'NanumSquare', sans-serif;
             overflow: hidden;
             position: relative;
         }

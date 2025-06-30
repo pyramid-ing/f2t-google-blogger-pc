@@ -13,7 +13,6 @@ import {
   Row,
   Col,
   Image,
-  Space,
   Alert,
   Popconfirm,
   Typography,
@@ -47,13 +46,10 @@ export const ThumbnailSettingsForm: React.FC<ThumbnailSettingsFormProps> = ({ in
   useEffect(() => {
     form.setFieldsValue({
       thumbnailEnabled: initialSettings.thumbnailEnabled || false,
-      thumbnailBackgroundColor: initialSettings.thumbnailBackgroundColor || '#4285f4',
       thumbnailBackgroundImage: initialSettings.thumbnailBackgroundImage || '',
       thumbnailTextColor: initialSettings.thumbnailTextColor || '#ffffff',
       thumbnailFontSize: initialSettings.thumbnailFontSize || 48,
-      thumbnailWidth: initialSettings.thumbnailWidth || 1200,
-      thumbnailHeight: initialSettings.thumbnailHeight || 630,
-      thumbnailFontFamily: initialSettings.thumbnailFontFamily || 'Arial, sans-serif',
+      thumbnailFontFamily: initialSettings.thumbnailFontFamily || 'BMDOHYEON',
       gcsProjectId: initialSettings.gcsProjectId || '',
       gcsKeyContent: initialSettings.gcsKeyContent || '',
       gcsBucketName: initialSettings.gcsBucketName || '',
@@ -144,22 +140,11 @@ export const ThumbnailSettingsForm: React.FC<ThumbnailSettingsFormProps> = ({ in
     try {
       setGeneratingPreview(true)
 
-      const values = await form.validateFields([
-        'thumbnailBackgroundColor',
-        'thumbnailTextColor',
-        'thumbnailFontSize',
-        'thumbnailWidth',
-        'thumbnailHeight',
-        'thumbnailFontFamily',
-      ])
+      const values = await form.validateFields(['thumbnailTextColor', 'thumbnailFontSize', 'thumbnailFontFamily'])
 
       // 현재 폼 값으로 설정 임시 업데이트
       const tempSettings = {
         ...values,
-        thumbnailBackgroundColor:
-          typeof values.thumbnailBackgroundColor === 'object'
-            ? values.thumbnailBackgroundColor.toHexString()
-            : values.thumbnailBackgroundColor,
         thumbnailTextColor:
           typeof values.thumbnailTextColor === 'object'
             ? values.thumbnailTextColor.toHexString()
@@ -248,17 +233,7 @@ export const ThumbnailSettingsForm: React.FC<ThumbnailSettingsFormProps> = ({ in
     }
   }
 
-  const fontFamilyOptions = [
-    'Arial, sans-serif',
-    'Helvetica, sans-serif',
-    'Georgia, serif',
-    'Times New Roman, serif',
-    'Verdana, sans-serif',
-    'Trebuchet MS, sans-serif',
-    'Impact, sans-serif',
-    'Comic Sans MS, cursive',
-    'Courier New, monospace',
-  ]
+  const fontFamilyOptions = ['BMDOHYEON', 'Nanum Gothic', 'NanumSquare']
 
   return (
     <div>
@@ -268,10 +243,6 @@ export const ThumbnailSettingsForm: React.FC<ThumbnailSettingsFormProps> = ({ in
             <Col span={12}>
               <Form.Item name="thumbnailEnabled" label="썸네일 생성 활성화" valuePropName="checked">
                 <Switch />
-              </Form.Item>
-
-              <Form.Item name="thumbnailBackgroundColor" label="배경 색상" dependencies={['thumbnailEnabled']}>
-                <ColorPicker showText />
               </Form.Item>
 
               <Form.Item name="thumbnailTextColor" label="텍스트 색상" dependencies={['thumbnailEnabled']}>
@@ -292,18 +263,12 @@ export const ThumbnailSettingsForm: React.FC<ThumbnailSettingsFormProps> = ({ in
                 </Select>
               </Form.Item>
 
-              <Row gutter={16}>
-                <Col span={12}>
-                  <Form.Item name="thumbnailWidth" label="이미지 너비" dependencies={['thumbnailEnabled']}>
-                    <InputNumber min={600} max={2000} addonAfter="px" />
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item name="thumbnailHeight" label="이미지 높이" dependencies={['thumbnailEnabled']}>
-                    <InputNumber min={300} max={1000} addonAfter="px" />
-                  </Form.Item>
-                </Col>
-              </Row>
+              <Alert
+                message="썸네일 사이즈"
+                description="썸네일은 1000x1000 픽셀 정사각형으로 생성됩니다."
+                type="info"
+                style={{ marginBottom: 16 }}
+              />
             </Col>
 
             <Col span={12}>
@@ -330,6 +295,33 @@ export const ThumbnailSettingsForm: React.FC<ThumbnailSettingsFormProps> = ({ in
               </div>
             </Col>
           </Row>
+        </Form>
+      </Card>
+
+      <Card title="GCS 업로드 설정" style={{ marginBottom: 16 }}>
+        <Alert
+          message="Google Cloud Storage 설정"
+          description="썸네일을 GCS에 업로드하여 공개 URL로 제공할 수 있습니다."
+          type="info"
+          style={{ marginBottom: 16 }}
+        />
+
+        <Form form={form} layout="vertical">
+          <Form.Item name="gcsProjectId" label="GCS 프로젝트 ID">
+            <Input placeholder="Google Cloud 프로젝트 ID를 입력하세요" />
+          </Form.Item>
+
+          <Form.Item name="gcsBucketName" label="GCS 버킷명">
+            <Input placeholder="GCS 버킷명을 입력하세요" />
+          </Form.Item>
+
+          <Form.Item name="gcsKeyContent" label="GCS 서비스 계정 키 (JSON)">
+            <TextArea rows={6} placeholder="GCS 서비스 계정 키의 JSON 내용을 입력하세요" />
+          </Form.Item>
+
+          <Button onClick={testGCSConnection} loading={testingGCS}>
+            GCS 연결 테스트
+          </Button>
         </Form>
       </Card>
 
@@ -556,56 +548,6 @@ export const ThumbnailSettingsForm: React.FC<ThumbnailSettingsFormProps> = ({ in
             )}
           </Col>
         </Row>
-      </Card>
-
-      <Card title="Google Cloud Storage 설정" style={{ marginBottom: 16 }}>
-        <Alert
-          message="GCS 설정 안내"
-          description="썸네일 이미지가 항상 Google Cloud Storage에 업로드됩니다. GCS 프로젝트와 서비스 계정 키를 설정해주세요."
-          type="info"
-          style={{ marginBottom: 16 }}
-        />
-
-        <Form form={form} layout="vertical">
-          <Form.Item name="gcsProjectId" label="GCS 프로젝트 ID">
-            <Input placeholder="your-gcs-project-id" />
-          </Form.Item>
-
-          <Form.Item
-            name="gcsKeyContent"
-            label="서비스 계정 키 JSON"
-            tooltip="Google Cloud Console에서 다운로드한 서비스 계정 키 JSON 파일의 전체 내용을 복사해서 붙여넣으세요"
-          >
-            <TextArea
-              rows={8}
-              placeholder={`{
-  "type": "service_account",
-  "project_id": "your-project-id",
-  "private_key_id": "key-id",
-  "private_key": "-----BEGIN PRIVATE KEY-----\\n...\\n-----END PRIVATE KEY-----\\n",
-  "client_email": "service-account@your-project.iam.gserviceaccount.com",
-  "client_id": "client-id",
-  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-  "token_uri": "https://oauth2.googleapis.com/token",
-  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/service-account%40your-project.iam.gserviceaccount.com"
-}`}
-              style={{ fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace', fontSize: '12px' }}
-            />
-          </Form.Item>
-
-          <Form.Item name="gcsBucketName" label="GCS 버킷명">
-            <Input placeholder="your-bucket-name" />
-          </Form.Item>
-
-          <Form.Item>
-            <Space>
-              <Button onClick={testGCSConnection} loading={testingGCS}>
-                연결 테스트
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
       </Card>
 
       <div style={{ textAlign: 'center', marginTop: 24 }}>

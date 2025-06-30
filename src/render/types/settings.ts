@@ -17,12 +17,9 @@ export interface AppSettings {
 
   // 썸네일 설정
   thumbnailEnabled?: boolean // 썸네일 생성 활성화 여부
-  thumbnailBackgroundColor?: string // 썸네일 배경색
   thumbnailBackgroundImage?: string // 썸네일 배경이미지 파일명
   thumbnailTextColor?: string // 썸네일 텍스트 색상
   thumbnailFontSize?: number // 썸네일 폰트 크기
-  thumbnailWidth?: number // 썸네일 너비
-  thumbnailHeight?: number // 썸네일 높이
   thumbnailFontFamily?: string // 썸네일 폰트 패밀리
 
   // GCS 설정

@@ -74,20 +74,17 @@ export class ThumbnailController {
       const thumbnailOptions: ThumbnailOptions = {
         title: title.trim(),
         subtitle: subtitle?.trim(),
-        backgroundColor: appSettings.thumbnailBackgroundColor || '#4285f4',
         backgroundImagePath,
         textColor: appSettings.thumbnailTextColor || '#ffffff',
         fontSize: appSettings.thumbnailFontSize || 48,
-        width: appSettings.thumbnailWidth || 1200,
-        height: appSettings.thumbnailHeight || 630,
-        fontFamily: appSettings.thumbnailFontFamily || 'Arial, sans-serif',
+        fontFamily: appSettings.thumbnailFontFamily || 'BMDOHYEON',
       }
 
       // 썸네일 생성
       const imageBuffer = await this.thumbnailGenerator.generateThumbnail(thumbnailOptions)
 
       // GCS 업로드 여부 확인
-      if (uploadToGCS && appSettings.gcsEnabled) {
+      if (uploadToGCS && appSettings.gcsProjectId && appSettings.gcsKeyContent && appSettings.gcsBucketName) {
         try {
           const uploadResult = await this.gcsUpload.uploadImage(imageBuffer, {
             contentType: 'image/png',
@@ -133,10 +130,10 @@ export class ThumbnailController {
     try {
       const appSettings = await this.settings.getAppSettings()
 
-      if (!appSettings.gcsEnabled) {
+      if (!appSettings.gcsProjectId || !appSettings.gcsKeyContent || !appSettings.gcsBucketName) {
         return {
           success: false,
-          error: 'GCS가 비활성화되어 있습니다.',
+          error: 'GCS 설정이 완료되지 않았습니다.',
         }
       }
 
@@ -172,13 +169,10 @@ export class ThumbnailController {
       const thumbnailOptions: ThumbnailOptions = {
         title: title.trim(),
         subtitle: subtitle?.trim(),
-        backgroundColor: appSettings.thumbnailBackgroundColor || '#4285f4',
         backgroundImagePath,
         textColor: appSettings.thumbnailTextColor || '#ffffff',
         fontSize: appSettings.thumbnailFontSize || 48,
-        width: appSettings.thumbnailWidth || 1200,
-        height: appSettings.thumbnailHeight || 630,
-        fontFamily: appSettings.thumbnailFontFamily || 'Arial, sans-serif',
+        fontFamily: appSettings.thumbnailFontFamily || 'BMDOHYEON',
       }
 
       // 썸네일 생성 (업로드 없이 미리보기용)
