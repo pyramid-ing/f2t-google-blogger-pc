@@ -18,7 +18,6 @@ export interface ThumbnailOptions {
 
 interface ThumbnailLayoutElement {
   id: string
-  type: 'title' | 'subtitle'
   text: string
   x: number
   y: number
@@ -40,6 +39,10 @@ interface ThumbnailLayoutData {
   elements: ThumbnailLayoutElement[]
   createdAt: string
   updatedAt: string
+}
+
+interface TemplateVariables {
+  [key: string]: string
 }
 
 @Injectable()
@@ -331,8 +334,23 @@ export class ThumbnailGeneratorService {
     }
   }
 
-  // 레이아웃 기반 썸네일 생성
-  async generateThumbnailWithLayout(backgroundImagePath: string, layout: ThumbnailLayoutData): Promise<Buffer> {
+  /**
+   * 템플릿 문자열을 실제 값으로 교체
+   * @param text 템플릿 문자열 (예: "{{제목}} - {{부제목}}")
+   * @param variables 교체할 변수들 (예: {제목: "실제 제목", 부제목: "실제 부제목"})
+   */
+  private replaceTemplate(text: string, variables: TemplateVariables): string {
+    return text.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
+      return variables[key] || match
+    })
+  }
+
+  // 레이아웃 기반 썸네일 생성 (템플릿 변수 지원)
+  async generateThumbnailWithLayout(
+    backgroundImagePath: string,
+    layout: ThumbnailLayoutData,
+    variables: TemplateVariables = {},
+  ): Promise<Buffer> {
     // 사이즈를 1000x1000으로 고정
     const width = 1000
     const height = 1000
@@ -347,7 +365,7 @@ export class ThumbnailGeneratorService {
       const page = await browser.newPage()
       await page.setViewportSize({ width, height })
 
-      const html = this.generateLayoutHTML(backgroundImagePath, layout, width, height)
+      const html = this.generateLayoutHTML(backgroundImagePath, layout, width, height, variables)
 
       await page.setContent(html)
 
@@ -375,6 +393,7 @@ export class ThumbnailGeneratorService {
     layout: ThumbnailLayoutData,
     width: number,
     height: number,
+    variables: TemplateVariables = {},
   ): string {
     // 배경 스타일 설정
     let backgroundStyle = 'background: #4285f4;' // 기본 배경색
@@ -423,7 +442,7 @@ export class ThumbnailGeneratorService {
               line-height: 1.2;
               width: 100%;
             ">
-              ${this.escapeHtml(element.text)}
+              ${this.escapeHtml(this.replaceTemplate(element.text, variables))}
             </div>
           </div>
         `

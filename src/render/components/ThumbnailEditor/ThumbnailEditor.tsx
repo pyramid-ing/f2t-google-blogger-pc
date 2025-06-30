@@ -238,39 +238,35 @@ const ThumbnailEditor: React.FC<ThumbnailEditorProps> = ({
     }
   }
 
-  // 요소 추가
-  const addTextElement = useCallback(
-    (type: 'title' | 'subtitle') => {
-      const newElement: TextElement = {
-        id: Date.now().toString(),
-        type,
-        text: type === 'title' ? '제목을 입력하세요' : '부제목을 입력하세요',
-        x: 100,
-        y: type === 'title' ? 200 : 300,
-        width: 400,
-        height: type === 'title' ? 60 : 40,
-        fontSize: type === 'title' ? 48 : 32,
-        fontFamily: 'BMDOHYEON',
-        color: '#000000',
-        textAlign: 'left',
-        fontWeight: type === 'title' ? 'bold' : 'normal',
-        opacity: 1,
-        rotation: 0,
-        zIndex: layout.elements.length + 1,
-      }
+  // 텍스트 요소 추가
+  const addTextElement = useCallback(() => {
+    const newElement: TextElement = {
+      id: Date.now().toString(),
+      text: '텍스트를 입력하세요',
+      x: 100,
+      y: 200 + layout.elements.length * 100, // 요소마다 Y 위치 조정
+      width: 400,
+      height: 60,
+      fontSize: 48,
+      fontFamily: 'BMDOHYEON',
+      color: '#000000',
+      textAlign: 'left',
+      fontWeight: 'bold',
+      opacity: 1,
+      rotation: 0,
+      zIndex: layout.elements.length + 1,
+    }
 
-      setLayout(prev => ({
-        ...prev,
-        elements: [...prev.elements, newElement],
-      }))
+    setLayout(prev => ({
+      ...prev,
+      elements: [...prev.elements, newElement],
+    }))
 
-      setEditorState(prev => ({
-        ...prev,
-        selectedElementId: newElement.id,
-      }))
-    },
-    [layout.elements.length],
-  )
+    setEditorState(prev => ({
+      ...prev,
+      selectedElementId: newElement.id,
+    }))
+  }, [layout.elements.length])
 
   // 요소 선택
   const selectElement = useCallback((elementId: string | null) => {
@@ -403,14 +399,32 @@ const ThumbnailEditor: React.FC<ThumbnailEditorProps> = ({
 
         {/* 요소 추가 */}
         <Card title="요소 추가" size="small" className="mb-4">
-          <Space direction="vertical" style={{ width: '100%' }}>
-            <Button icon={<PlusOutlined />} onClick={() => addTextElement('title')} block>
-              제목 텍스트 추가
-            </Button>
-            <Button icon={<PlusOutlined />} onClick={() => addTextElement('subtitle')} block>
-              부제목 텍스트 추가
-            </Button>
-          </Space>
+          <Button icon={<PlusOutlined />} onClick={addTextElement} block>
+            텍스트 추가
+          </Button>
+        </Card>
+
+        {/* 템플릿 안내 */}
+        <Card title="템플릿 사용법" size="small" className="mb-4">
+          <div style={{ fontSize: '12px', color: '#666' }}>
+            <div style={{ marginBottom: '8px' }}>
+              <strong>사용 가능한 템플릿:</strong>
+            </div>
+            <div style={{ marginBottom: '4px' }}>
+              • <code>{'{{제목}}'}</code> - 제목으로 교체
+            </div>
+            <div style={{ marginBottom: '4px' }}>
+              • <code>{'{{부제목}}'}</code> - 부제목으로 교체
+            </div>
+            <div style={{ marginBottom: '8px' }}>• 자유롭게 조합하여 사용 가능</div>
+            <div style={{ fontSize: '11px', color: '#999' }}>
+              <strong>예시:</strong>
+              <br />
+              <code>{'{{제목}} - {{부제목}}'}</code>
+              <br />
+              <code>{'메인: {{제목}}'}</code>
+            </div>
+          </div>
         </Card>
 
         {/* 요소 속성 */}
@@ -422,7 +436,7 @@ const ThumbnailEditor: React.FC<ThumbnailEditorProps> = ({
                 <Input
                   value={selectedElement.text}
                   onChange={e => transformElement(selectedElement.id, { text: e.target.value })}
-                  placeholder="텍스트를 입력하세요"
+                  placeholder="예: {{제목}}, {{부제목}} 등 템플릿 사용 가능"
                 />
               </div>
 

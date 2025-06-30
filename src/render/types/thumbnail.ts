@@ -1,7 +1,6 @@
 export interface TextElement {
   id: string
-  type: 'title' | 'subtitle'
-  text: string
+  text: string // {{제목}}, {{부제목}} 등의 템플릿 문법 지원
   x: number // 퍼센트 (0-100)
   y: number // 퍼센트 (0-100)
   width: number // 퍼센트 (0-100)
@@ -29,6 +28,10 @@ export interface ThumbnailTemplate {
   name: string
   description: string
   elements: Omit<TextElement, 'text'>[] // 텍스트 내용은 제외
+}
+
+export interface TemplateVariables {
+  [key: string]: string
 }
 
 export interface EditorState {

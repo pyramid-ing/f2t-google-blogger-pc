@@ -40,8 +40,7 @@ interface BackgroundImageInfo {
 
 interface ThumbnailLayoutElement {
   id: string
-  type: 'title' | 'subtitle'
-  text: string
+  text: string // {{제목}}, {{부제목}} 등의 템플릿 문법 지원
   x: number
   y: number
   width: number
@@ -68,6 +67,7 @@ interface GenerateThumbnailWithLayoutRequest {
   backgroundImageFileName: string
   layout: ThumbnailLayoutData
   uploadToGCS?: boolean
+  variables?: { [key: string]: string } // 템플릿 변수 (예: {제목: "실제 제목", 부제목: "실제 부제목"})
 }
 
 @Controller('api/thumbnail')
@@ -366,7 +366,7 @@ export class ThumbnailController {
   @Post('layout/generate')
   async generateThumbnailWithLayout(@Body() request: GenerateThumbnailWithLayoutRequest): Promise<ThumbnailResponse> {
     try {
-      const { backgroundImageFileName, layout, uploadToGCS = true } = request
+      const { backgroundImageFileName, layout, uploadToGCS = true, variables = {} } = request
 
       if (!backgroundImageFileName) {
         throw new HttpException('배경이미지가 필요합니다.', HttpStatus.BAD_REQUEST)
@@ -379,8 +379,12 @@ export class ThumbnailController {
       // 배경이미지 경로 설정
       const backgroundImagePath = this.thumbnailGenerator.getBackgroundImagePath(backgroundImageFileName)
 
-      // 레이아웃 생성을 위한 썸네일 생성기 호출 (새로운 메서드 필요)
-      const imageBuffer = await this.thumbnailGenerator.generateThumbnailWithLayout(backgroundImagePath, layout)
+      // 레이아웃 생성을 위한 썸네일 생성기 호출 (템플릿 변수 포함)
+      const imageBuffer = await this.thumbnailGenerator.generateThumbnailWithLayout(
+        backgroundImagePath,
+        layout,
+        variables,
+      )
 
       // 설정 값 가져오기 (GCS 업로드용)
       const appSettings = await this.settings.getAppSettings()
@@ -430,7 +434,7 @@ export class ThumbnailController {
   @Post('layout/preview')
   async previewThumbnailWithLayout(@Body() request: GenerateThumbnailWithLayoutRequest): Promise<ThumbnailResponse> {
     try {
-      const { backgroundImageFileName, layout } = request
+      const { backgroundImageFileName, layout, variables = {} } = request
 
       if (!backgroundImageFileName) {
         throw new HttpException('배경이미지가 필요합니다.', HttpStatus.BAD_REQUEST)
@@ -443,8 +447,12 @@ export class ThumbnailController {
       // 배경이미지 경로 설정
       const backgroundImagePath = this.thumbnailGenerator.getBackgroundImagePath(backgroundImageFileName)
 
-      // 레이아웃 생성을 위한 썸네일 생성기 호출
-      const imageBuffer = await this.thumbnailGenerator.generateThumbnailWithLayout(backgroundImagePath, layout)
+      // 레이아웃 생성을 위한 썸네일 생성기 호출 (템플릿 변수 포함)
+      const imageBuffer = await this.thumbnailGenerator.generateThumbnailWithLayout(
+        backgroundImagePath,
+        layout,
+        variables,
+      )
       const base64 = imageBuffer.toString('base64')
 
       return {

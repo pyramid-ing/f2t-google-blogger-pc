@@ -23,8 +23,7 @@ export interface BackgroundImageInfo {
 
 export interface ThumbnailLayoutElement {
   id: string
-  type: 'title' | 'subtitle'
-  text: string
+  text: string // {{제목}}, {{부제목}} 등의 템플릿 문법 지원
   x: number
   y: number
   width: number
@@ -51,6 +50,7 @@ export interface ThumbnailLayoutGenerateRequest {
   backgroundImageFileName: string
   layout: ThumbnailLayoutData
   uploadToGCS?: boolean
+  variables?: { [key: string]: string } // 템플릿 변수 (예: {제목: "실제 제목", 부제목: "실제 부제목"})
 }
 
 export interface ThumbnailLayout {
