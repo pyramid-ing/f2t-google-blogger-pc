@@ -20,7 +20,7 @@ import { ThumbnailGeneratorService } from 'src/main/app/modules/media/thumbnail-
 import { GCSUploadService } from 'src/main/app/modules/media/gcs-upload.service'
 import { SettingsService } from '../settings/settings.service'
 import { OpenAiService } from '../ai/openai.service'
-import { PerplexityService } from '../ai/perplexity.service'
+import { LinkResult, PerplexityService } from '../ai/perplexity.service'
 
 @Controller('workflow')
 export class WorkflowController {
@@ -118,47 +118,47 @@ export class WorkflowController {
         this.logger.log(`포스팅 처리: 제목=${title}, 설명=${description}`)
 
         // 3. 포스팅 목차 생성
-        // const blogOutline = await this.topicService.generateBlogOutline(title, description)
-        // this.logger.log(`생성된 목차: ${JSON.stringify(blogOutline.sections)}`)
-        //
-        // // 4. 포스팅 내용 구체적으로 만들기
-        // const detailedContent = await this.topicService.generatePostingContentsWithOpenAI(blogOutline)
-        //
-        // // 5. sections 배열 루프하면서 이미지, 링크 및 광고 처리
-        // for (let i = 0; i < detailedContent.sections.length; i++) {
-        //   const section = detailedContent.sections[i]
-        //   let imageUrl: string | undefined
-        //   let links: LinkResult[] = []
-        //   let sectionHtml = section.html
-        //
-        //   // 이미지 생성 처리
-        //   imageUrl = await this.generateImageBySettings(section.html, i + 1)
-        //
-        //   try {
-        //     // Perplexity를 통한 관련 링크 생성
-        //     links = await this.perplexityService.generateRelevantLinks(section.html)
-        //     this.logger.log(`섹션 ${i + 1}에 대한 관련 링크: ${JSON.stringify(links)}`)
-        //   } catch (error) {
-        //     this.logger.warn(`섹션 ${i + 1} 링크 처리 중 오류: ${error.message}`)
-        //   }
-        //
-        //   // 광고 스크립트 추가
-        //   try {
-        //     const adScript = await this.insertAdScript(section.html, i + 1)
-        //     if (adScript) {
-        //       sectionHtml = adScript
-        //     }
-        //   } catch (error) {
-        //     this.logger.warn(`섹션 ${i + 1} 광고 삽입 중 오류: ${error.message}`)
-        //   }
-        //
-        //   // 섹션에 이미지 URL, 링크, 광고가 추가된 HTML 및 AI 이미지 프롬프트 적용
-        //   detailedContent.sections[i] = {
-        //     html: sectionHtml,
-        //     imageUrl,
-        //     links,
-        //   }
-        // }
+        const blogOutline = await this.topicService.generateBlogOutline(title, description)
+        this.logger.log(`생성된 목차: ${JSON.stringify(blogOutline.sections)}`)
+
+        // 4. 포스팅 내용 구체적으로 만들기
+        const detailedContent = await this.topicService.generatePostingContentsWithOpenAI(blogOutline)
+
+        // 5. sections 배열 루프하면서 이미지, 링크 및 광고 처리
+        for (let i = 0; i < detailedContent.sections.length; i++) {
+          const section = detailedContent.sections[i]
+          let imageUrl: string | undefined
+          let links: LinkResult[] = []
+          let sectionHtml = section.html
+
+          // 이미지 생성 처리
+          imageUrl = await this.generateImageBySettings(section.html, i + 1)
+
+          try {
+            // Perplexity를 통한 관련 링크 생성
+            links = await this.perplexityService.generateRelevantLinks(section.html)
+            this.logger.log(`섹션 ${i + 1}에 대한 관련 링크: ${JSON.stringify(links)}`)
+          } catch (error) {
+            this.logger.warn(`섹션 ${i + 1} 링크 처리 중 오류: ${error.message}`)
+          }
+
+          // 광고 스크립트 추가
+          try {
+            const adScript = await this.insertAdScript(section.html, i + 1)
+            if (adScript) {
+              sectionHtml = adScript
+            }
+          } catch (error) {
+            this.logger.warn(`섹션 ${i + 1} 광고 삽입 중 오류: ${error.message}`)
+          }
+
+          // 섹션에 이미지 URL, 링크, 광고가 추가된 HTML 및 AI 이미지 프롬프트 적용
+          detailedContent.sections[i] = {
+            html: sectionHtml,
+            imageUrl,
+            links,
+          }
+        }
 
         // 6. 썸네일 이미지 생성 및 추가
         let thumbnailHtml = ''
@@ -175,21 +175,21 @@ export class WorkflowController {
         }
 
         // // 7. HTML로 합치기 (썸네일 포함)
-        // const combinedHtml = thumbnailHtml + this.topicService.combineHtmlSections(detailedContent)
-        // console.log(combinedHtml)
-        //
-        // // 8. Blogger API로 포스팅하기
-        // const bloggerResponse = await this.bloggerService.postToBlogger({
-        //   title,
-        //   content: combinedHtml,
-        // })
-        //
-        // // 등록 결과 정보 출력
-        // this.logger.log(`✅ Blogger에 포스팅 완료!`)
-        // this.logger.log(`📝 제목: ${bloggerResponse.title}`)
-        // this.logger.log(`🔗 URL: ${bloggerResponse.url}`)
-        // this.logger.log(`📅 발행일: ${bloggerResponse.published}`)
-        // this.logger.log(`🆔 포스트 ID: ${bloggerResponse.id}`)
+        const combinedHtml = thumbnailHtml + this.topicService.combineHtmlSections(detailedContent)
+        console.log(combinedHtml)
+
+        // 8. Blogger API로 포스팅하기
+        const bloggerResponse = await this.bloggerService.postToBlogger({
+          title,
+          content: combinedHtml,
+        })
+
+        // 등록 결과 정보 출력
+        this.logger.log(`✅ Blogger에 포스팅 완료!`)
+        this.logger.log(`📝 제목: ${bloggerResponse.title}`)
+        this.logger.log(`🔗 URL: ${bloggerResponse.url}`)
+        this.logger.log(`📅 발행일: ${bloggerResponse.published}`)
+        this.logger.log(`🆔 포스트 ID: ${bloggerResponse.id}`)
       }
 
       res.status(201).json({
