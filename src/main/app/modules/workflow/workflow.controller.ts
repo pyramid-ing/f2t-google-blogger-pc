@@ -240,22 +240,16 @@ export class WorkflowController {
         fontFamily: settings.thumbnailFontFamily || 'Arial, sans-serif',
       })
 
-      // GCS 업로드가 활성화된 경우
-      if (settings.gcsEnabled) {
-        try {
-          const uploadResult = await this.gcsUpload.uploadImage(thumbnailBuffer, {
-            contentType: 'image/png',
-            isPublic: true,
-          })
-          return uploadResult.url
-        } catch (uploadError) {
-          this.logger.error('GCS 업로드 실패, base64로 변환:', uploadError)
-          // GCS 업로드 실패 시 base64로 변환
-          const base64 = thumbnailBuffer.toString('base64')
-          return `data:image/png;base64,${base64}`
-        }
-      } else {
-        // GCS 업로드가 비활성화된 경우 base64로 변환
+      // 항상 GCS에 업로드 시도
+      try {
+        const uploadResult = await this.gcsUpload.uploadImage(thumbnailBuffer, {
+          contentType: 'image/png',
+          isPublic: true,
+        })
+        return uploadResult.url
+      } catch (uploadError) {
+        this.logger.error('GCS 업로드 실패, base64로 변환:', uploadError)
+        // GCS 업로드 실패 시 base64로 변환
         const base64 = thumbnailBuffer.toString('base64')
         return `data:image/png;base64,${base64}`
       }

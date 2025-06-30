@@ -29,7 +29,6 @@ interface AppSettings {
   thumbnailFontFamily?: string // 썸네일 폰트 패밀리
 
   // GCS 설정
-  gcsEnabled?: boolean // GCS 업로드 활성화 여부
   gcsProjectId?: string // GCS 프로젝트 ID
   gcsKeyContent?: string // GCS 서비스 계정 키 JSON 내용
   gcsBucketName?: string // GCS 버킷명

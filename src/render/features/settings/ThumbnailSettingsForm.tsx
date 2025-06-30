@@ -54,7 +54,6 @@ export const ThumbnailSettingsForm: React.FC<ThumbnailSettingsFormProps> = ({ in
       thumbnailWidth: initialSettings.thumbnailWidth || 1200,
       thumbnailHeight: initialSettings.thumbnailHeight || 630,
       thumbnailFontFamily: initialSettings.thumbnailFontFamily || 'Arial, sans-serif',
-      gcsEnabled: initialSettings.gcsEnabled || false,
       gcsProjectId: initialSettings.gcsProjectId || '',
       gcsKeyContent: initialSettings.gcsKeyContent || '',
       gcsBucketName: initialSettings.gcsBucketName || '',
@@ -562,24 +561,19 @@ export const ThumbnailSettingsForm: React.FC<ThumbnailSettingsFormProps> = ({ in
       <Card title="Google Cloud Storage 설정" style={{ marginBottom: 16 }}>
         <Alert
           message="GCS 설정 안내"
-          description="썸네일 이미지를 Google Cloud Storage에 업로드하려면 GCS 프로젝트와 서비스 계정 키가 필요합니다."
+          description="썸네일 이미지가 항상 Google Cloud Storage에 업로드됩니다. GCS 프로젝트와 서비스 계정 키를 설정해주세요."
           type="info"
           style={{ marginBottom: 16 }}
         />
 
         <Form form={form} layout="vertical">
-          <Form.Item name="gcsEnabled" label="GCS 업로드 활성화" valuePropName="checked">
-            <Switch />
-          </Form.Item>
-
-          <Form.Item name="gcsProjectId" label="GCS 프로젝트 ID" dependencies={['gcsEnabled']}>
+          <Form.Item name="gcsProjectId" label="GCS 프로젝트 ID">
             <Input placeholder="your-gcs-project-id" />
           </Form.Item>
 
           <Form.Item
             name="gcsKeyContent"
             label="서비스 계정 키 JSON"
-            dependencies={['gcsEnabled']}
             tooltip="Google Cloud Console에서 다운로드한 서비스 계정 키 JSON 파일의 전체 내용을 복사해서 붙여넣으세요"
           >
             <TextArea
@@ -600,7 +594,7 @@ export const ThumbnailSettingsForm: React.FC<ThumbnailSettingsFormProps> = ({ in
             />
           </Form.Item>
 
-          <Form.Item name="gcsBucketName" label="GCS 버킷명" dependencies={['gcsEnabled']}>
+          <Form.Item name="gcsBucketName" label="GCS 버킷명">
             <Input placeholder="your-bucket-name" />
           </Form.Item>
 
