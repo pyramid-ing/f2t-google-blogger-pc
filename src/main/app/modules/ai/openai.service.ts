@@ -391,7 +391,7 @@ Example format: "A professional illustration of [main concept], featuring [visua
         model: 'dall-e-3',
         prompt,
         n: 1,
-        size: '512x512',
+        size: '1024x1024',
         quality: 'standard',
         style: 'natural',
       })

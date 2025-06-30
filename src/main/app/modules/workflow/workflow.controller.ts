@@ -303,7 +303,30 @@ export class WorkflowController {
             // OpenAI DALL-E로 이미지 생성
             const imageUrl = await this.openAiService.generateImage(aiImagePrompt)
             this.logger.log(`섹션 ${sectionIndex}에 대한 AI 생성 이미지 URL: ${imageUrl}`)
-            return imageUrl
+
+            // AI 생성 이미지를 GCS에 업로드
+            try {
+              // 이미지 URL에서 데이터 다운로드 (axios 사용)
+              const response = await axios.get(imageUrl, {
+                responseType: 'arraybuffer',
+                timeout: 30000, // 30초 타임아웃
+              })
+
+              const imageBuffer = Buffer.from(response.data)
+
+              // GCS에 업로드
+              const uploadResult = await this.gcsUpload.uploadImage(imageBuffer, {
+                contentType: 'image/png',
+                isPublic: true,
+              })
+
+              this.logger.log(`섹션 ${sectionIndex} AI 이미지 GCS 업로드 완료: ${uploadResult.url}`)
+              return uploadResult.url
+            } catch (uploadError) {
+              this.logger.error(`섹션 ${sectionIndex} AI 이미지 GCS 업로드 실패:`, uploadError)
+              // 업로드 실패 시 원본 URL 반환
+              return imageUrl
+            }
           } catch (error) {
             this.logger.warn(`섹션 ${sectionIndex} AI 이미지 생성 중 오류: ${error.message}`)
             return undefined
