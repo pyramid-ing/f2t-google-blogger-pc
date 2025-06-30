@@ -78,12 +78,15 @@ const EditableText: React.FC<{
         ref={textRef}
         x={element.x}
         y={element.y}
+        width={element.width}
+        height={element.height}
         text={element.text}
         fontSize={element.fontSize}
         fontFamily={element.fontFamily}
         fill={element.color}
         opacity={isEditing ? 0.3 : element.opacity}
         align={element.textAlign}
+        wrap="word"
         draggable={!isEditing}
         onClick={handleSelect}
         onTap={handleSelect}
@@ -100,14 +103,19 @@ const EditableText: React.FC<{
           const scaleX = node.scaleX()
           const scaleY = node.scaleY()
 
-          const newFontSize = element.fontSize * Math.max(scaleX, scaleY)
+          // 새로운 width와 height 계산
+          const newWidth = Math.max(50, element.width * scaleX)
+          const newHeight = Math.max(20, element.height * scaleY)
+
+          // 스케일 초기화
           node.scaleX(1)
           node.scaleY(1)
 
           onTransform(element.id, {
             x: node.x(),
             y: node.y(),
-            fontSize: Math.max(12, Math.min(100, newFontSize)),
+            width: newWidth,
+            height: newHeight,
           })
         }}
       />
@@ -115,11 +123,21 @@ const EditableText: React.FC<{
         <Transformer
           ref={transformerRef}
           boundBoxFunc={(oldBox, newBox) => {
-            if (newBox.width < 20 || newBox.height < 20) {
+            // 최소 텍스트 박스 크기 제한
+            if (newBox.width < 50 || newBox.height < 20) {
               return oldBox
+            }
+            // 최대 텍스트 박스 크기 제한 (캔버스 크기 내)
+            if (newBox.width > 900 || newBox.height > 800) {
+              return {
+                ...newBox,
+                width: Math.min(newBox.width, 900),
+                height: Math.min(newBox.height, 800),
+              }
             }
             return newBox
           }}
+          keepRatio={false}
         />
       )}
     </>
@@ -273,10 +291,10 @@ const ThumbnailEditor: React.FC<ThumbnailEditorProps> = ({
       id: Date.now().toString(),
       text: '텍스트를 입력하세요',
       x: 100,
-      y: 200 + layout.elements.length * 100, // 요소마다 Y 위치 조정
-      width: 400,
-      height: 60,
-      fontSize: 48,
+      y: 200 + layout.elements.length * 80, // 요소마다 Y 위치 조정
+      width: 300,
+      height: 80,
+      fontSize: 32,
       fontFamily: 'BMDOHYEON',
       color: '#000000',
       textAlign: 'left',
@@ -762,6 +780,34 @@ const ThumbnailEditor: React.FC<ThumbnailEditorProps> = ({
               </div>
 
               <div>
+                <Text strong>텍스트 박스 폭</Text>
+                <InputNumber
+                  min={50}
+                  max={900}
+                  step={10}
+                  precision={0}
+                  value={selectedElement.width}
+                  onChange={value => transformElement(selectedElement.id, { width: value || 50 })}
+                  style={{ width: '100%' }}
+                  addonAfter="px"
+                />
+              </div>
+
+              <div>
+                <Text strong>텍스트 박스 높이</Text>
+                <InputNumber
+                  min={20}
+                  max={800}
+                  step={10}
+                  precision={0}
+                  value={selectedElement.height}
+                  onChange={value => transformElement(selectedElement.id, { height: value || 20 })}
+                  style={{ width: '100%' }}
+                  addonAfter="px"
+                />
+              </div>
+
+              <div>
                 <Text strong>폰트 패밀리</Text>
                 <Select
                   value={selectedElement.fontFamily}
@@ -823,6 +869,7 @@ const ThumbnailEditor: React.FC<ThumbnailEditorProps> = ({
               <strong>기본 조작:</strong>
             </div>
             <div style={{ marginBottom: '2px' }}>• 더블클릭: 텍스트 편집</div>
+            <div style={{ marginBottom: '2px' }}>• 드래그: 텍스트 박스 크기 조정</div>
             <div style={{ marginBottom: '2px' }}>• Del/Backspace: 삭제</div>
             <div style={{ marginBottom: '2px' }}>• 방향키: 이동 (Shift+방향키: 1px씩)</div>
             <div style={{ marginBottom: '4px' }}>• Esc: 선택 해제</div>
@@ -835,6 +882,13 @@ const ThumbnailEditor: React.FC<ThumbnailEditorProps> = ({
             <div style={{ marginBottom: '2px' }}>• Ctrl+D: 복제</div>
             <div style={{ marginBottom: '2px' }}>• Ctrl+Z: 실행취소</div>
             <div style={{ marginBottom: '2px' }}>• Ctrl+Y: 다시실행</div>
+
+            <div style={{ marginBottom: '4px', marginTop: '8px' }}>
+              <strong>텍스트 박스:</strong>
+            </div>
+            <div style={{ marginBottom: '2px' }}>• 텍스트는 박스 폭에 맞춰 자동 줄바꿈</div>
+            <div style={{ marginBottom: '2px' }}>• 박스 크기 조정 시 폰트 크기 유지</div>
+            <div style={{ marginBottom: '2px' }}>• 속성 패널에서 정확한 크기 입력 가능</div>
           </div>
         </Card>
       </div>
