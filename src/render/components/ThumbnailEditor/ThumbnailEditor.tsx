@@ -53,11 +53,11 @@ const EditableText: React.FC<{
   const transformerRef = useRef<Konva.Transformer>(null)
 
   useEffect(() => {
-    if (isSelected && transformerRef.current && textRef.current) {
+    if (isSelected && transformerRef.current && textRef.current && !isEditing) {
       transformerRef.current.nodes([textRef.current])
       transformerRef.current.getLayer()?.batchDraw()
     }
-  }, [isSelected])
+  }, [isSelected, isEditing])
 
   const handleSelect = (e: any) => {
     console.log('텍스트 클릭됨:', element.id)
@@ -119,7 +119,7 @@ const EditableText: React.FC<{
           })
         }}
       />
-      {isSelected && (
+      {isSelected && !isEditing && (
         <Transformer
           ref={transformerRef}
           boundBoxFunc={(oldBox, newBox) => {
@@ -378,11 +378,24 @@ const ThumbnailEditor: React.FC<ThumbnailEditorProps> = ({
         const stage = stageRef.current
         const stageBox = stage.container().getBoundingClientRect()
 
+        // 캔버스 컨테이너 위치 계산
+        const canvasContainer = stage.container().parentElement
+        const containerBox = canvasContainer?.getBoundingClientRect()
+
+        // 실제 캔버스 크기와 스케일 계산
+        const scale = stage.scaleX()
+        const stageWidth = stage.width() * scale
+        const stageHeight = stage.height() * scale
+
+        // 캔버스가 중앙 정렬되어 있을 경우의 오프셋 계산
+        const offsetX = containerBox ? (containerBox.width - stageWidth) / 2 : 0
+        const offsetY = containerBox ? (containerBox.height - stageHeight) / 2 : 0
+
         setEditingElementId(elementId)
         setEditingText(element.text)
         setEditingPosition({
-          x: stageBox.left + element.x + 10,
-          y: stageBox.top + element.y + 10,
+          x: (containerBox?.left || 0) + offsetX + element.x * scale,
+          y: (containerBox?.top || 0) + offsetY + element.y * scale,
         })
       }
     },
@@ -884,6 +897,13 @@ const ThumbnailEditor: React.FC<ThumbnailEditorProps> = ({
             <div style={{ marginBottom: '2px' }}>• Ctrl+Y: 다시실행</div>
 
             <div style={{ marginBottom: '4px', marginTop: '8px' }}>
+              <strong>텍스트 편집:</strong>
+            </div>
+            <div style={{ marginBottom: '2px' }}>• 더블클릭: 실제 위치에서 WYSIWYG 편집</div>
+            <div style={{ marginBottom: '2px' }}>• Ctrl+Enter: 편집 완료</div>
+            <div style={{ marginBottom: '2px' }}>• Esc: 편집 취소</div>
+
+            <div style={{ marginBottom: '4px', marginTop: '8px' }}>
               <strong>텍스트 박스:</strong>
             </div>
             <div style={{ marginBottom: '2px' }}>• 텍스트는 박스 폭에 맞춰 자동 줄바꿈</div>
@@ -953,35 +973,58 @@ const ThumbnailEditor: React.FC<ThumbnailEditorProps> = ({
             </Layer>
           </Stage>
 
-          {/* 텍스트 인라인 편집 오버레이 */}
-          {editingElementId && (
-            <TextArea
-              value={editingText}
-              onChange={e => setEditingText(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && e.ctrlKey) {
-                  finishTextEditing()
-                } else if (e.key === 'Escape') {
-                  cancelTextEditing()
-                }
-              }}
-              onBlur={finishTextEditing}
-              autoFocus
-              autoSize={{ minRows: 2, maxRows: 6 }}
-              style={{
-                position: 'absolute',
-                left: editingPosition.x,
-                top: editingPosition.y,
-                zIndex: 1000,
-                minWidth: '250px',
-                fontSize: '14px',
-                border: '2px solid #1890ff',
-                borderRadius: '4px',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-              }}
-              placeholder="텍스트 입력 (템플릿: {{제목}}, {{부제목}})&#10;Ctrl+Enter: 완료, Esc: 취소"
-            />
-          )}
+          {/* WYSIWYG 텍스트 편집 오버레이 */}
+          {editingElementId &&
+            (() => {
+              const editingElement = layout.elements.find(el => el.id === editingElementId)
+              if (!editingElement || !stageRef.current) return null
+
+              const stage = stageRef.current
+              const scale = stage.scaleX()
+
+              return (
+                <textarea
+                  value={editingText}
+                  onChange={e => setEditingText(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && e.ctrlKey) {
+                      e.preventDefault()
+                      finishTextEditing()
+                    } else if (e.key === 'Escape') {
+                      e.preventDefault()
+                      cancelTextEditing()
+                    }
+                  }}
+                  onBlur={finishTextEditing}
+                  autoFocus
+                  style={{
+                    position: 'absolute',
+                    left: editingPosition.x,
+                    top: editingPosition.y,
+                    width: editingElement.width * scale,
+                    height: editingElement.height * scale,
+                    zIndex: 1000,
+                    fontSize: `${editingElement.fontSize * scale}px`,
+                    fontFamily: editingElement.fontFamily,
+                    color: editingElement.color,
+                    textAlign: editingElement.textAlign,
+                    lineHeight: '1.2',
+                    border: 'none',
+                    background: 'transparent',
+                    outline: '1px dashed #1890ff',
+                    outlineOffset: '2px',
+                    padding: '0',
+                    margin: '0',
+                    resize: 'none',
+                    overflow: 'hidden',
+                    wordWrap: 'break-word',
+                    whiteSpace: 'pre-wrap',
+                    boxSizing: 'border-box',
+                  }}
+                  placeholder="텍스트를 입력하세요..."
+                />
+              )
+            })()}
         </div>
       </div>
     </div>
