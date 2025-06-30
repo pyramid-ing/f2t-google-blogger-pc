@@ -15,6 +15,7 @@ import { FileInterceptor } from '@nestjs/platform-express'
 import { ThumbnailGeneratorService, ThumbnailOptions } from './thumbnail-generator.service'
 import { GCSUploadService } from './gcs-upload.service'
 import { SettingsService } from '../settings/settings.service'
+import { PrismaService } from '../../shared/prisma.service'
 import * as crypto from 'crypto'
 
 export interface GenerateThumbnailRequest {
@@ -77,6 +78,7 @@ export class ThumbnailController {
     private readonly thumbnailGenerator: ThumbnailGeneratorService,
     private readonly gcsUpload: GCSUploadService,
     private readonly settings: SettingsService,
+    private readonly prisma: PrismaService,
   ) {}
 
   @Post('generate')
@@ -455,6 +457,225 @@ export class ThumbnailController {
       return {
         success: false,
         error: error.message || '레이아웃 썸네일 미리보기 생성 중 오류가 발생했습니다.',
+      }
+    }
+  }
+
+  // 썸네일 레이아웃 관련 API
+  @Get('layouts')
+  async getThumbnailLayouts(): Promise<{ success: boolean; layouts?: any[]; error?: string }> {
+    try {
+      const layouts = await this.prisma.thumbnailLayout.findMany({
+        orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
+      })
+
+      return {
+        success: true,
+        layouts: layouts.map(layout => ({
+          id: layout.id,
+          name: layout.name,
+          description: layout.description,
+          isDefault: layout.isDefault,
+          previewUrl: layout.previewUrl,
+          data: layout.data,
+          createdAt: layout.createdAt.toISOString(),
+          updatedAt: layout.updatedAt.toISOString(),
+        })),
+      }
+    } catch (error) {
+      this.logger.error('썸네일 레이아웃 목록 조회 실패:', error)
+      return {
+        success: false,
+        error: error.message || '썸네일 레이아웃 목록 조회 중 오류가 발생했습니다.',
+      }
+    }
+  }
+
+  @Post('layouts')
+  async createThumbnailLayout(
+    @Body() request: { name: string; description?: string; data: any; isDefault?: boolean },
+  ): Promise<{ success: boolean; layout?: any; error?: string }> {
+    try {
+      const { name, description, data, isDefault = false } = request
+
+      if (!name || !name.trim()) {
+        throw new HttpException('레이아웃 이름은 필수입니다.', HttpStatus.BAD_REQUEST)
+      }
+
+      if (!data) {
+        throw new HttpException('레이아웃 데이터는 필수입니다.', HttpStatus.BAD_REQUEST)
+      }
+
+      // 기본 레이아웃으로 설정하는 경우 기존 기본 레이아웃 해제
+      if (isDefault) {
+        await this.prisma.thumbnailLayout.updateMany({
+          where: { isDefault: true },
+          data: { isDefault: false },
+        })
+      }
+
+      const layout = await this.prisma.thumbnailLayout.create({
+        data: {
+          name: name.trim(),
+          description: description?.trim(),
+          data,
+          isDefault,
+        },
+      })
+
+      return {
+        success: true,
+        layout: {
+          id: layout.id,
+          name: layout.name,
+          description: layout.description,
+          isDefault: layout.isDefault,
+          previewUrl: layout.previewUrl,
+          data: layout.data,
+          createdAt: layout.createdAt.toISOString(),
+          updatedAt: layout.updatedAt.toISOString(),
+        },
+      }
+    } catch (error) {
+      this.logger.error('썸네일 레이아웃 생성 실패:', error)
+      return {
+        success: false,
+        error: error.message || '썸네일 레이아웃 생성 중 오류가 발생했습니다.',
+      }
+    }
+  }
+
+  @Get('layouts/:id')
+  async getThumbnailLayout(@Param('id') id: string): Promise<{ success: boolean; layout?: any; error?: string }> {
+    try {
+      const layout = await this.prisma.thumbnailLayout.findUnique({
+        where: { id },
+      })
+
+      if (!layout) {
+        return {
+          success: false,
+          error: '레이아웃을 찾을 수 없습니다.',
+        }
+      }
+
+      return {
+        success: true,
+        layout: {
+          id: layout.id,
+          name: layout.name,
+          description: layout.description,
+          isDefault: layout.isDefault,
+          previewUrl: layout.previewUrl,
+          data: layout.data,
+          createdAt: layout.createdAt.toISOString(),
+          updatedAt: layout.updatedAt.toISOString(),
+        },
+      }
+    } catch (error) {
+      this.logger.error('썸네일 레이아웃 조회 실패:', error)
+      return {
+        success: false,
+        error: error.message || '썸네일 레이아웃 조회 중 오류가 발생했습니다.',
+      }
+    }
+  }
+
+  @Post('layouts/:id')
+  async updateThumbnailLayout(
+    @Param('id') id: string,
+    @Body()
+    request: {
+      name?: string
+      description?: string
+      data?: any
+      isDefault?: boolean
+    },
+  ): Promise<{ success: boolean; layout?: any; error?: string }> {
+    try {
+      const { name, description, data, isDefault } = request
+
+      const existingLayout = await this.prisma.thumbnailLayout.findUnique({
+        where: { id },
+      })
+
+      if (!existingLayout) {
+        return {
+          success: false,
+          error: '레이아웃을 찾을 수 없습니다.',
+        }
+      }
+
+      // 기본 레이아웃으로 설정하는 경우 기존 기본 레이아웃 해제
+      if (isDefault) {
+        await this.prisma.thumbnailLayout.updateMany({
+          where: {
+            isDefault: true,
+            id: { not: id },
+          },
+          data: { isDefault: false },
+        })
+      }
+
+      const updateData: any = {}
+      if (name !== undefined) updateData.name = name.trim()
+      if (description !== undefined) updateData.description = description?.trim()
+      if (data !== undefined) updateData.data = data
+      if (isDefault !== undefined) updateData.isDefault = isDefault
+
+      const layout = await this.prisma.thumbnailLayout.update({
+        where: { id },
+        data: updateData,
+      })
+
+      return {
+        success: true,
+        layout: {
+          id: layout.id,
+          name: layout.name,
+          description: layout.description,
+          isDefault: layout.isDefault,
+          previewUrl: layout.previewUrl,
+          data: layout.data,
+          createdAt: layout.createdAt.toISOString(),
+          updatedAt: layout.updatedAt.toISOString(),
+        },
+      }
+    } catch (error) {
+      this.logger.error('썸네일 레이아웃 수정 실패:', error)
+      return {
+        success: false,
+        error: error.message || '썸네일 레이아웃 수정 중 오류가 발생했습니다.',
+      }
+    }
+  }
+
+  @Delete('layouts/:id')
+  async deleteThumbnailLayout(@Param('id') id: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const existingLayout = await this.prisma.thumbnailLayout.findUnique({
+        where: { id },
+      })
+
+      if (!existingLayout) {
+        return {
+          success: false,
+          error: '레이아웃을 찾을 수 없습니다.',
+        }
+      }
+
+      await this.prisma.thumbnailLayout.delete({
+        where: { id },
+      })
+
+      return {
+        success: true,
+      }
+    } catch (error) {
+      this.logger.error('썸네일 레이아웃 삭제 실패:', error)
+      return {
+        success: false,
+        error: error.message || '썸네일 레이아웃 삭제 중 오류가 발생했습니다.',
       }
     }
   }

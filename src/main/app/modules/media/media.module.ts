@@ -4,11 +4,12 @@ import { ThumbnailGeneratorService } from './thumbnail-generator.service'
 import { GCSUploadService } from './gcs-upload.service'
 import { ThumbnailController } from './thumbnail.controller'
 import { SettingsModule } from '../settings/settings.module'
+import { PrismaService } from '../../shared/prisma.service'
 
 @Module({
   imports: [SettingsModule],
   controllers: [ThumbnailController],
-  providers: [ImagePixabayService, ThumbnailGeneratorService, GCSUploadService],
+  providers: [ImagePixabayService, ThumbnailGeneratorService, GCSUploadService, PrismaService],
   exports: [ImagePixabayService, ThumbnailGeneratorService, GCSUploadService],
 })
 export class MediaModule {}

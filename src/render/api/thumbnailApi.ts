@@ -53,6 +53,31 @@ export interface ThumbnailLayoutGenerateRequest {
   uploadToGCS?: boolean
 }
 
+export interface ThumbnailLayout {
+  id: string
+  name: string
+  description?: string
+  isDefault: boolean
+  previewUrl?: string
+  data: ThumbnailLayoutData
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateThumbnailLayoutRequest {
+  name: string
+  description?: string
+  data: ThumbnailLayoutData
+  isDefault?: boolean
+}
+
+export interface UpdateThumbnailLayoutRequest {
+  name?: string
+  description?: string
+  data?: ThumbnailLayoutData
+  isDefault?: boolean
+}
+
 export const thumbnailApi = {
   // 썸네일 생성
   generateThumbnail: async (request: GenerateThumbnailRequest): Promise<ThumbnailResponse> => {
@@ -112,6 +137,42 @@ export const thumbnailApi = {
   // 레이아웃 기반 썸네일 미리보기
   previewThumbnailWithLayout: async (request: ThumbnailLayoutGenerateRequest): Promise<ThumbnailResponse> => {
     const response = await api.post('/api/thumbnail/layout/preview', request)
+    return response.data
+  },
+
+  // 레이아웃 관련 API
+  // 레이아웃 목록 조회
+  getThumbnailLayouts: async (): Promise<{ success: boolean; layouts?: ThumbnailLayout[]; error?: string }> => {
+    const response = await api.get('/api/thumbnail/layouts')
+    return response.data
+  },
+
+  // 레이아웃 생성
+  createThumbnailLayout: async (
+    request: CreateThumbnailLayoutRequest,
+  ): Promise<{ success: boolean; layout?: ThumbnailLayout; error?: string }> => {
+    const response = await api.post('/api/thumbnail/layouts', request)
+    return response.data
+  },
+
+  // 레이아웃 조회
+  getThumbnailLayout: async (id: string): Promise<{ success: boolean; layout?: ThumbnailLayout; error?: string }> => {
+    const response = await api.get(`/api/thumbnail/layouts/${id}`)
+    return response.data
+  },
+
+  // 레이아웃 수정
+  updateThumbnailLayout: async (
+    id: string,
+    request: UpdateThumbnailLayoutRequest,
+  ): Promise<{ success: boolean; layout?: ThumbnailLayout; error?: string }> => {
+    const response = await api.post(`/api/thumbnail/layouts/${id}`, request)
+    return response.data
+  },
+
+  // 레이아웃 삭제
+  deleteThumbnailLayout: async (id: string): Promise<{ success: boolean; error?: string }> => {
+    const response = await api.delete(`/api/thumbnail/layouts/${id}`)
     return response.data
   },
 }
