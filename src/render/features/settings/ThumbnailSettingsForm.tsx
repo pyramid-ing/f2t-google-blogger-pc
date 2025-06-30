@@ -399,12 +399,12 @@ export const ThumbnailSettingsForm: React.FC<ThumbnailSettingsFormProps> = ({ in
       {/* 썸네일 에디터 다이얼로그 */}
       <Modal
         title={isCreatingNew ? '새 레이아웃 만들기' : '레이아웃 편집'}
-        visible={editorVisible}
+        open={editorVisible}
         onCancel={handleEditorClose}
         width="90%"
         style={{ top: 20 }}
         footer={null}
-        destroyOnClose
+        destroyOnHidden
       >
         <ThumbnailEditor
           initialLayout={editingLayout?.data}
@@ -419,7 +419,7 @@ export const ThumbnailSettingsForm: React.FC<ThumbnailSettingsFormProps> = ({ in
       {/* 미리보기 모달 */}
       <Modal
         title="썸네일 미리보기"
-        visible={previewVisible}
+        open={previewVisible}
         onCancel={() => setPreviewVisible(false)}
         footer={[
           <Button key="close" onClick={() => setPreviewVisible(false)}>
