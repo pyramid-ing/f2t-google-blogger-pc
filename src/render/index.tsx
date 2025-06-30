@@ -6,10 +6,10 @@ import App from './pages/app'
 import './styles/global.css'
 
 // React-Konva 썸네일 생성을 위한 전역 함수 등록
-import { setupKonvaThumbnailGenerator } from './utils/konvaThumbnailGenerator'
-
-// 전역 함수 설정
-setupKonvaThumbnailGenerator()
+// import { setupKonvaThumbnailGenerator } from './utils/konvaThumbnailGenerator'
+//
+// // 전역 함수 설정
+// setupKonvaThumbnailGenerator()
 
 const container = document.getElementById('root') as HTMLElement
 const root = createRoot(container)
