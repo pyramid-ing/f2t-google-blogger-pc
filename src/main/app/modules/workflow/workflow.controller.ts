@@ -221,11 +221,18 @@ export class WorkflowController {
         return undefined
       }
 
+      // 배경이미지 경로 설정
+      let backgroundImagePath: string | undefined
+      if (settings.thumbnailBackgroundImage) {
+        backgroundImagePath = this.thumbnailGenerator.getBackgroundImagePath(settings.thumbnailBackgroundImage)
+      }
+
       // 썸네일 생성
       const thumbnailBuffer = await this.thumbnailGenerator.generateThumbnail({
         title,
         subtitle,
         backgroundColor: settings.thumbnailBackgroundColor || '#4285f4',
+        backgroundImagePath,
         textColor: settings.thumbnailTextColor || '#ffffff',
         fontSize: settings.thumbnailFontSize || 48,
         width: settings.thumbnailWidth || 1200,
