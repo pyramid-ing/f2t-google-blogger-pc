@@ -149,7 +149,11 @@ const ThumbnailEditor: React.FC<ThumbnailEditorProps> = ({
     snapToGrid: false,
   })
 
-  const fontFamilyOptions = ['BMDOHYEON', 'NanumGothic', 'NanumSquare']
+  const fontFamilyOptions = [
+    { value: 'BMDOHYEON', label: '배민 도현체' },
+    { value: 'NanumGothic', label: '나눔고딕' },
+    { value: 'NanumSquare', label: '나눔스퀘어' },
+  ]
 
   // 초기값 설정
   useEffect(() => {
@@ -369,8 +373,8 @@ const ThumbnailEditor: React.FC<ThumbnailEditorProps> = ({
                   style={{ width: '100%' }}
                 >
                   {fontFamilyOptions.map(font => (
-                    <Option key={font} value={font}>
-                      {font}
+                    <Option key={font.value} value={font.value}>
+                      {font.label}
                     </Option>
                   ))}
                 </Select>
