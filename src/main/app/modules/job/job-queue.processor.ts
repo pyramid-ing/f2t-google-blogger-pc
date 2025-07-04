@@ -1,13 +1,15 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { JobProcessor } from './job.processor.interface'
-import { Job, JobStatus, JobType } from '@prisma/client'
+import { Injectable, Logger } from '@nestjs/common'
+import { PrismaService } from '../common/prisma/prisma.service'
 import { BlogPostJobService } from '../blog-post-job/blog-post-job.service'
-import { PrismaService } from '@main/app/modules/common/prisma/prisma.service'
+import { JobProcessor } from './job.processor.interface'
+import { Cron, CronExpression } from '@nestjs/schedule'
+import { JobStatus, JobType } from './job.types'
+import type { Job } from '@prisma/client'
 
 @Injectable()
-export class JobQueueProcessor implements OnModuleInit {
+export class JobQueueProcessor {
   private readonly logger = new Logger(JobQueueProcessor.name)
-  private readonly processors: Record<JobType, JobProcessor>
+  private readonly processors: Partial<Record<JobType, JobProcessor>>
   private isProcessing = false
 
   constructor(
@@ -19,18 +21,13 @@ export class JobQueueProcessor implements OnModuleInit {
     }
   }
 
-  onModuleInit() {
-    this.startJobPolling()
-  }
+  @Cron(CronExpression.EVERY_10_SECONDS)
+  async processNextJobs() {
+    if (this.isProcessing) {
+      this.logger.debug('Previous job processing is still running')
+      return
+    }
 
-  private startJobPolling() {
-    setInterval(async () => {
-      if (this.isProcessing) return
-      await this.processNextJobs()
-    }, 10000) // 10초마다 실행
-  }
-
-  private async processNextJobs() {
     try {
       this.isProcessing = true
       const pendingJobs = await this.prisma.job.findMany({
@@ -53,8 +50,8 @@ export class JobQueueProcessor implements OnModuleInit {
     }
   }
 
-  private async processJob(job: Job) {
-    const processor = this.processors[job.type]
+  public async processJob(job: Job) {
+    const processor = this.processors[job.type as JobType]
     if (!processor || !processor.canProcess(job)) {
       this.logger.error(`No valid processor for job type ${job.type}`)
       await this.markJobAsFailed(job.id, `No valid processor for job type ${job.type}`)

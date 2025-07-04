@@ -15,7 +15,7 @@ import { Response } from 'express'
 import { TopicService } from '../topic/topic.service'
 import * as XLSX from 'xlsx'
 import { PrismaService } from '@main/app/modules/common/prisma/prisma.service'
-import { JobType } from '@prisma/client'
+import { JobStatus, JobType } from '@main/app/modules/job/job.types'
 
 @Controller('workflow')
 export class WorkflowController {
@@ -99,21 +99,21 @@ export class WorkflowController {
       rows.map(async ([title, content]) => {
         const job = await this.prisma.job.create({
           data: {
+            subject: `${title} 제목 포스팅 등록`,
+            desc: `${content}`,
             type: JobType.BLOG_POST,
-            status: 'PENDING',
+            status: JobStatus.PENDING,
             priority: 1,
             scheduledAt: new Date(), // 즉시 실행
-            blogPostJob: {
+            blogJob: {
               create: {
                 title,
                 content,
-                blogId: '1234', // TODO: 설정에서 가져오기
-                isDraft: true, // 초기에는 draft로 생성
               },
             },
           },
           include: {
-            blogPostJob: true,
+            blogJob: true,
           },
         })
 

@@ -43,7 +43,18 @@ declare global {
   interface Window {
     electronAPI: IElectronAPI
     global: Window & typeof globalThis
+    electron: Electron
   }
 }
 
 declare let global: Window & typeof globalThis
+
+interface IpcRenderer {
+  invoke(channel: string, ...args: any[]): Promise<any>
+}
+
+interface Electron {
+  ipcRenderer: IpcRenderer
+}
+
+export {}
