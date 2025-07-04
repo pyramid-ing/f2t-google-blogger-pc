@@ -14,25 +14,6 @@ model Settings {
   updatedAt DateTime @updatedAt
 }
 
-model PostJob {
-  id            Int      @id @default(autoincrement())
-  galleryUrl    String
-  title         String
-  contentHtml   String
-  password      String
-  nickname      String?
-  headtext      String?
-  imagePaths    String?  // JSON stringified array
-  loginId       String?
-  loginPassword String?
-  scheduledAt   DateTime
-  status        String   // "pending" | "completed" | "failed"
-  resultMsg     String?
-  resultUrl     String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-}
-
 model ThumbnailLayout {
   id          String   @id @default(cuid())
   name        String
@@ -44,13 +25,69 @@ model ThumbnailLayout {
   updatedAt   DateTime @updatedAt
 }
 
-model Topic {
-  id          String   @id @default(cuid())
-  topic       String
-  target      String?
-  keywords    String?
-  tone        String?
-  description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+// 기본 Job 모델
+model Job {
+  id            String    @id @default(cuid())
+  type          JobType   // 작업 타입 enum
+  status        JobStatus @default(PENDING)
+  priority      Int       @default(1)
+  scheduledAt   DateTime
+  startedAt     DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // 작업 결과 관련
+  resultMessage String?
+  resultUrl     String?
+  errorMessage  String?
+  
+  // 작업 타입별 상세 데이터 관계
+  blogPostJob   BlogPostJob?  // 블로그 포스팅 작업
+  
+  // 로그
+  jobLogs JobLog[]
+}
+
+// 작업 타입 enum
+enum JobType {
+  BLOG_POST    // 블로그 포스팅
+}
+
+// 작업 상태 enum
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+// 블로그 포스팅 작업 상세 데이터
+model BlogPostJob {
+  id          String  @id @default(cuid())
+  jobId       String  @unique
+  job         Job     @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  
+  title       String
+  content     String  // SQLite에서는 자동으로 큰 텍스트를 처리합니다
+  tags        String?
+  categoryId  String?
+  isDraft     Boolean @default(false)
+  
+  // 블로그 설정 관련
+  blogId      String
+  authorName  String?
+}
+
+// 작업 로그 모델
+model JobLog {
+  id        String   @id @default(cuid())
+  jobId     String
+  message   String
+  level     String   @default("info")
+  createdAt DateTime @default(now())
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
 }

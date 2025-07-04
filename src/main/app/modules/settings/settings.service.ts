@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { PrismaService } from 'src/main/app/shared/prisma.service'
 import { OpenAI } from 'openai'
+import { PrismaService } from '@main/app/modules/common/prisma/prisma.service'
 
 interface AppSettings {
   oauth2AccessToken?: string

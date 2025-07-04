@@ -15,8 +15,8 @@ import { FileInterceptor } from '@nestjs/platform-express'
 import { ThumbnailGeneratorService, ThumbnailOptions } from './thumbnail-generator.service'
 import { GCSUploadService } from './gcs-upload.service'
 import { SettingsService } from '../settings/settings.service'
-import { PrismaService } from '../../shared/prisma.service'
 import * as crypto from 'crypto'
+import { PrismaService } from '@main/app/modules/common/prisma/prisma.service'
 
 export interface GenerateThumbnailRequest {
   title: string

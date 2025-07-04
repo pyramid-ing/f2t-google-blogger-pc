@@ -10,9 +10,10 @@ import customConfig from './config/custom-config'
 import { SettingsModule } from './modules/settings/settings.module'
 import { TopicModule } from './modules/topic/topic.module'
 import { WorkflowModule } from './modules/workflow/workflow.module'
-import { PrismaService } from './shared/prisma.service'
 import { GoogleModule } from '@main/app/modules/google/google.module'
 import { AIModule } from '@main/app/modules/ai/ai.module'
+import { JobModule } from './modules/job/job.module'
+import { CommonModule } from '@main/app/modules/common/common.module'
 
 @Module({
   imports: [
@@ -50,6 +51,8 @@ import { AIModule } from '@main/app/modules/ai/ai.module'
     GoogleModule,
     TopicModule,
     WorkflowModule,
+    CommonModule,
+    JobModule,
   ],
   providers: [
     {
@@ -60,7 +63,6 @@ import { AIModule } from '@main/app/modules/ai/ai.module'
       },
       inject: [HttpAdapterHost],
     },
-    PrismaService,
   ],
   controllers: [],
 })

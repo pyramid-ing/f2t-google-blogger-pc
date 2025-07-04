@@ -1,8 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { chromium } from 'playwright'
-import { SettingsService } from '../settings/settings.service'
 import { OpenAiService } from '../ai/openai.service'
-import { PrismaService } from '../../shared/prisma.service'
 import { BrowserWindow } from 'electron'
 import * as path from 'path'
 import * as fs from 'fs'
@@ -54,11 +52,7 @@ interface TemplateVariables {
 export class ThumbnailGeneratorService {
   private readonly logger = new Logger(ThumbnailGeneratorService.name)
 
-  constructor(
-    private readonly settingsService: SettingsService,
-    private readonly openAiService: OpenAiService,
-    private readonly prisma: PrismaService,
-  ) {}
+  constructor(private readonly openAiService: OpenAiService) {}
 
   async generateThumbnail(options: ThumbnailOptions): Promise<Buffer> {
     const {

@@ -1,6 +1,6 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
 import { PrismaClient } from '@prisma/client'
-import { EnvConfig } from '../../config/env.config'
+import { EnvConfig } from '@main/config/env.config'
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
@@ -23,10 +23,5 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   async onModuleDestroy() {
     await this.$disconnect()
-  }
-
-  // Access the settings model
-  get settings() {
-    return this.settings
   }
 }

@@ -1,15 +1,11 @@
 import { Body, Controller, Get, Logger, Post, Put, Param } from '@nestjs/common'
 import { SettingsService } from 'src/main/app/modules/settings/settings.service'
-import { PrismaService } from '../../shared/prisma.service'
 
 @Controller('settings')
 export class SettingsController {
   private readonly logger = new Logger(SettingsController.name)
 
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly settingsService: SettingsService,
-  ) {}
+  constructor(private readonly settingsService: SettingsService) {}
 
   @Get('global')
   async getGlobalSettings() {
