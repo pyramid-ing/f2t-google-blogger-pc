@@ -22,6 +22,7 @@ import { GCSUploadService } from '../media/gcs-upload.service'
 import { SettingsService } from '../settings/settings.service'
 import { OpenAiService } from '../ai/openai.service'
 import { LinkResult, PerplexityService } from '../ai/perplexity.service'
+import sharp from 'sharp'
 
 @Controller('workflow')
 export class WorkflowController {
@@ -268,6 +269,27 @@ export class WorkflowController {
   }
 
   /**
+   * 이미지를 WebP 형식으로 변환하고 최적화하는 함수
+   * @param imageBuffer - 원본 이미지 버퍼
+   * @returns 최적화된 WebP 이미지 버퍼
+   */
+  private async optimizeImage(imageBuffer: Buffer): Promise<Buffer> {
+    try {
+      return await sharp(imageBuffer)
+        .webp({ quality: 80 }) // WebP 형식으로 변환, 품질 80%
+        // .resize(1200, null, {
+        //   // 최대 너비 1200px로 제한, 높이는 비율 유지
+        //   withoutEnlargement: true, // 원본보다 크게 확대하지 않음
+        //   fit: 'inside',
+        // })
+        .toBuffer()
+    } catch (error) {
+      this.logger.error('이미지 최적화 중 오류:', error)
+      return imageBuffer // 오류 발생 시 원본 반환
+    }
+  }
+
+  /**
    * 설정에 따라 이미지를 생성하는 함수
    * @param html - 섹션의 HTML 내용
    * @param sectionIndex - 섹션 번호
@@ -300,9 +322,11 @@ export class WorkflowController {
 
               const imageBuffer = Buffer.from(response.data)
 
+              // 이미지 최적화
+              const optimizedBuffer = await this.optimizeImage(imageBuffer)
               // GCS에 업로드
-              const uploadResult = await this.gcsUpload.uploadImage(imageBuffer, {
-                contentType: 'image/png',
+              const uploadResult = await this.gcsUpload.uploadImage(optimizedBuffer, {
+                contentType: 'image/webp',
               })
 
               this.logger.log(`섹션 ${sectionIndex} Pixabay 이미지 GCS 업로드 완료: ${uploadResult.url}`)
@@ -337,9 +361,12 @@ export class WorkflowController {
 
               const imageBuffer = Buffer.from(response.data)
 
+              // 이미지 최적화
+              const optimizedBuffer = await this.optimizeImage(imageBuffer)
+
               // GCS에 업로드
-              const uploadResult = await this.gcsUpload.uploadImage(imageBuffer, {
-                contentType: 'image/png',
+              const uploadResult = await this.gcsUpload.uploadImage(optimizedBuffer, {
+                contentType: 'image/webp',
               })
 
               this.logger.log(`섹션 ${sectionIndex} AI 이미지 GCS 업로드 완료: ${uploadResult.url}`)
