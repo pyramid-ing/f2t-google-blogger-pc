@@ -1,9 +1,8 @@
 import { api } from './apiClient'
 
-export async function findTopics(topic: string, limit: number = 10) {
+export async function addTopicJob(topic: string, limit: number = 10) {
   const response = await api.get('/workflow/find-topics', {
     params: { topic, limit },
-    responseType: 'blob',
   })
   return response.data
 }

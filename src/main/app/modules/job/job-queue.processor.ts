@@ -11,7 +11,6 @@ import { TopicJobService } from '@main/app/modules/topic/topic-job.service'
 export class JobQueueProcessor implements OnModuleInit {
   private readonly logger = new Logger(JobQueueProcessor.name)
   private processors: Partial<Record<JobType, JobProcessor>>
-  private isProcessing = false
 
   constructor(
     private readonly prisma: PrismaService,
@@ -51,13 +50,7 @@ export class JobQueueProcessor implements OnModuleInit {
 
   @Cron(CronExpression.EVERY_10_SECONDS)
   async processNextJobs() {
-    if (this.isProcessing) {
-      this.logger.debug('Previous job processing is still running')
-      return
-    }
-
     try {
-      this.isProcessing = true
       const pendingJobs = await this.prisma.job.findMany({
         where: {
           status: JobStatus.PENDING,
@@ -73,8 +66,6 @@ export class JobQueueProcessor implements OnModuleInit {
       }
     } catch (error) {
       this.logger.error('Error processing jobs:', error)
-    } finally {
-      this.isProcessing = false
     }
   }
 
