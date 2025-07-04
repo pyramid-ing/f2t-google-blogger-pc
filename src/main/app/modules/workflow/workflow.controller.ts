@@ -19,6 +19,7 @@ import { JobStatus, JobType } from '@main/app/modules/job/job.types'
 import { TopicJobService } from '../topic/topic-job.service'
 import * as fs from 'fs'
 import * as path from 'path'
+import { parse, isValid } from 'date-fns'
 
 @Controller('workflow')
 export class WorkflowController {
@@ -72,7 +73,21 @@ export class WorkflowController {
     const rows = data.slice(1) // 헤더 제외
 
     const jobs = await Promise.all(
-      rows.map(async ([title, content]) => {
+      rows.map(async ([title, content, scheduledAtStr]) => {
+        let scheduledAt: Date
+        if (scheduledAtStr && typeof scheduledAtStr === 'string' && scheduledAtStr.trim() !== '') {
+          // date-fns로 YYYY-MM-DD HH:mm 파싱
+          const parsed = parse(scheduledAtStr.trim(), 'yyyy-MM-dd HH:mm', new Date())
+          if (isValid(parsed)) {
+            scheduledAt = parsed
+          } else {
+            this.logger.warn(`잘못된 예약날짜 포맷: ${scheduledAtStr}, 즉시 등록 처리`)
+            scheduledAt = new Date()
+          }
+        } else {
+          scheduledAt = new Date()
+        }
+
         const job = await this.prisma.job.create({
           data: {
             subject: `${title} 제목 포스팅 등록`,
@@ -80,7 +95,7 @@ export class WorkflowController {
             type: JobType.BLOG_POST,
             status: JobStatus.PENDING,
             priority: 1,
-            scheduledAt: new Date(), // 즉시 실행
+            scheduledAt,
             blogJob: {
               create: {
                 title,
