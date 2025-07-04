@@ -3,8 +3,8 @@ import { PrismaService } from '@main/app/modules/common/prisma/prisma.service'
 import { JobProcessor } from '../job/job.processor.interface'
 import { Job } from '@prisma/client'
 import { PublishService } from '../publish/publish.service'
-import { TopicService } from '../topic/topic.service'
 import { JobType } from '@main/app/modules/job/job.types'
+import { ContentGenerateService } from '@main/app/modules/content-generate/content-generate.service'
 
 @Injectable()
 export class BlogPostJobService implements JobProcessor {
@@ -13,7 +13,7 @@ export class BlogPostJobService implements JobProcessor {
   constructor(
     private readonly prisma: PrismaService,
     private readonly publishService: PublishService,
-    private readonly topicService: TopicService,
+    private readonly contentGenerateService: ContentGenerateService,
   ) {}
 
   canProcess(job: Job): boolean {
@@ -35,21 +35,15 @@ export class BlogPostJobService implements JobProcessor {
     await this.createJobLog(jobId, 'info', '블로그 포스팅 작업 시작')
 
     try {
-      // 1. 포스팅 목차 생성
-      await this.createJobLog(jobId, 'info', '포스팅 목차 생성 시작')
-      const blogOutline = await this.topicService.generateBlogOutline(job.blogJob.title, job.blogJob.content)
-      await this.createJobLog(jobId, 'info', '포스팅 목차 생성 완료')
+      // 1. 포스팅 내용 구체화
+      await this.createJobLog(jobId, 'info', '본문 내용 생성')
+      const blogHtml = await this.contentGenerateService.generate(job.blogJob.title, job.blogJob.content)
 
-      // 2. 포스팅 내용 구체화
-      await this.createJobLog(jobId, 'info', '포스팅 내용 구체화 시작')
-      const detailedContent = await this.topicService.generatePostingContentsWithOpenAI(blogOutline)
-      await this.createJobLog(jobId, 'info', '포스팅 내용 구체화 완료')
-
-      // 3. 블로그 포스팅
+      // 2. 블로그 포스팅
       await this.createJobLog(jobId, 'info', '블로그 포스팅 시작')
-      const result = await this.publishService.publishPost(job.blogJob.title, detailedContent.sections[0].html)
+      const result = await this.publishService.publishPost(job.blogJob.title, blogHtml)
 
-      // 4. 작업 완료 처리
+      // 3. 작업 완료 처리
       await this.prisma.job.update({
         where: { id: jobId },
         data: {

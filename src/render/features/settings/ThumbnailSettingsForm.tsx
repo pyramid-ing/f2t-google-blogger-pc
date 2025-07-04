@@ -154,38 +154,38 @@ export const ThumbnailSettingsForm: React.FC<ThumbnailSettingsFormProps> = ({ in
 
   const handleEditorSave = async (layout: ThumbnailLayout, name: string, description?: string) => {
     try {
-      if (isCreatingNew) {
-        // 새 레이아웃 생성
-        const result = await thumbnailApi.createThumbnailLayout({
-          name,
-          description,
-          data: layout,
-          isDefault: layouts.length === 0, // 첫 번째 레이아웃이면 기본으로 설정
-        })
-
-        if (result.success) {
-          message.success('레이아웃이 생성되었습니다.')
-          await loadLayouts()
-          setEditorVisible(false)
-        } else {
-          message.error(result.error || '레이아웃 생성에 실패했습니다.')
-        }
-      } else if (editingLayout) {
-        // 기존 레이아웃 수정
-        const result = await thumbnailApi.updateThumbnailLayout(editingLayout.id, {
-          name,
-          description,
-          data: layout,
-        })
-
-        if (result.success) {
-          message.success('레이아웃이 수정되었습니다.')
-          await loadLayouts()
-          setEditorVisible(false)
-        } else {
-          message.error(result.error || '레이아웃 수정에 실패했습니다.')
-        }
-      }
+      // if (isCreatingNew) {
+      //   // 새 레이아웃 생성
+      //   const result = await thumbnailApi.createThumbnailLayout({
+      //     name,
+      //     description,
+      //     data: layout,
+      //     isDefault: layouts.length === 0, // 첫 번째 레이아웃이면 기본으로 설정
+      //   })
+      //
+      //   if (result.success) {
+      //     message.success('레이아웃이 생성되었습니다.')
+      //     await loadLayouts()
+      //     setEditorVisible(false)
+      //   } else {
+      //     message.error(result.error || '레이아웃 생성에 실패했습니다.')
+      //   }
+      // } else if (editingLayout) {
+      //   // 기존 레이아웃 수정
+      //   const result = await thumbnailApi.updateThumbnailLayout(editingLayout.id, {
+      //     name,
+      //     description,
+      //     data: layout,
+      //   })
+      //
+      //   if (result.success) {
+      //     message.success('레이아웃이 수정되었습니다.')
+      //     await loadLayouts()
+      //     setEditorVisible(false)
+      //   } else {
+      //     message.error(result.error || '레이아웃 수정에 실패했습니다.')
+      //   }
+      // }
     } catch (error) {
       console.error('레이아웃 저장 실패:', error)
       message.error('레이아웃 저장 중 오류가 발생했습니다.')
@@ -205,41 +205,41 @@ export const ThumbnailSettingsForm: React.FC<ThumbnailSettingsFormProps> = ({ in
 
   const handlePreviewLayout = async (layout: ApiThumbnailLayout) => {
     try {
-      setGeneratingPreview(true)
-
-      // 레이아웃의 첫 번째 텍스트 요소에서 제목 추출
-      const titleElement = layout.data.elements.find(el => el.type === 'title')
-      const subtitleElement = layout.data.elements.find(el => el.type === 'subtitle')
-
-      const request = {
-        backgroundImageFileName: layout.data.backgroundImage,
-        layout: {
-          id: layout.data.id,
-          backgroundImage: layout.data.backgroundImage,
-          elements: layout.data.elements.map(el => ({
-            ...el,
-            text:
-              el.type === 'title'
-                ? titleElement?.text || '샘플 제목'
-                : el.type === 'subtitle'
-                  ? subtitleElement?.text || '샘플 부제목'
-                  : el.text,
-          })),
-          createdAt: layout.data.createdAt,
-          updatedAt: layout.data.updatedAt,
-        },
-        uploadToGCS: false,
-      }
-
-      const result = await thumbnailApi.previewThumbnailWithLayout(request)
-
-      if (result.success && result.base64) {
-        setPreviewImage(result.base64)
-        setPreviewVisible(true)
-        message.success('미리보기가 생성되었습니다.')
-      } else {
-        message.error(result.error || '미리보기 생성에 실패했습니다.')
-      }
+      // setGeneratingPreview(true)
+      //
+      // // 레이아웃의 첫 번째 텍스트 요소에서 제목 추출
+      // const titleElement = layout.data.elements.find(el => el.type === 'title')
+      // const subtitleElement = layout.data.elements.find(el => el.type === 'subtitle')
+      //
+      // const request = {
+      //   backgroundImageFileName: layout.data.backgroundImage,
+      //   layout: {
+      //     id: layout.data.id,
+      //     backgroundImage: layout.data.backgroundImage,
+      //     elements: layout.data.elements.map(el => ({
+      //       ...el,
+      //       text:
+      //         el.type === 'title'
+      //           ? titleElement?.text || '샘플 제목'
+      //           : el.type === 'subtitle'
+      //             ? subtitleElement?.text || '샘플 부제목'
+      //             : el.text,
+      //     })),
+      //     createdAt: layout.data.createdAt,
+      //     updatedAt: layout.data.updatedAt,
+      //   },
+      //   uploadToGCS: false,
+      // }
+      //
+      // const result = await thumbnailApi.previewThumbnailWithLayout(request)
+      //
+      // if (result.success && result.base64) {
+      //   setPreviewImage(result.base64)
+      //   setPreviewVisible(true)
+      //   message.success('미리보기가 생성되었습니다.')
+      // } else {
+      //   message.error(result.error || '미리보기 생성에 실패했습니다.')
+      // }
     } catch (error) {
       console.error('미리보기 생성 실패:', error)
       message.error('미리보기 생성 중 오류가 발생했습니다.')

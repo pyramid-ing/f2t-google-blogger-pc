@@ -1,42 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { OpenAI } from 'openai'
 import { PrismaService } from '@main/app/modules/common/prisma/prisma.service'
-
-interface AppSettings {
-  oauth2AccessToken?: string
-  oauth2TokenExpiry?: string
-  oauth2ClientId?: string // OAuth2 Client ID
-  oauth2ClientSecret?: string // OAuth2 Client Secret
-  oauth2RefreshToken?: string
-  bloggerBlogId?: string
-
-  // AI 설정
-  openaiApiKey?: string // OpenAI API 키
-  perplexityApiKey?: string // Perplexity API 키
-
-  // 이미지 설정
-  imageType?: 'ai' | 'pixabay' // 이미지 생성 방식
-  pixabayApiKey?: string // Pixabay API 키
-
-  // 썸네일 설정
-  thumbnailEnabled?: boolean // 썸네일 생성 활성화 여부
-  thumbnailBackgroundColor?: string // 썸네일 배경색
-  thumbnailBackgroundImage?: string // 썸네일 배경이미지 파일명
-  thumbnailTextColor?: string // 썸네일 텍스트 색상
-  thumbnailFontSize?: number // 썸네일 폰트 크기
-  thumbnailWidth?: number // 썸네일 너비
-  thumbnailHeight?: number // 썸네일 높이
-  thumbnailFontFamily?: string // 썸네일 폰트 패밀리
-
-  // GCS 설정
-  gcsProjectId?: string // GCS 프로젝트 ID
-  gcsKeyContent?: string // GCS 서비스 계정 키 JSON 내용
-  gcsBucketName?: string // GCS 버킷명
-
-  // 광고 설정
-  adEnabled?: boolean // 광고 활성화 여부
-  adScript?: string // 광고 스크립트 코드
-}
+import { AppSettings } from '@render/types/settings'
 
 @Injectable()
 export class SettingsService {

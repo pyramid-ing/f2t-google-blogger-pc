@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common'
 import OpenAI from 'openai'
-import { tableOfContentsPrompt, postingContentsPrompt } from 'src/main/app/modules/topic/prompts'
 import { SettingsService } from 'src/main/app/modules/settings/settings.service'
 import { LinkResult } from './perplexity.service'
 
@@ -20,7 +19,9 @@ export interface BlogOutline {
 }
 
 // Define the TypeScript interface based on the new JSON schema
-export interface BlogPostHtml {
+export interface BlogPost {
+  thumbnailUrl?: string
+  seo?: string // jsonLd
   sections: {
     html: string // HTML content for each section
     imageUrl?: string // Optional image URL for each section
@@ -41,7 +42,7 @@ export class OpenAiService {
 
   constructor(private readonly settingsService: SettingsService) {}
 
-  private async getOpenAI(): Promise<OpenAI> {
+  public async getOpenAI(): Promise<OpenAI> {
     const settings = await this.settingsService.getAppSettings()
     const apiKey = settings.openaiApiKey
 
@@ -122,128 +123,6 @@ export class OpenAiService {
 
       const response = JSON.parse(completion.choices[0].message.content)
       return response.titles || []
-    } catch (error) {
-      this.logger.error('OpenAI API 호출 중 오류 발생:', error)
-      throw new Error(`OpenAI API 오류: ${error.message}`)
-    }
-  }
-
-  /**
-   * OpenAI를 사용하여 목차 생성
-   */
-  async generateBlogOutline(title: string, description: string): Promise<BlogOutline> {
-    this.logger.log(`OpenAI로 주제 "${title}"에 대한 목차를 생성합니다.`)
-
-    const systemPrompt = tableOfContentsPrompt
-
-    try {
-      const openai = await this.getOpenAI()
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: systemPrompt,
-          },
-          {
-            role: 'user',
-            content: `title: ${title}, description: ${description}`,
-          },
-        ],
-        response_format: {
-          type: 'json_schema',
-          json_schema: {
-            name: 'blog_outline',
-            strict: true,
-            schema: {
-              type: 'object',
-              properties: {
-                sections: {
-                  type: 'array',
-                  items: {
-                    type: 'object',
-                    properties: {
-                      index: { type: 'integer', description: '섹션 순서' },
-                      title: { type: 'string', description: '제목' },
-                      summary: { type: 'string', description: '요약' },
-                      length: {
-                        type: 'string',
-                        description: "예상 글자 수 (ex: '250자')",
-                        pattern: '^[0-9]+자$',
-                      },
-                    },
-                    required: ['index', 'title', 'summary', 'length'],
-                    additionalProperties: false,
-                  },
-                  minItems: 1,
-                },
-              },
-              required: ['sections'],
-              additionalProperties: false,
-            },
-          },
-        },
-      })
-
-      const response: BlogOutline = JSON.parse(completion.choices[0].message.content)
-      return response
-    } catch (error) {
-      this.logger.error('OpenAI API 호출 중 오류 발생:', error)
-      throw new Error(`OpenAI API 오류: ${error.message}`)
-    }
-  }
-
-  /**
-   * OpenAI를 사용하여 목차 생성
-   */
-  async generatePostingContents(blogOutline: BlogOutline): Promise<BlogPostHtml> {
-    const systemPrompt = postingContentsPrompt
-
-    try {
-      const openai = await this.getOpenAI()
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: systemPrompt,
-          },
-          {
-            role: 'user',
-            content: `${JSON.stringify(blogOutline)}`,
-          },
-        ],
-        temperature: 0.7,
-        response_format: {
-          type: 'json_schema',
-          json_schema: {
-            name: 'blog_post_html',
-            strict: true,
-            schema: {
-              type: 'object',
-              properties: {
-                sections: {
-                  type: 'array',
-                  items: {
-                    type: 'object',
-                    properties: {
-                      html: { type: 'string', description: 'HTML content for each section' },
-                    },
-                    required: ['html'],
-                    additionalProperties: false,
-                  },
-                  minItems: 1,
-                },
-              },
-              required: ['sections'],
-              additionalProperties: false,
-            },
-          },
-        },
-      })
-
-      const response: BlogPostHtml = JSON.parse(completion.choices[0].message.content)
-      return response
     } catch (error) {
       this.logger.error('OpenAI API 호출 중 오류 발생:', error)
       throw new Error(`OpenAI API 오류: ${error.message}`)
