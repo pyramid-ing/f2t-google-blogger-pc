@@ -5,6 +5,7 @@ import { JobProcessor } from './job.processor.interface'
 import { Cron, CronExpression } from '@nestjs/schedule'
 import { JobStatus, JobType } from './job.types'
 import type { Job } from '@prisma/client'
+import { TopicJobService } from '@main/app/modules/topic/topic-job.service'
 
 @Injectable()
 export class JobQueueProcessor {
@@ -15,8 +16,10 @@ export class JobQueueProcessor {
   constructor(
     private readonly prisma: PrismaService,
     private readonly blogPostJobService: BlogPostJobService,
+    private readonly topicJobService: TopicJobService,
   ) {
     this.processors = {
+      [JobType.GENERATE_TOPIC]: topicJobService,
       [JobType.BLOG_POST]: blogPostJobService,
     }
   }

@@ -1,11 +1,14 @@
 import { Module } from '@nestjs/common'
 import { TopicService } from './topic.service'
-import { OpenAiService } from 'src/main/app/modules/ai/openai.service'
 import { SettingsModule } from '../settings/settings.module'
+import { TopicJobService } from './topic-job.service'
+import { AIModule } from '@main/app/modules/ai/ai.module'
+import { TopicJobController } from './topic-job.controller'
 
 @Module({
-  imports: [SettingsModule],
-  providers: [TopicService, OpenAiService],
-  exports: [TopicService],
+  imports: [SettingsModule, AIModule],
+  providers: [TopicService, TopicJobService],
+  exports: [TopicService, TopicJobService],
+  controllers: [TopicJobController],
 })
 export class TopicModule {}

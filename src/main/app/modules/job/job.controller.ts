@@ -63,6 +63,8 @@ export class JobController {
             },
             take: 1,
           },
+          blogJob: true,
+          topicJob: true,
         },
       })
 

@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react'
 import styled from 'styled-components'
 import {
   deleteJob,
+  downloadFindTopicsResult,
   downloadJobFile,
   getJobLogs,
   getLatestJobLog,
@@ -271,6 +272,8 @@ const ScheduledPostsTable: React.FC = () => {
   const [logsLoading, setLogsLoading] = useState(false)
   const [latestLogs, setLatestLogs] = useState<Record<string, JobLog>>({})
 
+  const [downloadingJobId, setDownloadingJobId] = useState<string | null>(null)
+
   useEffect(() => {
     fetchData()
   }, [statusFilter, searchText, sortField, sortOrder])
@@ -354,12 +357,20 @@ const ScheduledPostsTable: React.FC = () => {
     }
   }
 
-  const handleDownload = async (jobId: string) => {
+  const handleDownload = async (jobId: string, type: JobType, xlsxFileName?: string) => {
+    setDownloadingJobId(jobId)
     try {
-      const blob = await downloadJobFile(jobId)
+      let blob
+      if (type === JOB_TYPE.GENERATE_TOPIC && xlsxFileName) {
+        // topicJob xlsx 파일명 활용
+        blob = await downloadFindTopicsResult(jobId)
+      } else {
+        blob = await downloadJobFile(jobId)
+      }
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
+      a.download = xlsxFileName || `job-result-${jobId}.xlsx`
       document.body.appendChild(a)
       a.click()
       a.remove()
@@ -368,6 +379,7 @@ const ScheduledPostsTable: React.FC = () => {
     } catch (error: any) {
       message.error(`다운로드 실패: ${error.message}`)
     }
+    setDownloadingJobId(null)
   }
 
   const handleTableChange = (pagination: any, filters: any, sorter: any) => {
@@ -559,11 +571,27 @@ const ScheduledPostsTable: React.FC = () => {
                       재시도
                     </Button>
                   )}
+                  {row.type === JOB_TYPE.GENERATE_TOPIC && row.status === JOB_STATUS.COMPLETED && (
+                    <Button
+                      type="primary"
+                      size="small"
+                      loading={downloadingJobId === row.id}
+                      disabled={
+                        (downloadingJobId !== null && downloadingJobId !== row.id) || !row.topicJob?.xlsxFileName
+                      }
+                      onClick={() => handleDownload(row.id, row.type, row.topicJob?.xlsxFileName)}
+                      style={{ fontSize: '11px', backgroundColor: '#722ed1', borderColor: '#722ed1' }}
+                    >
+                      다운로드
+                    </Button>
+                  )}
                   {row.type === JOB_TYPE.POST && row.status === JOB_STATUS.COMPLETED && (
                     <Button
                       type="primary"
                       size="small"
-                      onClick={() => handleDownload(row.id)}
+                      loading={downloadingJobId === row.id}
+                      disabled={downloadingJobId !== null && downloadingJobId !== row.id}
+                      onClick={() => handleDownload(row.id, row.type)}
                       style={{ fontSize: '11px', backgroundColor: '#52c41a', borderColor: '#52c41a' }}
                     >
                       다운로드

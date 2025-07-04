@@ -23,7 +23,30 @@ export const JOB_STATUS = {
 export type JobType = (typeof JOB_TYPE)[keyof typeof JOB_TYPE]
 export type JobStatus = (typeof JOB_STATUS)[keyof typeof JOB_STATUS]
 
-export interface Job {
+export interface TopicJobDetail {
+  id: string
+  jobId: string
+  topic: string
+  limit: number
+  result: { title: string; content: string }[] | null
+  status: string
+  createdAt: string
+  updatedAt: string
+  xlsxFileName: string | null
+}
+
+export interface BlogJobDetail {
+  id: string
+  jobId: string
+  title: string
+  content: string
+  status: string
+  publishedAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface BaseJob {
   id: string
   type: JobType
   subject: string
@@ -41,6 +64,20 @@ export interface Job {
   updatedAt: string
   logs?: JobLog[]
 }
+
+export interface TopicJob extends BaseJob {
+  type: typeof JOB_TYPE.GENERATE_TOPIC
+  topicJob: TopicJobDetail
+  blogJob: null
+}
+
+export interface BlogPostJob extends BaseJob {
+  type: typeof JOB_TYPE.POST
+  blogJob: BlogJobDetail
+  topicJob: null
+}
+
+export type Job = TopicJob | BlogPostJob
 
 export interface JobLog {
   id: string

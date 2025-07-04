@@ -9,21 +9,24 @@ import {
   DefaultValuePipe,
   UploadedFile,
   UseInterceptors,
+  Param,
 } from '@nestjs/common'
 import { FileInterceptor } from '@nestjs/platform-express'
 import { Response } from 'express'
-import { TopicService } from '../topic/topic.service'
 import * as XLSX from 'xlsx'
 import { PrismaService } from '@main/app/modules/common/prisma/prisma.service'
 import { JobStatus, JobType } from '@main/app/modules/job/job.types'
+import { TopicJobService } from '../topic/topic-job.service'
+import * as fs from 'fs'
+import * as path from 'path'
 
 @Controller('workflow')
 export class WorkflowController {
   private readonly logger = new Logger(WorkflowController.name)
 
   constructor(
-    private readonly topicService: TopicService,
     private readonly prisma: PrismaService,
+    private readonly topicJobService: TopicJobService,
   ) {}
 
   /**
@@ -36,48 +39,21 @@ export class WorkflowController {
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
     @Res() res: Response,
   ): Promise<void> {
-    this.logger.log(`주제 찾기 요청: topic=${topic}, limit=${limit}`)
+    this.logger.log(`주제 찾기(비동기 job 등록): topic=${topic}, limit=${limit}`)
 
     if (!topic) {
       throw new Error('주제(topic) 파라미터는 필수입니다.')
     }
 
-    try {
-      // 1. OpenAI를 통해 SEO 제목 생성
-      const topics = await this.topicService.generateTopics(topic, limit)
+    // 1. 토픽 생성 job 등록
+    const job = await this.topicJobService.createTopicJob(topic, limit)
 
-      // 2. 엑셀 데이터 준비
-      const excelData = [
-        ['SEO 제목', '내용'], // 헤더
-        ...topics.map(item => [item.title, item.content]),
-      ]
-
-      // 3. 워크북 및 워크시트 생성
-      const workbook = XLSX.utils.book_new()
-      const worksheet = XLSX.utils.aoa_to_sheet(excelData)
-
-      // 4. 컬럼 너비 설정
-      worksheet['!cols'] = [
-        { width: 40 }, // SEO 제목
-        { width: 50 }, // 내용
-      ]
-
-      // 5. 워크시트를 워크북에 추가
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'SEO 제목 목록')
-
-      // 6. 엑셀 파일 생성
-      const fileName = `seo-titles-${new Date().toISOString().split('T')[0]}.xlsx`
-      const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' })
-
-      // 7. 응답 헤더 설정 및 파일 전송
-      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-      res.send(buffer)
-
-      this.logger.log(`엑셀 파일 "${fileName}" 내보내기 완료`)
-    } catch (error) {
-      this.logger.error('워크플로우 실행 중 오류 발생:', error)
-      throw error
-    }
+    // 2. 등록된 jobId 반환 (즉시 결과가 아닌, jobId로 상태/결과를 polling)
+    res.status(202).json({
+      success: true,
+      message: '토픽 생성 작업이 등록되었습니다.',
+      jobId: job.id,
+    })
   }
 
   /**
@@ -136,5 +112,17 @@ export class WorkflowController {
       message: `${jobs.length}건 등록 완료`,
       jobIds: jobs.map(job => job.id),
     })
+  }
+
+  @Get('download-topic-job/:jobId')
+  async downloadTopicJobXlsx(@Res() res: Response, @Param('jobId') jobId: string) {
+    const filePath = path.join(process.cwd(), 'static/exports', `find-topics-${jobId}.xlsx`)
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ success: false, message: '파일이 존재하지 않습니다.' })
+    }
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    res.setHeader('Content-Disposition', `attachment; filename="find-topics-${jobId}.xlsx"`)
+    const stream = fs.createReadStream(filePath)
+    stream.pipe(res)
   }
 }

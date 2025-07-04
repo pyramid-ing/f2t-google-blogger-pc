@@ -24,6 +24,8 @@ yarn-error.log*
 .vscode/*
 
 static/cookies
+static/thumbnail
+static/exports
 
 # Added by Claude Task Master
 # Logs
