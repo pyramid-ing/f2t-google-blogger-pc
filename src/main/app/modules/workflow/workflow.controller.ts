@@ -12,12 +12,13 @@ import {
 } from '@nestjs/common'
 import { FileInterceptor } from '@nestjs/platform-express'
 import { Response } from 'express'
+import axios from 'axios'
 import { TopicService } from '../topic/topic.service'
 import * as XLSX from 'xlsx'
 import { GoogleBloggerService } from '@main/app/modules/google/blogger/google-blogger.service'
-import { ImagePixabayService } from 'src/main/app/modules/media/image-pixabay.service'
-import { ThumbnailGeneratorService } from 'src/main/app/modules/media/thumbnail-generator.service'
-import { GCSUploadService } from 'src/main/app/modules/media/gcs-upload.service'
+import { ImagePixabayService } from '../media/image-pixabay.service'
+import { ThumbnailGeneratorService } from '../media/thumbnail-generator.service'
+import { GCSUploadService } from '../media/gcs-upload.service'
 import { SettingsService } from '../settings/settings.service'
 import { OpenAiService } from '../ai/openai.service'
 import { LinkResult, PerplexityService } from '../ai/perplexity.service'
@@ -288,7 +289,29 @@ export class WorkflowController {
             // 이미지 검색 및 링크 적용
             const imageUrl = await this.imageAgent.searchImage(pixabayKeyword)
             this.logger.log(`섹션 ${sectionIndex}에 대한 이미지 URL: ${imageUrl}`)
-            return imageUrl
+
+            // Pixabay 이미지를 GCS에 업로드
+            try {
+              // 이미지 URL에서 데이터 다운로드 (axios 사용)
+              const response = await axios.get(imageUrl, {
+                responseType: 'arraybuffer',
+                timeout: 30000, // 30초 타임아웃
+              })
+
+              const imageBuffer = Buffer.from(response.data)
+
+              // GCS에 업로드
+              const uploadResult = await this.gcsUpload.uploadImage(imageBuffer, {
+                contentType: 'image/png',
+              })
+
+              this.logger.log(`섹션 ${sectionIndex} Pixabay 이미지 GCS 업로드 완료: ${uploadResult.url}`)
+              return uploadResult.url
+            } catch (uploadError) {
+              this.logger.error(`섹션 ${sectionIndex} Pixabay 이미지 GCS 업로드 실패:`, uploadError)
+              // 업로드 실패 시 원본 URL 반환
+              return imageUrl
+            }
           } catch (error) {
             this.logger.warn(`섹션 ${sectionIndex} Pixabay 이미지 처리 중 오류: ${error.message}`)
             return undefined
@@ -317,7 +340,6 @@ export class WorkflowController {
               // GCS에 업로드
               const uploadResult = await this.gcsUpload.uploadImage(imageBuffer, {
                 contentType: 'image/png',
-                isPublic: true,
               })
 
               this.logger.log(`섹션 ${sectionIndex} AI 이미지 GCS 업로드 완료: ${uploadResult.url}`)
