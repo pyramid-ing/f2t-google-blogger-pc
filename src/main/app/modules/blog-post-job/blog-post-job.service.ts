@@ -1,10 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { PrismaService } from '@main/app/modules/common/prisma/prisma.service'
 import { JobProcessor } from '../job/job.processor.interface'
-import { Job } from '@prisma/client'
 import { PublishService } from '../publish/publish.service'
 import { JobType } from '@main/app/modules/job/job.types'
 import { ContentGenerateService } from '@main/app/modules/content-generate/content-generate.service'
+import { JobLogsService } from '../job-logs/job-logs.service'
+import { Job } from '@prisma/client'
 
 @Injectable()
 export class BlogPostJobService implements JobProcessor {
@@ -14,6 +15,7 @@ export class BlogPostJobService implements JobProcessor {
     private readonly prisma: PrismaService,
     private readonly publishService: PublishService,
     private readonly contentGenerateService: ContentGenerateService,
+    private readonly jobLogsService: JobLogsService,
   ) {}
 
   canProcess(job: Job): boolean {
@@ -21,7 +23,7 @@ export class BlogPostJobService implements JobProcessor {
   }
 
   async process(jobId: string): Promise<void> {
-    const job = await this.prisma.job.findUniqueOrThrow({
+    const job = await (this.prisma as any).job.findUniqueOrThrow({
       where: { id: jobId },
       include: {
         blogJob: true,
@@ -60,12 +62,6 @@ export class BlogPostJobService implements JobProcessor {
   }
 
   private async createJobLog(jobId: string, level: string, message: string) {
-    await this.prisma.jobLog.create({
-      data: {
-        jobId,
-        level,
-        message,
-      },
-    })
+    await this.jobLogsService.createJobLog(jobId, message, level as any)
   }
 }

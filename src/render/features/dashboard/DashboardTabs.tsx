@@ -1,8 +1,7 @@
 import { Tabs, Button, Input, Upload, message } from 'antd'
 import React, { useState } from 'react'
 import { UploadOutlined } from '@ant-design/icons'
-import { findTopics, registerWorkflow } from '../../api'
-import { saveAs } from 'file-saver'
+import { addTopicJob, registerWorkflow } from '../../api'
 
 const TopicExtraction: React.FC = () => {
   const [topic, setTopic] = React.useState('')
@@ -13,10 +12,8 @@ const TopicExtraction: React.FC = () => {
     setLoading(true)
 
     try {
-      const response = await findTopics(topic, limit)
-      const blob = new Blob([response], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
-      saveAs(blob, `${topic}.xlsx`)
-      message.success('엑셀 파일이 다운로드되었습니다.')
+      await addTopicJob(topic, limit)
+      message.success(`${topic}에 대한 주제찾기 작업이 등록되었습니다.`)
     } catch (e: any) {
       message.error(e?.message || '엑셀 내보내기에 실패했습니다.')
     } finally {

@@ -4,6 +4,7 @@ import { JobProcessor } from '../job/job.processor.interface'
 import { JobType } from '@main/app/modules/job/job.types'
 import { TopicService } from './topic.service'
 import { saveTopicsResultAsXlsx } from './topic-job.util'
+import { JobLogsService } from '../job-logs/job-logs.service'
 
 @Injectable()
 export class TopicJobService implements JobProcessor {
@@ -12,6 +13,7 @@ export class TopicJobService implements JobProcessor {
   constructor(
     private readonly prisma: PrismaService,
     private readonly topicService: TopicService,
+    private readonly jobLogsService: JobLogsService,
   ) {}
 
   canProcess(job: any): boolean {
@@ -73,13 +75,7 @@ export class TopicJobService implements JobProcessor {
   }
 
   private async createJobLog(jobId: string, level: string, message: string) {
-    await this.prisma.jobLog.create({
-      data: {
-        jobId,
-        level,
-        message,
-      },
-    })
+    await this.jobLogsService.createJobLog(jobId, message, level as any)
   }
 
   /**
