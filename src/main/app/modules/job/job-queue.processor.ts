@@ -4,8 +4,8 @@ import { BlogPostJobService } from '../blog-post-job/blog-post-job.service'
 import { JobProcessor } from './job.processor.interface'
 import { Cron, CronExpression } from '@nestjs/schedule'
 import { JobStatus, JobType } from './job.types'
-import type { Job } from '@prisma/client'
 import { TopicJobService } from '@main/app/modules/topic/topic-job.service'
+import { Job } from '@prisma/client'
 
 @Injectable()
 export class JobQueueProcessor implements OnModuleInit {
@@ -78,13 +78,25 @@ export class JobQueueProcessor implements OnModuleInit {
     }
 
     try {
-      await this.prisma.job.update({
-        where: { id: job.id },
+      // 조건부 업데이트: PENDING 상태일 때만 PROCESSING으로 변경
+      const updateResult = await this.prisma.job.updateMany({
+        where: {
+          id: job.id,
+          status: JobStatus.PENDING, // 이 조건이 중복 처리를 방지합니다
+        },
         data: {
           status: JobStatus.PROCESSING,
           startedAt: new Date(),
         },
       })
+
+      // 다른 프로세스가 이미 처리 중인 경우 건너뛰기
+      if (updateResult.count === 0) {
+        this.logger.debug(`Job ${job.id} is already being processed by another instance`)
+        return
+      }
+
+      this.logger.debug(`Starting job ${job.id} (${job.type})`)
 
       await processor.process(job.id)
 
@@ -95,6 +107,8 @@ export class JobQueueProcessor implements OnModuleInit {
           completedAt: new Date(),
         },
       })
+
+      this.logger.debug(`Completed job ${job.id}`)
     } catch (error) {
       await this.markJobAsFailed(job.id, error.message)
       this.logger.error(`Error processing job ${job.id}:`, error)
