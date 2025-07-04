@@ -585,18 +585,7 @@ const ScheduledPostsTable: React.FC = () => {
                       다운로드
                     </Button>
                   )}
-                  {row.type === JOB_TYPE.POST && row.status === JOB_STATUS.COMPLETED && (
-                    <Button
-                      type="primary"
-                      size="small"
-                      loading={downloadingJobId === row.id}
-                      disabled={downloadingJobId !== null && downloadingJobId !== row.id}
-                      onClick={() => handleDownload(row.id, row.type)}
-                      style={{ fontSize: '11px', backgroundColor: '#52c41a', borderColor: '#52c41a' }}
-                    >
-                      다운로드
-                    </Button>
-                  )}
+                  {/* BLOG_POST(포스팅) 타입은 다운로드 버튼을 렌더링하지 않음 */}
                 </Space>
                 {row.status !== JOB_STATUS.PROCESSING && (
                   <Popconfirm
