@@ -9,7 +9,6 @@ import {
   DefaultValuePipe,
   UploadedFile,
   UseInterceptors,
-  Param,
 } from '@nestjs/common'
 import { FileInterceptor } from '@nestjs/platform-express'
 import { Response } from 'express'
@@ -17,8 +16,6 @@ import * as XLSX from 'xlsx'
 import { PrismaService } from '@main/app/modules/common/prisma/prisma.service'
 import { JobStatus, JobType } from '@main/app/modules/job/job.types'
 import { TopicJobService } from '../topic/topic-job.service'
-import * as fs from 'fs'
-import * as path from 'path'
 import { parse, isValid } from 'date-fns'
 
 @Controller('workflow')
@@ -69,23 +66,20 @@ export class WorkflowController {
     const workbook = XLSX.read(file.buffer, { type: 'buffer' })
     const sheetName = workbook.SheetNames[0]
     const worksheet = workbook.Sheets[sheetName]
-    const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][]
-    const rows = data.slice(1) // 헤더 제외
+    // 한글 헤더 기반으로 객체 파싱
+    const data = XLSX.utils.sheet_to_json(worksheet) as any[]
 
     const jobs = await Promise.all(
-      rows.map(async ([title, content, scheduledAtStr]) => {
-        let scheduledAt: Date
-        if (scheduledAtStr && typeof scheduledAtStr === 'string' && scheduledAtStr.trim() !== '') {
-          // date-fns로 YYYY-MM-DD HH:mm 파싱
-          const parsed = parse(scheduledAtStr.trim(), 'yyyy-MM-dd HH:mm', new Date())
-          if (isValid(parsed)) {
-            scheduledAt = parsed
-          } else {
-            this.logger.warn(`잘못된 예약날짜 포맷: ${scheduledAtStr}, 즉시 등록 처리`)
-            scheduledAt = new Date()
-          }
+      data.map(async row => {
+        const title = row['제목'] || ''
+        const content = row['내용'] || ''
+        const scheduledAt = row['예약날짜'] || ''
+        let scheduledAtDate: Date
+        if (scheduledAt && typeof scheduledAt === 'string' && scheduledAt.trim() !== '') {
+          const parsed = parse(scheduledAt.trim(), 'yyyy-MM-dd HH:mm', new Date())
+          scheduledAtDate = isValid(parsed) ? parsed : new Date()
         } else {
-          scheduledAt = new Date()
+          scheduledAtDate = new Date()
         }
 
         const job = await this.prisma.job.create({
@@ -95,17 +89,12 @@ export class WorkflowController {
             type: JobType.BLOG_POST,
             status: JobStatus.PENDING,
             priority: 1,
-            scheduledAt,
+            scheduledAt: scheduledAtDate,
             blogJob: {
-              create: {
-                title,
-                content,
-              },
+              create: { title, content },
             },
           },
-          include: {
-            blogJob: true,
-          },
+          include: { blogJob: true },
         })
 
         await this.prisma.jobLog.create({
@@ -127,17 +116,5 @@ export class WorkflowController {
       message: `${jobs.length}건 등록 완료`,
       jobIds: jobs.map(job => job.id),
     })
-  }
-
-  @Get('download-topic-job/:jobId')
-  async downloadTopicJobXlsx(@Res() res: Response, @Param('jobId') jobId: string) {
-    const filePath = path.join(process.cwd(), 'static/exports', `find-topics-${jobId}.xlsx`)
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ success: false, message: '파일이 존재하지 않습니다.' })
-    }
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    res.setHeader('Content-Disposition', `attachment; filename="find-topics-${jobId}.xlsx"`)
-    const stream = fs.createReadStream(filePath)
-    stream.pipe(res)
   }
 }

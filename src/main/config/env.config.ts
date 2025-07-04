@@ -12,6 +12,9 @@ export class EnvConfig {
   public static isElectron = process.versions && process.versions.electron
   public static isPackaged = app?.isPackaged || false
   public static userDataPath = EnvConfig.isPackaged ? app.getPath('userData') : process.cwd()
+  public static userDataCustomPath = EnvConfig.isPackaged
+    ? path.join(EnvConfig.userDataPath, 'f2t')
+    : path.join(process.cwd(), 'static')
   public static resourcePath = EnvConfig.isPackaged ? process.resourcesPath : process.cwd()
 
   // 패키지된 앱에서는 userData 폴더에 DB를 저장
@@ -23,6 +26,8 @@ export class EnvConfig {
     : './db.sqlite'
 
   public static dbUrl = `file:${EnvConfig.dbPath}`
+
+  public static exportsDir = path.join(EnvConfig.userDataCustomPath, 'exports')
 
   private static engineName = ''
   private static libName = ''
@@ -129,6 +134,7 @@ export class EnvConfig {
       isElectron: this.isElectron,
       isPackaged: this.isPackaged,
       resourcePath: this.resourcePath,
+      exportsDir: this.exportsDir,
     }
   }
 }
