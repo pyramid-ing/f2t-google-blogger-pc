@@ -5,7 +5,13 @@ import { PublishService } from '../publish/publish.service'
 import { JobType } from '@main/app/modules/job/job.types'
 import { ContentGenerateService } from '@main/app/modules/content-generate/content-generate.service'
 import { JobLogsService } from '../job-logs/job-logs.service'
-import { Job } from '@prisma/client'
+import { isValid, parse } from 'date-fns'
+
+export type BlogPostExcelRow = {
+  제목: string
+  내용: string
+  예약날짜: string
+}
 
 @Injectable()
 export class BlogPostJobService implements JobProcessor {
@@ -18,12 +24,12 @@ export class BlogPostJobService implements JobProcessor {
     private readonly jobLogsService: JobLogsService,
   ) {}
 
-  canProcess(job: Job): boolean {
+  canProcess(job: any): boolean {
     return job.type === JobType.BLOG_POST
   }
 
   async process(jobId: string): Promise<void> {
-    const job = await (this.prisma as any).job.findUniqueOrThrow({
+    const job = await this.prisma.job.findUniqueOrThrow({
       where: { id: jobId },
       include: {
         blogJob: true,
@@ -63,5 +69,43 @@ export class BlogPostJobService implements JobProcessor {
 
   private async createJobLog(jobId: string, level: string, message: string) {
     await this.jobLogsService.createJobLog(jobId, message, level as any)
+  }
+
+  /**
+   * 엑셀 row 배열로부터 여러 개의 블로그 포스트 job을 생성
+   */
+  async createJobsFromExcelRows(rows: BlogPostExcelRow[]): Promise<any[]> {
+    const jobs: any[] = []
+    for (const row of rows) {
+      const title = row.제목 || ''
+      const content = row.내용 || ''
+      const scheduledAt = row.예약날짜 || ''
+      let scheduledAtDate: Date
+      if (scheduledAt && typeof scheduledAt === 'string' && scheduledAt.trim() !== '') {
+        const parsed = parse(scheduledAt.trim(), 'yyyy-MM-dd HH:mm', new Date())
+        scheduledAtDate = isValid(parsed) ? parsed : new Date()
+      } else {
+        scheduledAtDate = new Date()
+      }
+
+      const job = await this.prisma.job.create({
+        data: {
+          subject: `${title} 제목 포스팅 등록`,
+          desc: `${content}`,
+          type: JobType.BLOG_POST,
+          status: 'PENDING',
+          priority: 1,
+          scheduledAt: scheduledAtDate,
+          blogJob: {
+            create: { title, content },
+          },
+        },
+        include: { blogJob: true },
+      })
+
+      await this.createJobLog(job.id, 'info', '작업이 등록되었습니다.')
+      jobs.push(job)
+    }
+    return jobs
   }
 }

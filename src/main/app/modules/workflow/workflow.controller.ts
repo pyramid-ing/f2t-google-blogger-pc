@@ -13,18 +13,17 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express'
 import { Response } from 'express'
 import * as XLSX from 'xlsx'
-import { PrismaService } from '@main/app/modules/common/prisma/prisma.service'
-import { JobStatus, JobType } from '@main/app/modules/job/job.types'
 import { TopicJobService } from '../topic/topic-job.service'
-import { parse, isValid } from 'date-fns'
+import { BlogPostJobService } from '../blog-post-job/blog-post-job.service'
+import type { BlogPostExcelRow } from '../blog-post-job/blog-post-job.service'
 
 @Controller('workflow')
 export class WorkflowController {
   private readonly logger = new Logger(WorkflowController.name)
 
   constructor(
-    private readonly prisma: PrismaService,
     private readonly topicJobService: TopicJobService,
+    private readonly blogPostJobService: BlogPostJobService,
   ) {}
 
   /**
@@ -67,47 +66,10 @@ export class WorkflowController {
     const sheetName = workbook.SheetNames[0]
     const worksheet = workbook.Sheets[sheetName]
     // 한글 헤더 기반으로 객체 파싱
-    const data = XLSX.utils.sheet_to_json(worksheet) as any[]
+    const data = XLSX.utils.sheet_to_json(worksheet) as BlogPostExcelRow[]
 
-    const jobs = await Promise.all(
-      data.map(async row => {
-        const title = row['제목'] || ''
-        const content = row['내용'] || ''
-        const scheduledAt = row['예약날짜'] || ''
-        let scheduledAtDate: Date
-        if (scheduledAt && typeof scheduledAt === 'string' && scheduledAt.trim() !== '') {
-          const parsed = parse(scheduledAt.trim(), 'yyyy-MM-dd HH:mm', new Date())
-          scheduledAtDate = isValid(parsed) ? parsed : new Date()
-        } else {
-          scheduledAtDate = new Date()
-        }
-
-        const job = await this.prisma.job.create({
-          data: {
-            subject: `${title} 제목 포스팅 등록`,
-            desc: `${content}`,
-            type: JobType.BLOG_POST,
-            status: JobStatus.PENDING,
-            priority: 1,
-            scheduledAt: scheduledAtDate,
-            blogJob: {
-              create: { title, content },
-            },
-          },
-          include: { blogJob: true },
-        })
-
-        await this.prisma.jobLog.create({
-          data: {
-            jobId: job.id,
-            level: 'info',
-            message: '작업이 등록되었습니다.',
-          },
-        })
-
-        return job
-      }),
-    )
+    // BlogPostJobService로 위임
+    const jobs = await this.blogPostJobService.createJobsFromExcelRows(data)
 
     this.logger.log(`✅ 총 ${jobs.length}건의 포스트 작업이 Job Queue에 등록됨`)
 
