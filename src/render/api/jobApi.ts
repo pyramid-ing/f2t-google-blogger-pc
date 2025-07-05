@@ -53,3 +53,19 @@ export async function downloadJobFile(jobId: string): Promise<Blob> {
   const response = await api.get(`/api/jobs/${jobId}/download`, { responseType: 'blob' })
   return response.data
 }
+
+/**
+ * 여러 작업을 재시도합니다.
+ */
+export async function retryJobs(jobIds: string[]): Promise<ApiResponse> {
+  const response = await api.post('/api/jobs/bulk/retry', { jobIds })
+  return response.data
+}
+
+/**
+ * 여러 작업을 삭제합니다.
+ */
+export async function deleteJobs(jobIds: string[]): Promise<ApiResponse> {
+  const response = await api.post('/api/jobs/bulk/delete', { jobIds })
+  return response.data
+}

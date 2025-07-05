@@ -1,4 +1,4 @@
-import { Button, Input, message, Modal, Popconfirm, Popover, Select, Space, Table, Tag } from 'antd'
+import { Button, Input, message, Modal, Popconfirm, Popover, Select, Space, Table, Tag, Checkbox } from 'antd'
 import React, { useEffect, useState } from 'react'
 import styled from 'styled-components'
 import {
@@ -12,6 +12,8 @@ import {
   JobStatus,
   JobType,
   retryJob,
+  retryJobs,
+  deleteJobs,
 } from '../../api'
 import { getJobs, JOB_STATUS, JOB_TYPE } from '../../api'
 import PageContainer from '../../components/shared/PageContainer'
@@ -274,6 +276,12 @@ const ScheduledPostsTable: React.FC = () => {
 
   const [downloadingJobId, setDownloadingJobId] = useState<string | null>(null)
 
+  // 벌크 작업 관련 상태
+  const [selectedJobIds, setSelectedJobIds] = useState<string[]>([])
+  const [isAllSelected, setIsAllSelected] = useState(false)
+  const [bulkRetryLoading, setBulkRetryLoading] = useState(false)
+  const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false)
+
   useEffect(() => {
     fetchData()
   }, [statusFilter, searchText, sortField, sortOrder])
@@ -285,6 +293,15 @@ const ScheduledPostsTable: React.FC = () => {
     }, 5000)
     return () => clearInterval(timer)
   }, [statusFilter, searchText, sortField, sortOrder])
+
+  // 데이터가 변경될 때 선택 상태 업데이트
+  useEffect(() => {
+    const validSelectedIds = selectedJobIds.filter(id => data.some(job => job.id === id))
+    if (validSelectedIds.length !== selectedJobIds.length) {
+      setSelectedJobIds(validSelectedIds)
+    }
+    setIsAllSelected(validSelectedIds.length > 0 && validSelectedIds.length === data.length)
+  }, [data])
 
   const fetchData = async () => {
     setLoading(true)
@@ -389,6 +406,91 @@ const ScheduledPostsTable: React.FC = () => {
     }
   }
 
+  // 전체 선택 핸들러
+  const handleSelectAll = (checked: boolean) => {
+    setIsAllSelected(checked)
+    if (checked) {
+      setSelectedJobIds(data.map(job => job.id))
+    } else {
+      setSelectedJobIds([])
+    }
+  }
+
+  // 개별 선택 핸들러
+  const handleSelectJob = (jobId: string, checked: boolean) => {
+    if (checked) {
+      const newSelectedIds = [...selectedJobIds, jobId]
+      setSelectedJobIds(newSelectedIds)
+      setIsAllSelected(newSelectedIds.length === data.length)
+    } else {
+      const newSelectedIds = selectedJobIds.filter(id => id !== jobId)
+      setSelectedJobIds(newSelectedIds)
+      setIsAllSelected(false)
+    }
+  }
+
+  // 벌크 재시도 핸들러
+  const handleBulkRetry = async () => {
+    if (selectedJobIds.length === 0) {
+      message.warning('재시도할 작업을 선택해주세요.')
+      return
+    }
+
+    // 선택된 작업 중 실패한 작업만 필터링
+    const failedJobIds = selectedJobIds.filter(jobId => {
+      const job = data.find(j => j.id === jobId)
+      return job && job.status === JOB_STATUS.FAILED
+    })
+
+    if (failedJobIds.length === 0) {
+      message.warning('재시도할 수 있는 실패한 작업이 없습니다.')
+      return
+    }
+
+    setBulkRetryLoading(true)
+    try {
+      const response = await retryJobs(failedJobIds)
+      message.success(response.message)
+      setSelectedJobIds([])
+      setIsAllSelected(false)
+      fetchData()
+    } catch (error: any) {
+      message.error(error.message || '벌크 재시도에 실패했습니다.')
+    }
+    setBulkRetryLoading(false)
+  }
+
+  // 벌크 삭제 핸들러
+  const handleBulkDelete = async () => {
+    if (selectedJobIds.length === 0) {
+      message.warning('삭제할 작업을 선택해주세요.')
+      return
+    }
+
+    // 선택된 작업 중 처리 중인 작업 제외
+    const deletableJobIds = selectedJobIds.filter(jobId => {
+      const job = data.find(j => j.id === jobId)
+      return job && job.status !== JOB_STATUS.PROCESSING
+    })
+
+    if (deletableJobIds.length === 0) {
+      message.warning('삭제할 수 있는 작업이 없습니다. (처리 중인 작업은 삭제할 수 없습니다)')
+      return
+    }
+
+    setBulkDeleteLoading(true)
+    try {
+      const response = await deleteJobs(deletableJobIds)
+      message.success(response.message)
+      setSelectedJobIds([])
+      setIsAllSelected(false)
+      fetchData()
+    } catch (error: any) {
+      message.error(error.message || '벌크 삭제에 실패했습니다.')
+    }
+    setBulkDeleteLoading(false)
+  }
+
   return (
     <PageContainer title="작업 관리">
       <div style={{ marginBottom: '20px' }}>
@@ -411,6 +513,63 @@ const ScheduledPostsTable: React.FC = () => {
         </Space>
       </div>
 
+      {/* 벌크 작업 UI */}
+      {selectedJobIds.length > 0 && (
+        <div style={{ marginBottom: '20px', padding: '16px', background: '#f9f9f9', borderRadius: '8px' }}>
+          <Space size="middle" wrap>
+            <span>{selectedJobIds.length}개 작업이 선택되었습니다.</span>
+            {(() => {
+              const failedCount = selectedJobIds.filter(jobId => {
+                const job = data.find(j => j.id === jobId)
+                return job && job.status === JOB_STATUS.FAILED
+              }).length
+
+              const processingCount = selectedJobIds.filter(jobId => {
+                const job = data.find(j => j.id === jobId)
+                return job && job.status === JOB_STATUS.PROCESSING
+              }).length
+
+              return (
+                <>
+                  <Popconfirm
+                    title={`선택된 실패한 작업 ${failedCount}개를 재시도하시겠습니까?`}
+                    onConfirm={handleBulkRetry}
+                    okText="재시도"
+                    cancelText="취소"
+                  >
+                    <Button type="primary" loading={bulkRetryLoading} disabled={bulkDeleteLoading || failedCount === 0}>
+                      실패한 작업 재시도 ({failedCount}개)
+                    </Button>
+                  </Popconfirm>
+                  <Popconfirm
+                    title={`선택된 작업 ${selectedJobIds.length - processingCount}개를 삭제하시겠습니까?${processingCount > 0 ? ` (처리 중인 ${processingCount}개 작업은 제외됩니다)` : ''}`}
+                    onConfirm={handleBulkDelete}
+                    okText="삭제"
+                    cancelText="취소"
+                  >
+                    <Button
+                      danger
+                      loading={bulkDeleteLoading}
+                      disabled={bulkRetryLoading || selectedJobIds.length === processingCount}
+                    >
+                      선택된 작업 삭제 ({selectedJobIds.length - processingCount}개)
+                    </Button>
+                  </Popconfirm>
+                </>
+              )
+            })()}
+            <Button
+              onClick={() => {
+                setSelectedJobIds([])
+                setIsAllSelected(false)
+              }}
+            >
+              선택 해제
+            </Button>
+          </Space>
+        </div>
+      )}
+
       <StyledTable
         rowKey="id"
         dataSource={data}
@@ -428,6 +587,24 @@ const ScheduledPostsTable: React.FC = () => {
         scroll={{ x: 'max-content' }}
         rowClassName={(record: Job) => `row-${record.status}`}
         columns={[
+          {
+            title: (
+              <Checkbox
+                checked={isAllSelected}
+                indeterminate={selectedJobIds.length > 0 && selectedJobIds.length < data.length}
+                onChange={e => handleSelectAll(e.target.checked)}
+              />
+            ),
+            dataIndex: 'checkbox',
+            width: 50,
+            align: 'center',
+            render: (_: any, record: Job) => (
+              <Checkbox
+                checked={selectedJobIds.includes(record.id)}
+                onChange={e => handleSelectJob(record.id, e.target.checked)}
+              />
+            ),
+          },
           {
             title: 'ID',
             dataIndex: 'id',
@@ -486,7 +663,14 @@ const ScheduledPostsTable: React.FC = () => {
                   )}
                   {row.status === JOB_STATUS.COMPLETED && row.resultUrl && (
                     <div className="result-url">
-                      <a href={row.resultUrl} target="_blank" rel="noopener noreferrer">
+                      <a
+                        href="#"
+                        onClick={e => {
+                          e.preventDefault()
+                          window.electronAPI.openExternal(row.resultUrl)
+                        }}
+                        style={{ cursor: 'pointer' }}
+                      >
                         📝 결과 보기 →
                       </a>
                     </div>
@@ -506,10 +690,12 @@ const ScheduledPostsTable: React.FC = () => {
                     <div className={`result-text hover-hint ${statusType}-text`}>{displayMessage}</div>
                     {row.status === JOB_STATUS.COMPLETED && row.resultUrl && (
                       <a
-                        href={row.resultUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ color: '#1890ff', fontSize: '12px' }}
+                        href="#"
+                        onClick={e => {
+                          e.preventDefault()
+                          window.electronAPI.openExternal(row.resultUrl)
+                        }}
+                        style={{ color: '#1890ff', fontSize: '12px', cursor: 'pointer' }}
                       >
                         결과 보기 →
                       </a>
