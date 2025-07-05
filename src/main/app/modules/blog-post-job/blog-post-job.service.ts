@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common'
 import { PrismaService } from '@main/app/modules/common/prisma/prisma.service'
 import { JobProcessor } from '../job/job.processor.interface'
 import { PublishService } from '../publish/publish.service'
-import { JobType } from '@main/app/modules/job/job.types'
+import { JobStatus, JobType } from '@main/app/modules/job/job.types'
 import { ContentGenerateService } from '@main/app/modules/content-generate/content-generate.service'
 import { JobLogsService } from '../job-logs/job-logs.service'
 import { isValid, parse } from 'date-fns'
@@ -79,13 +79,13 @@ export class BlogPostJobService implements JobProcessor {
     for (const row of rows) {
       const title = row.제목 || ''
       const content = row.내용 || ''
-      const scheduledAt = row.예약날짜 || ''
-      let scheduledAtDate: Date
-      if (scheduledAt && typeof scheduledAt === 'string' && scheduledAt.trim() !== '') {
-        const parsed = parse(scheduledAt.trim(), 'yyyy-MM-dd HH:mm', new Date())
-        scheduledAtDate = isValid(parsed) ? parsed : new Date()
+      const scheduledAtFormatStr = row.예약날짜 || ''
+      let scheduledAt: Date
+      if (scheduledAtFormatStr && typeof scheduledAtFormatStr === 'string' && scheduledAtFormatStr.trim() !== '') {
+        const parsed = parse(scheduledAtFormatStr.trim(), 'yyyy-MM-dd HH:mm', new Date())
+        scheduledAt = isValid(parsed) ? parsed : new Date()
       } else {
-        scheduledAtDate = new Date()
+        scheduledAt = new Date()
       }
 
       const job = await this.prisma.job.create({
@@ -93,9 +93,9 @@ export class BlogPostJobService implements JobProcessor {
           subject: `${title} 제목 포스팅 등록`,
           desc: `${content}`,
           type: JobType.BLOG_POST,
-          status: 'PENDING',
+          status: JobStatus.PENDING,
           priority: 1,
-          scheduledAt: scheduledAtDate,
+          scheduledAt,
           blogJob: {
             create: { title, content },
           },

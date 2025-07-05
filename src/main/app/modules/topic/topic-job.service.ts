@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { PrismaService } from '@main/app/modules/common/prisma/prisma.service'
 import { JobProcessor } from '../job/job.processor.interface'
-import { JobType } from '@main/app/modules/job/job.types'
+import {JobStatus, JobType} from '@main/app/modules/job/job.types'
 import { TopicService } from './topic.service'
 import { saveTopicsResultAsXlsx } from './topic-job.util'
 import { JobLogsService } from '../job-logs/job-logs.service'
@@ -93,7 +93,7 @@ export class TopicJobService implements JobProcessor {
         subject,
         desc,
         type: JobType.GENERATE_TOPIC,
-        status: 'pending',
+        status: JobStatus.PENDING,
         priority: 1,
         scheduledAt: new Date(),
         topicJob: {
