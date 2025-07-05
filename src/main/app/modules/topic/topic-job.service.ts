@@ -38,9 +38,10 @@ export class TopicJobService implements JobProcessor {
       // 1. 토픽 생성
       await this.createJobLog(jobId, 'info', `토픽 생성 시작: ${job.topicJob.topic}, 개수: ${job.topicJob.limit}`)
       const topics = await this.topicService.generateTopics(job.topicJob.topic, job.topicJob.limit)
-      await this.createJobLog(jobId, 'info', '토픽 생성 완료')
+      await this.createJobLog(jobId, 'info', `토픽 생성 완료: ${topics.length}개의 토픽이 생성됨`)
 
       // 2. 결과 저장
+      await this.createJobLog(jobId, 'info', '토픽 결과 저장 시작')
       await this.prisma.topicJob.update({
         where: { id: job.topicJob.id },
         data: {
@@ -49,13 +50,17 @@ export class TopicJobService implements JobProcessor {
           xlsxFileName: `find-topics-${jobId}.xlsx`,
         },
       })
+      await this.createJobLog(jobId, 'info', '토픽 결과 저장 완료')
+
       // 3. 결과 파일로 저장
+      await this.createJobLog(jobId, 'info', 'Excel 파일 생성 시작')
       await saveTopicsResultAsXlsx(jobId, topics)
+      await this.createJobLog(jobId, 'info', 'Excel 파일 생성 완료')
 
       await this.prisma.job.update({
         where: { id: jobId },
         data: {
-          resultMsg: '토픽이 성공적으로 생성되었습니다.',
+          resultMsg: `토픽이 성공적으로 생성되었습니다. (${topics.length}개)`,
           status: 'completed',
         },
       })

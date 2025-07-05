@@ -3,6 +3,7 @@ import { BlogOutline, BlogPost, OpenAiService } from '../ai/openai.service'
 import { LinkResult, PerplexityService } from '../ai/perplexity.service'
 import { ImagePixabayService } from '../media/image-pixabay.service'
 import { SettingsService } from '../settings/settings.service'
+import { JobLogsService } from '../job-logs/job-logs.service'
 import axios from 'axios'
 import sharp from 'sharp'
 import { ThumbnailGeneratorService } from '../media/thumbnail-generator.service'
@@ -31,65 +32,131 @@ export class ContentGenerateService {
     private readonly storageService: StorageService,
     private readonly settingsService: SettingsService,
     private readonly thumbnailGenerator: ThumbnailGeneratorService,
+    private readonly jobLogsService: JobLogsService,
   ) {}
 
-  async generate(title: string, desc: string): Promise<string> {
-    const blogOutline = await this.generateBlogOutline(title, desc)
-    const blogPost = await this.generateBlogPost(blogOutline)
-
-    // 이미지, 링크, 광고, AI 이미지 프롬프트 등 섹션별로 처리
-    const processedSections: ProcessedSection[] = await Promise.all(
-      blogPost.sections.map(async (section: SectionContent, sectionIndex: number) => {
-        const [imageUrl, links, adHtml, aiImagePrompt] = await Promise.all([
-          this.generateAndUploadImage(section.html, sectionIndex),
-          this.generateLinks(section.html, sectionIndex),
-          this.generateAdScript(sectionIndex),
-          this.openAiService.generateAiImagePrompt(section.html),
-        ])
-        return {
-          ...section,
-          sectionIndex,
-          imageUrl,
-          links,
-          adHtml,
-          aiImagePrompt,
-        }
-      }),
-    )
-    // 섹션 순서 유지를 위해 정렬
-    processedSections.sort((a, b) => a.sectionIndex - b.sectionIndex)
-
-    // SEO 정보 생성 (예시: 첫 섹션 기준, 실제로는 더 복잡하게 가능)
-    const allSectionsHtml = processedSections.map(s => s.html).join('\n')
-    const seo = await this.generateSeo(allSectionsHtml, 0)
-
-    // 썸네일 이미지 생성
-    // const thumbnailUrl = await this.generateThumbnailImage(title)
-    const thumbnailUrl = undefined
-
-    // BlogPost 객체 생성 (새로운 요소 포함)
-    const blogPostWithMeta: BlogPost = {
-      thumbnailUrl,
-      seo,
-      sections: processedSections.map(({ sectionIndex, adHtml, ...rest }) => rest),
+  async generate(title: string, desc: string, jobId?: string): Promise<string> {
+    if (jobId) {
+      await this.jobLogsService.createJobLog(jobId, '컨텐츠 생성 작업 시작')
     }
 
-    // HTML 결합 (thumbnailUrl, seo 등 포함)
-    const combinedHtml = this.combineHtmlSections(blogPostWithMeta)
+    try {
+      // 1. 블로그 아웃라인 생성
+      if (jobId) {
+        await this.jobLogsService.createJobLog(jobId, '블로그 목차 생성 시작')
+      }
+      const blogOutline = await this.generateBlogOutline(title, desc)
+      if (jobId) {
+        await this.jobLogsService.createJobLog(jobId, '블로그 목차 생성 완료')
+      }
 
-    return combinedHtml
+      // 2. 블로그 포스트 생성
+      if (jobId) {
+        await this.jobLogsService.createJobLog(jobId, '블로그 포스트 생성 시작')
+      }
+      const blogPost = await this.generateBlogPost(blogOutline)
+      if (jobId) {
+        await this.jobLogsService.createJobLog(jobId, '블로그 포스트 생성 완료')
+      }
+
+      // 3. 이미지, 링크, 광고 등 섹션별 처리
+      if (jobId) {
+        await this.jobLogsService.createJobLog(jobId, '섹션별 추가 컨텐츠 처리 시작')
+      }
+
+      const processedSections: ProcessedSection[] = await Promise.all(
+        blogPost.sections.map(async (section: SectionContent, sectionIndex: number) => {
+          try {
+            const [imageUrl, links, adHtml, aiImagePrompt] = await Promise.all([
+              this.generateAndUploadImage(section.html, sectionIndex, jobId),
+              this.generateLinks(section.html, sectionIndex, jobId),
+              this.generateAdScript(sectionIndex),
+              this.openAiService.generateAiImagePrompt(section.html),
+            ])
+            return {
+              ...section,
+              sectionIndex,
+              imageUrl,
+              links,
+              adHtml,
+              aiImagePrompt,
+            }
+          } catch (error) {
+            if (jobId) {
+              await this.jobLogsService.createJobLog(
+                jobId,
+                `섹션 ${sectionIndex} 처리 중 오류: ${error.message}`,
+                'error',
+              )
+            }
+            throw error
+          }
+        }),
+      )
+
+      // 섹션 순서 유지를 위해 정렬
+      processedSections.sort((a, b) => a.sectionIndex - b.sectionIndex)
+
+      if (jobId) {
+        await this.jobLogsService.createJobLog(jobId, '섹션별 추가 컨텐츠 처리 완료')
+      }
+
+      // SEO 정보 생성
+      const allSectionsHtml = processedSections.map(s => s.html).join('\n')
+      const seo = await this.generateSeo(allSectionsHtml, 0)
+
+      // 썸네일 이미지 생성
+      if (jobId) {
+        await this.jobLogsService.createJobLog(jobId, '썸네일 이미지 생성 시작')
+      }
+      const thumbnailUrl = await this.generateThumbnailImage(title)
+      if (jobId) {
+        await this.jobLogsService.createJobLog(
+          jobId,
+          thumbnailUrl ? '썸네일 이미지 생성 완료' : '썸네일 이미지 생성 건너뜀',
+        )
+      }
+
+      // BlogPost 객체 생성
+      const blogPostWithMeta: BlogPost = {
+        thumbnailUrl,
+        seo,
+        sections: processedSections.map(({ sectionIndex, adHtml, ...rest }) => rest),
+      }
+
+      // HTML 결합
+      const combinedHtml = this.combineHtmlSections(blogPostWithMeta)
+
+      if (jobId) {
+        await this.jobLogsService.createJobLog(jobId, '컨텐츠 생성 작업 완료')
+      }
+
+      return combinedHtml
+    } catch (error) {
+      if (jobId) {
+        await this.jobLogsService.createJobLog(jobId, `컨텐츠 생성 실패: ${error.message}`, 'error')
+      }
+      throw error
+    }
   }
 
   /**
    * 링크 생성을 처리하는 메서드
    */
-  private async generateLinks(html: string, sectionIndex: number): Promise<LinkResult[]> {
+  private async generateLinks(html: string, sectionIndex: number, jobId?: string): Promise<LinkResult[]> {
     try {
+      if (jobId) {
+        await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 관련 링크 생성 시작`)
+      }
       const links = await this.perplexityService.generateRelevantLinks(html)
-      this.logger.log(`섹션 ${sectionIndex}에 대한 관련 링크: ${JSON.stringify(links)}`)
+      if (jobId) {
+        await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 관련 링크 ${links.length}개 생성 완료`)
+      }
       return links
     } catch (error) {
-      this.logger.warn(`섹션 ${sectionIndex} 링크 처리 중 오류: ${error.message}`)
+      if (jobId) {
+        await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 링크 생성 실패: ${error.message}`, 'error')
+      }
       return []
     }
   }
@@ -171,7 +238,11 @@ export class ContentGenerateService {
   /**
    * 설정에 따라 이미지를 생성하는 함수
    */
-  private async generateAndUploadImage(html: string, sectionIndex: number): Promise<string | undefined> {
+  private async generateAndUploadImage(
+    html: string,
+    sectionIndex: number,
+    jobId?: string,
+  ): Promise<string | undefined> {
     try {
       const settings = await this.settingsService.getAppSettings()
       const imageType = settings.imageType || 'none'
@@ -180,22 +251,42 @@ export class ContentGenerateService {
 
       if (imageType === 'pixabay') {
         try {
+          if (jobId) {
+            await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} Pixabay 이미지 검색 시작`)
+          }
           const pixabayKeyword = await this.openAiService.generatePixabayPrompt(html)
-          this.logger.log(`섹션 ${sectionIndex}에 대한 키워드: ${pixabayKeyword}`)
           imageUrl = await this.imagePixabayService.searchImage(pixabayKeyword)
-          this.logger.log(`섹션 ${sectionIndex}에 대한 이미지 URL: ${imageUrl}`)
+          if (jobId) {
+            await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} Pixabay 이미지 검색 완료`)
+          }
         } catch (error) {
-          this.logger.warn(`섹션 ${sectionIndex} Pixabay 이미지 처리 중 오류: ${error.message}`)
+          if (jobId) {
+            await this.jobLogsService.createJobLog(
+              jobId,
+              `섹션 ${sectionIndex} Pixabay 이미지 검색 실패: ${error.message}`,
+              'error',
+            )
+          }
           return undefined
         }
       } else if (imageType === 'ai') {
         try {
+          if (jobId) {
+            await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} AI 이미지 생성 시작`)
+          }
           const aiImagePrompt = await this.openAiService.generateAiImagePrompt(html)
-          this.logger.log(`섹션 ${sectionIndex}에 대한 AI 이미지 프롬프트: ${aiImagePrompt}`)
           imageUrl = await this.openAiService.generateImage(aiImagePrompt)
-          this.logger.log(`섹션 ${sectionIndex}에 대한 AI 생성 이미지 URL: ${imageUrl}`)
+          if (jobId) {
+            await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} AI 이미지 생성 완료`)
+          }
         } catch (error) {
-          this.logger.warn(`섹션 ${sectionIndex} AI 이미지 생성 중 오류: ${error.message}`)
+          if (jobId) {
+            await this.jobLogsService.createJobLog(
+              jobId,
+              `섹션 ${sectionIndex} AI 이미지 생성 실패: ${error.message}`,
+              'error',
+            )
+          }
           return undefined
         }
       } else {
@@ -206,6 +297,9 @@ export class ContentGenerateService {
       // 공통: 이미지 다운로드 및 업로드
       if (imageUrl) {
         try {
+          if (jobId) {
+            await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 이미지 최적화 및 업로드 시작`)
+          }
           const response = await axios.get(imageUrl, {
             responseType: 'arraybuffer',
             timeout: 30000,
@@ -218,16 +312,30 @@ export class ContentGenerateService {
             contentType: 'image/webp',
           })
 
-          this.logger.log(`섹션 ${sectionIndex} 이미지 GCS 업로드 완료: ${uploadResult.url}`)
+          if (jobId) {
+            await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 이미지 업로드 완료`)
+          }
           return uploadResult.url
         } catch (uploadError) {
-          this.logger.error(`섹션 ${sectionIndex} 이미지 GCS 업로드 실패:`, uploadError)
+          if (jobId) {
+            await this.jobLogsService.createJobLog(
+              jobId,
+              `섹션 ${sectionIndex} 이미지 업로드 실패: ${uploadError.message}`,
+              'error',
+            )
+          }
           return imageUrl
         }
       }
       return undefined
     } catch (error) {
-      this.logger.warn(`섹션 ${sectionIndex} 이미지 처리 중 오류: ${error.message}`)
+      if (jobId) {
+        await this.jobLogsService.createJobLog(
+          jobId,
+          `섹션 ${sectionIndex} 이미지 처리 실패: ${error.message}`,
+          'error',
+        )
+      }
       return undefined
     }
   }

@@ -45,20 +45,11 @@ export class BlogPostJobService implements JobProcessor {
     try {
       // 1. 포스팅 내용 구체화
       await this.createJobLog(jobId, 'info', '본문 내용 생성')
-      const blogHtml = await this.contentGenerateService.generate(job.blogJob.title, job.blogJob.content)
+      const blogHtml = await this.contentGenerateService.generate(job.blogJob.title, job.blogJob.content, jobId)
 
       // 2. 블로그 포스팅
       await this.createJobLog(jobId, 'info', '블로그 포스팅 시작')
-      const result = await this.publishService.publishPost(job.blogJob.title, blogHtml)
-
-      // 3. 작업 완료 처리
-      await this.prisma.job.update({
-        where: { id: jobId },
-        data: {
-          resultUrl: result.url,
-          resultMsg: '포스팅이 성공적으로 생성되었습니다.',
-        },
-      })
+      const result = await this.publishService.publishPost(job.blogJob.title, blogHtml, jobId)
 
       await this.createJobLog(jobId, 'info', '블로그 포스팅 완료')
     } catch (error) {
