@@ -8,7 +8,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     const config = EnvConfig.getPrismaConfig()
 
     super({
-      log: config.isDev ? ['query', 'info', 'warn', 'error'] : ['error'],
+      log: config.isDev ? ['warn', 'error'] : ['error'],
       datasources: {
         db: {
           url: config.dbUrl,
