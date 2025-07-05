@@ -1,17 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { Storage } from '@google-cloud/storage'
-import { SettingsService } from '../settings/settings.service'
+import { SettingsService } from '../../settings/settings.service'
 import * as crypto from 'crypto'
 
-export interface GCSUploadOptions {
+export interface StorageUploadOptions {
   fileName?: string
   contentType?: string
   isPublic?: boolean
 }
 
 @Injectable()
-export class GCSUploadService {
-  private readonly logger = new Logger(GCSUploadService.name)
+export class StorageService {
+  private readonly logger = new Logger(StorageService.name)
   private storage: Storage | null = null
 
   constructor(private readonly settingsService: SettingsService) {}
@@ -46,7 +46,10 @@ export class GCSUploadService {
     }
   }
 
-  async uploadImage(imageBuffer: Buffer, options: GCSUploadOptions = {}): Promise<{ url: string; fileName: string }> {
+  async uploadImage(
+    imageBuffer: Buffer,
+    options: StorageUploadOptions = {},
+  ): Promise<{ url: string; fileName: string }> {
     const { fileName, contentType = 'image/png', isPublic = true } = options
 
     try {

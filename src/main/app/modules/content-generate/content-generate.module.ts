@@ -3,9 +3,10 @@ import { ContentGenerateService } from './content-generate.service'
 import { AIModule } from '../ai/ai.module'
 import { MediaModule } from '../media/media.module'
 import { SettingsModule } from '../settings/settings.module'
+import { StorageModule } from '@main/app/modules/google/storage/storage.module'
 
 @Module({
-  imports: [AIModule, MediaModule, SettingsModule],
+  imports: [AIModule, MediaModule, SettingsModule, StorageModule],
   providers: [ContentGenerateService],
   exports: [ContentGenerateService],
 })

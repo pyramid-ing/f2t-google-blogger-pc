@@ -6,7 +6,7 @@ import { SettingsService } from '../settings/settings.service'
 import axios from 'axios'
 import sharp from 'sharp'
 import { ThumbnailGeneratorService } from '../media/thumbnail-generator.service'
-import { GCSUploadService } from '@main/app/modules/media/gcs-upload.service'
+import { StorageService } from '@main/app/modules/google/storage/storage.service'
 import { postingContentsPrompt, tableOfContentsPrompt } from '@main/app/modules/content-generate/prompts'
 
 export interface SectionContent {
@@ -23,13 +23,12 @@ export interface ProcessedSection extends SectionContent {
 @Injectable()
 export class ContentGenerateService {
   private readonly logger = new Logger(ContentGenerateService.name)
-  private readonly CONCURRENT_SECTIONS = 3 // 섹션당 동시에 처리할 작업 수
 
   constructor(
     private readonly openAiService: OpenAiService,
     private readonly perplexityService: PerplexityService,
     private readonly imagePixabayService: ImagePixabayService,
-    private readonly gcsUpload: GCSUploadService,
+    private readonly storageService: StorageService,
     private readonly settingsService: SettingsService,
     private readonly thumbnailGenerator: ThumbnailGeneratorService,
   ) {}
@@ -129,7 +128,7 @@ export class ContentGenerateService {
             const filePath = thumbnailUrl.replace('file://', '')
             const thumbnailBuffer = fs.readFileSync(filePath)
 
-            const uploadResult = await this.gcsUpload.uploadImage(thumbnailBuffer, {
+            const uploadResult = await this.storageService.uploadImage(thumbnailBuffer, {
               contentType: 'image/png',
               isPublic: true,
             })
@@ -215,7 +214,7 @@ export class ContentGenerateService {
           const imageBuffer = Buffer.from(response.data)
           const optimizedBuffer = await this.optimizeImage(imageBuffer)
 
-          const uploadResult = await this.gcsUpload.uploadImage(optimizedBuffer, {
+          const uploadResult = await this.storageService.uploadImage(optimizedBuffer, {
             contentType: 'image/webp',
           })
 
