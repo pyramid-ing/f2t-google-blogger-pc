@@ -72,7 +72,7 @@ const Posting: React.FC = () => {
 
   const handleBeforeUpload = (file: File) => {
     console.log('업로드 전 파일:', file) // 디버깅용
-    
+
     // 파일 타입 검증
     const isValidType =
       file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || // xlsx
@@ -93,15 +93,17 @@ const Posting: React.FC = () => {
     }
 
     setFile(file)
-    setFileList([{
-      uid: '-1',
-      name: file.name,
-      status: 'done',
-      originFileObj: file,
-    }])
+    setFileList([
+      {
+        uid: '-1',
+        name: file.name,
+        status: 'done',
+        originFileObj: file,
+      },
+    ])
     message.success(`${file.name} 파일이 선택되었습니다.`)
     console.log('파일 설정 완료:', file) // 디버깅용
-    
+
     return false // 자동 업로드 방지
   }
 

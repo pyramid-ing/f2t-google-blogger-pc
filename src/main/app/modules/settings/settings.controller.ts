@@ -70,4 +70,9 @@ export class SettingsController {
   async validateOpenAIKey(@Body() body: { apiKey: string }) {
     return this.settingsService.validateOpenAIKey(body.apiKey)
   }
+
+  @Post('validate-perplexity-key')
+  async validatePerplexityKey(@Body() body: { apiKey: string }) {
+    return this.settingsService.validatePerplexityKey(body.apiKey)
+  }
 }

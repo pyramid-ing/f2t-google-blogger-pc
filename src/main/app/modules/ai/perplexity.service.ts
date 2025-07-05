@@ -1,4 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
+import { createPerplexity } from '@ai-sdk/perplexity'
+import { generateText } from 'ai'
 import axios from 'axios'
 import { SettingsService } from '../settings/settings.service'
 
@@ -10,13 +12,6 @@ try {
   // iconv-lite가 설치되지 않은 경우 null로 유지
 }
 
-export interface PerplexityLink {
-  url: string
-  title: string
-  description: string
-  source: string
-}
-
 export interface LinkResult {
   name: string
   link: string
@@ -25,7 +20,7 @@ export interface LinkResult {
 @Injectable()
 export class PerplexityService {
   private readonly logger = new Logger(PerplexityService.name)
-  private readonly baseUrl = 'https://api.perplexity.ai'
+  private perplexityProvider: any
 
   constructor(private readonly settingsService: SettingsService) {}
 
@@ -40,6 +35,16 @@ export class PerplexityService {
     return apiKey
   }
 
+  private async getPerplexityProvider() {
+    if (!this.perplexityProvider) {
+      const apiKey = await this.getApiKey()
+      this.perplexityProvider = createPerplexity({
+        apiKey,
+      })
+    }
+    return this.perplexityProvider
+  }
+
   /**
    * HTML 섹션을 분석하여 관련 링크를 생성합니다
    * @param htmlContent HTML 섹션 내용
@@ -49,8 +54,6 @@ export class PerplexityService {
     this.logger.log(`Perplexity로 관련 링크 생성 시작`)
 
     try {
-      const apiKey = await this.getApiKey()
-
       const prompt = `
 다음 HTML 섹션의 내용을 분석하고, 관련된 신뢰할 수 있는 링크를 찾아주세요.
 
@@ -72,34 +75,22 @@ ${htmlContent}
 최대 1개의 링크만 제공하고, 링크는 실제 존재하는 유효한 URL이어야 합니다.
 `
 
-      const response = await axios.post(
-        `${this.baseUrl}/chat/completions`,
-        {
-          model: 'llama-3.1-sonar-small-128k-online',
-          messages: [
-            {
-              role: 'system',
-              content:
-                '당신은 신뢰할 수 있는 정보원을 찾는 전문가입니다. 한국어 콘텐츠에 대해서는 한국의 공신력 있는 기관과 사이트를 우선적으로 찾아주세요.',
-            },
-            {
-              role: 'user',
-              content: prompt,
-            },
-          ],
-          max_tokens: 500,
-          temperature: 0.2,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-        },
-      )
+      const provider = await this.getPerplexityProvider()
+      const model = provider('sonar-pro')
 
-      const content = response.data.choices[0].message.content
+      const systemPrompt =
+        '당신은 신뢰할 수 있는 정보원을 찾는 전문가입니다. 한국어 콘텐츠에 대해서는 한국의 공신력 있는 기관과 사이트를 우선적으로 찾아주세요.'
+      const fullPrompt = `${systemPrompt}\n\n${prompt}`
+
+      const { text: content, sources } = await generateText({
+        model,
+        prompt: fullPrompt,
+        maxTokens: 500,
+        temperature: 0.2,
+      })
+
       this.logger.log(`Perplexity 응답: ${content}`)
+      this.logger.log(`Sources: ${JSON.stringify(sources)}`)
 
       // JSON 파싱 시도
       try {
@@ -199,42 +190,21 @@ ${htmlContent}
           this.logger.log(`EUC-KR 인코딩으로 디코딩 시도: ${url}`)
           try {
             html = iconv.decode(Buffer.from(response.data), 'euc-kr')
-          } catch (decodeError) {
-            this.logger.warn(`EUC-KR 디코딩 실패: ${decodeError.message}`)
-            // UTF-8 디코딩 결과 그대로 사용
+          } catch (iconvError) {
+            this.logger.warn(`EUC-KR 디코딩 실패, UTF-8 유지: ${iconvError.message}`)
+            // UTF-8 디코딩 결과를 그대로 사용
           }
         } else {
-          // iconv-lite가 없으면 기본 처리 방식 사용
-          this.logger.warn(`EUC-KR 인코딩 감지됨 (${url}), iconv-lite 라이브러리가 필요합니다`)
-        }
-      } else if (detectedCharset.includes('iso-8859-1') || detectedCharset.includes('latin1')) {
-        if (iconv && iconv.encodingExists('iso-8859-1')) {
-          this.logger.log(`ISO-8859-1 인코딩으로 디코딩 시도: ${url}`)
-          try {
-            html = iconv.decode(Buffer.from(response.data), 'iso-8859-1')
-          } catch (decodeError) {
-            this.logger.warn(`ISO-8859-1 디코딩 실패: ${decodeError.message}`)
-          }
+          this.logger.warn('iconv-lite가 설치되지 않아 EUC-KR 디코딩을 건너뜀')
         }
       }
 
-      // 5. HTML에서 title 태그 추출
-      const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i)
-
+      // title 태그 추출
+      const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i)
       if (titleMatch && titleMatch[1]) {
         let title = titleMatch[1].trim()
 
-        // 6. 깨진 문자 패턴을 감지해서 대체 처리
-        const brokenCharPattern = /[◇◆□■▲▼◀▶◁▷△▽]/g
-        const brokenCharRatio = (title.match(brokenCharPattern) || []).length / title.length
-
-        // 깨진 문자가 30% 이상이면 기본 텍스트 사용
-        if (brokenCharRatio > 0.3) {
-          this.logger.warn(`깨진 문자 비율이 높음 (${brokenCharRatio.toFixed(2)}): ${title}`)
-          return '관련 자료'
-        }
-
-        // 7. HTML 엔티티 디코딩 (기본적인 것들만)
+        // HTML 엔티티 디코딩
         title = title
           .replace(/&amp;/g, '&')
           .replace(/&lt;/g, '<')
@@ -242,51 +212,30 @@ ${htmlContent}
           .replace(/&quot;/g, '"')
           .replace(/&#39;/g, "'")
           .replace(/&nbsp;/g, ' ')
-          .replace(/&#(\d+);/g, (match, num) => {
-            try {
-              return String.fromCharCode(parseInt(num))
-            } catch {
-              return match
-            }
-          })
 
-        // 8. 너무 긴 제목은 잘라내기 (50자 제한)
+        // 제목이 너무 길면 잘라내기
         if (title.length > 50) {
-          title = title.substring(0, 47) + '...'
-        }
-
-        // 9. 여전히 깨진 문자가 많으면 기본 텍스트 사용
-        const finalBrokenRatio = (title.match(brokenCharPattern) || []).length / title.length
-        if (finalBrokenRatio > 0.2) {
-          return '관련 자료'
+          title = title.substring(0, 50) + '...'
         }
 
         return title
       }
+
+      // title을 찾지 못한 경우 도메인 기반으로 이름 생성
+      const urlObj = new URL(url)
+      const domain = urlObj.hostname.replace(/^www\./, '')
+      return `${domain}의 정보`
     } catch (error) {
-      this.logger.warn(`URL ${url}에서 title 가져오기 실패: ${error.message}`)
+      this.logger.warn(`URL에서 제목 추출 실패: ${url}`, error)
+
+      // 오류 발생 시 URL 기반으로 기본 이름 생성
+      try {
+        const urlObj = new URL(url)
+        const domain = urlObj.hostname.replace(/^www\./, '')
+        return `${domain}의 정보`
+      } catch (urlError) {
+        return '관련 정보'
+      }
     }
-
-    // title 가져오기에 실패한 경우 기본 텍스트 반환
-    return '관련 자료'
-  }
-
-  /**
-   * 텍스트에서 키워드를 추출하여 검색 쿼리 생성
-   * @param text 분석할 텍스트
-   * @returns 검색에 적합한 키워드
-   */
-  private extractKeywords(text: string): string {
-    // HTML 태그 제거
-    const plainText = text.replace(/<[^>]*>/g, ' ')
-
-    // 특수문자 제거 및 정규화
-    const normalized = plainText
-      .replace(/[^\w\s가-힣]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-
-    // 첫 100자만 사용 (검색 쿼리 길이 제한)
-    return normalized.substring(0, 100)
   }
 }

@@ -20,6 +20,15 @@ export async function validateOpenAIApiKey(apiKey: string): Promise<{
   return res.data
 }
 
+export async function validatePerplexityApiKey(apiKey: string): Promise<{
+  valid: boolean
+  error?: string
+  model?: string
+}> {
+  const res = await api.post('/settings/validate-perplexity-key', { apiKey })
+  return res.data
+}
+
 export async function saveAppSettingsToServer(settings: AppSettings) {
   const res = await api.post('/settings/app', settings)
   return res.data
