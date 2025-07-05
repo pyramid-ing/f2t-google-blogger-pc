@@ -13,7 +13,7 @@ import {
 } from '@nestjs/common'
 import { FileInterceptor } from '@nestjs/platform-express'
 import { ThumbnailGeneratorService, ThumbnailOptions } from './thumbnail-generator.service'
-import { GCSUploadService } from './gcs-upload.service'
+import { StorageService } from '../google/storage/storage.service'
 import { SettingsService } from '../settings/settings.service'
 import * as crypto from 'crypto'
 import { PrismaService } from '@main/app/modules/common/prisma/prisma.service'
@@ -76,7 +76,7 @@ export class ThumbnailController {
 
   constructor(
     private readonly thumbnailGenerator: ThumbnailGeneratorService,
-    private readonly gcsUpload: GCSUploadService,
+    private readonly storageService: StorageService,
     private readonly settings: SettingsService,
     private readonly prisma: PrismaService,
   ) {}
@@ -120,7 +120,7 @@ export class ThumbnailController {
       // GCS 업로드 여부 확인
       if (uploadToGCS && appSettings.gcsProjectId && appSettings.gcsKeyContent && appSettings.gcsBucketName) {
         try {
-          const uploadResult = await this.gcsUpload.uploadImage(imageBuffer, {
+          const uploadResult = await this.storageService.uploadImage(imageBuffer, {
             contentType: 'image/png',
             isPublic: true,
           })
@@ -171,7 +171,7 @@ export class ThumbnailController {
         }
       }
 
-      return await this.gcsUpload.testConnection()
+      return await this.storageService.testConnection()
     } catch (error) {
       this.logger.error('GCS 연결 테스트 실패:', error)
       return {
@@ -392,7 +392,7 @@ export class ThumbnailController {
       // GCS 업로드 여부 확인
       if (uploadToGCS && appSettings.gcsProjectId && appSettings.gcsKeyContent && appSettings.gcsBucketName) {
         try {
-          const uploadResult = await this.gcsUpload.uploadImage(imageBuffer, {
+          const uploadResult = await this.storageService.uploadImage(imageBuffer, {
             contentType: 'image/png',
             isPublic: true,
           })

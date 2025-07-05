@@ -98,13 +98,17 @@ export class JobQueueProcessor implements OnModuleInit {
 
       this.logger.debug(`Starting job ${job.id} (${job.type})`)
 
-      await processor.process(job.id)
+      const result = await processor.process(job.id)
 
       await this.prisma.job.update({
         where: { id: job.id },
         data: {
           status: JobStatus.COMPLETED,
           completedAt: new Date(),
+          ...(result && {
+            resultUrl: result.resultUrl,
+            resultMsg: result.resultMsg,
+          }),
         },
       })
 

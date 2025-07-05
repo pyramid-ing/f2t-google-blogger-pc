@@ -19,7 +19,7 @@ import {
 import { EyeOutlined, EditOutlined, DeleteOutlined, PlusOutlined, StarOutlined, StarFilled } from '@ant-design/icons'
 import { AppSettings } from '../../types/settings'
 import { ThumbnailLayout } from '../../types/thumbnail'
-import { thumbnailApi, ThumbnailLayout as ApiThumbnailLayout } from '../../api'
+import { saveAppSettingsToServer, thumbnailApi, ThumbnailLayout as ApiThumbnailLayout } from '../../api'
 import ThumbnailEditor from '../../components/ThumbnailEditor/ThumbnailEditor'
 
 const { Text, Title } = Typography
@@ -27,10 +27,9 @@ const { TextArea } = Input
 
 interface ThumbnailSettingsFormProps {
   initialSettings?: AppSettings
-  onSave: (settings: Partial<AppSettings>) => Promise<void>
 }
 
-export const ThumbnailSettingsForm: React.FC<ThumbnailSettingsFormProps> = ({ initialSettings = {}, onSave }) => {
+export const ThumbnailSettingsForm: React.FC<ThumbnailSettingsFormProps> = ({ initialSettings = {} }) => {
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
   const [layouts, setLayouts] = useState<ApiThumbnailLayout[]>([])
@@ -84,13 +83,15 @@ export const ThumbnailSettingsForm: React.FC<ThumbnailSettingsFormProps> = ({ in
     try {
       setLoading(true)
       const values = await form.validateFields()
+      alert(values)
 
       const settings: Partial<AppSettings> = {
         ...values,
         thumbnailDefaultLayoutId: selectedLayoutId,
       }
 
-      await onSave(settings)
+      const updatedSettings = { ...settings }
+      await saveAppSettingsToServer(updatedSettings)
       message.success('썸네일 설정이 저장되었습니다.')
     } catch (error) {
       console.error('설정 저장 실패:', error)
@@ -154,38 +155,38 @@ export const ThumbnailSettingsForm: React.FC<ThumbnailSettingsFormProps> = ({ in
 
   const handleEditorSave = async (layout: ThumbnailLayout, name: string, description?: string) => {
     try {
-      // if (isCreatingNew) {
-      //   // 새 레이아웃 생성
-      //   const result = await thumbnailApi.createThumbnailLayout({
-      //     name,
-      //     description,
-      //     data: layout,
-      //     isDefault: layouts.length === 0, // 첫 번째 레이아웃이면 기본으로 설정
-      //   })
-      //
-      //   if (result.success) {
-      //     message.success('레이아웃이 생성되었습니다.')
-      //     await loadLayouts()
-      //     setEditorVisible(false)
-      //   } else {
-      //     message.error(result.error || '레이아웃 생성에 실패했습니다.')
-      //   }
-      // } else if (editingLayout) {
-      //   // 기존 레이아웃 수정
-      //   const result = await thumbnailApi.updateThumbnailLayout(editingLayout.id, {
-      //     name,
-      //     description,
-      //     data: layout,
-      //   })
-      //
-      //   if (result.success) {
-      //     message.success('레이아웃이 수정되었습니다.')
-      //     await loadLayouts()
-      //     setEditorVisible(false)
-      //   } else {
-      //     message.error(result.error || '레이아웃 수정에 실패했습니다.')
-      //   }
-      // }
+      if (isCreatingNew) {
+        // 새 레이아웃 생성
+        const result = await thumbnailApi.createThumbnailLayout({
+          name,
+          description,
+          data: layout,
+          isDefault: layouts.length === 0, // 첫 번째 레이아웃이면 기본으로 설정
+        })
+
+        if (result.success) {
+          message.success('레이아웃이 생성되었습니다.')
+          await loadLayouts()
+          setEditorVisible(false)
+        } else {
+          message.error(result.error || '레이아웃 생성에 실패했습니다.')
+        }
+      } else if (editingLayout) {
+        // 기존 레이아웃 수정
+        const result = await thumbnailApi.updateThumbnailLayout(editingLayout.id, {
+          name,
+          description,
+          data: layout,
+        })
+
+        if (result.success) {
+          message.success('레이아웃이 수정되었습니다.')
+          await loadLayouts()
+          setEditorVisible(false)
+        } else {
+          message.error(result.error || '레이아웃 수정에 실패했습니다.')
+        }
+      }
     } catch (error) {
       console.error('레이아웃 저장 실패:', error)
       message.error('레이아웃 저장 중 오류가 발생했습니다.')

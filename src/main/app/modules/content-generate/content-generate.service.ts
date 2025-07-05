@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { BlogOutline, BlogPost, OpenAiService } from '../ai/openai.service'
 import { LinkResult, PerplexityService } from '../ai/perplexity.service'
 import { ImagePixabayService } from '../media/image-pixabay.service'
@@ -9,6 +9,8 @@ import sharp from 'sharp'
 import { ThumbnailGeneratorService } from '../media/thumbnail-generator.service'
 import { StorageService } from '@main/app/modules/google/storage/storage.service'
 import { postingContentsPrompt, tableOfContentsPrompt } from '@main/app/modules/content-generate/prompts'
+import Bottleneck from 'bottleneck'
+import { sleep } from '@main/app/utils/sleep'
 
 export interface SectionContent {
   html: string
@@ -22,8 +24,9 @@ export interface ProcessedSection extends SectionContent {
 }
 
 @Injectable()
-export class ContentGenerateService {
+export class ContentGenerateService implements OnModuleInit {
   private readonly logger = new Logger(ContentGenerateService.name)
+  private imageGenerationLimiter: Bottleneck
 
   constructor(
     private readonly openAiService: OpenAiService,
@@ -33,7 +36,16 @@ export class ContentGenerateService {
     private readonly settingsService: SettingsService,
     private readonly thumbnailGenerator: ThumbnailGeneratorService,
     private readonly jobLogsService: JobLogsService,
-  ) {}
+  ) {
+    this.imageGenerationLimiter = new Bottleneck({
+      maxConcurrent: 3,
+      minTime: 1000, // 작업 간 최소 1초 간격
+    })
+  }
+
+  async onModuleInit() {
+    this.logger.log('ContentGenerateService initialized with concurrent limit of 3')
+  }
 
   async generate(title: string, desc: string, jobId?: string): Promise<string> {
     if (jobId) {
@@ -274,8 +286,51 @@ export class ContentGenerateService {
           if (jobId) {
             await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} AI 이미지 생성 시작`)
           }
+
+          // AI 이미지 프롬프트는 한 번만 생성
           const aiImagePrompt = await this.openAiService.generateAiImagePrompt(html)
-          imageUrl = await this.openAiService.generateImage(aiImagePrompt)
+
+          // AI 이미지 생성을 동시성 제어와 함께 실행
+          const generateWithRetry = async (retries = 6, initialDelay = 1000) => {
+            let lastError: any = null
+
+            for (let i = 0; i < retries; i++) {
+              try {
+                // Bottleneck을 사용한 동시성 제어
+                return await this.imageGenerationLimiter.schedule(async () => {
+                  const result = await this.openAiService.generateImage(aiImagePrompt)
+                  return result
+                })
+              } catch (error) {
+                lastError = error
+                // OpenAI 서비스에서 발생한 429 에러 체크
+                const isRateLimitError = error?.stack?.[0]?.status === 429 || error?.status === 429
+
+                if (i < retries - 1) {
+                  // 지수 백오프 + 랜덤 지터 적용
+                  const jitter = Math.random() * 0.3 // 0-30% 랜덤 지터
+                  const backoffDelay = Math.min(
+                    initialDelay * Math.pow(2, i) * (1 + jitter), // 지수 증가 + 지터
+                    60000, // 최대 60초
+                  )
+
+                  if (jobId) {
+                    await this.jobLogsService.createJobLog(
+                      jobId,
+                      `섹션 ${sectionIndex} AI 이미지 생성 ${isRateLimitError ? 'rate limit으로 인해' : '오류로 인해'} ${Math.round(backoffDelay / 1000)}초 후 재시도... (${i + 1}/${retries})`,
+                    )
+                  }
+                  await sleep(backoffDelay)
+                  continue
+                }
+                throw lastError
+              }
+            }
+            throw lastError || new Error('최대 재시도 횟수 초과')
+          }
+
+          imageUrl = await generateWithRetry()
+
           if (jobId) {
             await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} AI 이미지 생성 완료`)
           }
@@ -287,6 +342,7 @@ export class ContentGenerateService {
               'error',
             )
           }
+          this.logger.error(`섹션 ${sectionIndex} AI 이미지 생성 실패:`, error)
           return undefined
         }
       } else {

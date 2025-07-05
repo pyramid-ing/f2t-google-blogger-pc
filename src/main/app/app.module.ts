@@ -14,6 +14,7 @@ import { GoogleModule } from '@main/app/modules/google/google.module'
 import { AIModule } from '@main/app/modules/ai/ai.module'
 import { JobModule } from './modules/job/job.module'
 import { CommonModule } from '@main/app/modules/common/common.module'
+import { ContentGenerateModule } from '@main/app/modules/content-generate/content-generate.module'
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { CommonModule } from '@main/app/modules/common/common.module'
     WorkflowModule,
     CommonModule,
     JobModule,
+    ContentGenerateModule,
   ],
   providers: [
     {

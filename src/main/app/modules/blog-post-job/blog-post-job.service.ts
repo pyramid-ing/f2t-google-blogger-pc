@@ -1,17 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { PrismaService } from '@main/app/modules/common/prisma/prisma.service'
-import { JobProcessor } from '../job/job.processor.interface'
+import { JobProcessor, JobResult } from '../job/job.processor.interface'
 import { PublishService } from '../publish/publish.service'
 import { JobStatus, JobType } from '@main/app/modules/job/job.types'
 import { ContentGenerateService } from '@main/app/modules/content-generate/content-generate.service'
 import { JobLogsService } from '../job-logs/job-logs.service'
 import { isValid, parse } from 'date-fns'
-
-export type BlogPostExcelRow = {
-  제목: string
-  내용: string
-  예약날짜: string
-}
+import { BlogPostExcelRow } from './blog-post-job.types'
 
 @Injectable()
 export class BlogPostJobService implements JobProcessor {
@@ -28,7 +23,7 @@ export class BlogPostJobService implements JobProcessor {
     return job.type === JobType.BLOG_POST
   }
 
-  async process(jobId: string): Promise<void> {
+  async process(jobId: string): Promise<JobResult> {
     const job = await this.prisma.job.findUniqueOrThrow({
       where: { id: jobId },
       include: {
@@ -52,6 +47,11 @@ export class BlogPostJobService implements JobProcessor {
       const result = await this.publishService.publishPost(job.blogJob.title, blogHtml, jobId)
 
       await this.createJobLog(jobId, 'info', '블로그 포스팅 완료')
+
+      return {
+        resultUrl: result.url,
+        resultMsg: '포스팅이 성공적으로 생성되었습니다.',
+      }
     } catch (error) {
       await this.createJobLog(jobId, 'error', `작업 실패: ${error.message}`)
       throw error
