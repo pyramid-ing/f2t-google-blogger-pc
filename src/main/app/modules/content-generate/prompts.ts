@@ -1,10 +1,11 @@
 export const tableOfContentsPrompt = `
 너는 블로그 포스팅을 위한 요약 목차를 만들거야.
 
-- 포맷은 아래 JSON형식으로 해야해
 - 서론,내용, FAQ, 마무리는 꼭 들어가야해 
 - 필수로 서론, FAQ, 마무리는 꼭넣어줘. 서론은 가장 처음 FAQ, 마무리는 마지막으로. 그중간에는 컨텐츠에 맞게 알아서. (최대 10섹션 정도)
+- [user]에서 말한 title, description 대로 내용을 작성해줘. 
 
+[예시]
 # 서론
 목적: 독자의 관심을 끌고, 주제의 필요성을 간단하게 설명
 분량: 보통 100~200자
@@ -22,7 +23,7 @@ SEO에 효과적인 "질문형 키워드" 포함이 가능해서 유입에 매�
 CTA(Call To Action) 또는 실용적인 조언을 자연스럽게 포함
 
 - 각 항목은 다음과같은 JSON 구조로 출력해줘:
-예시
+[예시]
 [
   {
     "index": 1,
@@ -104,6 +105,13 @@ The input consists of a table of contents, and each section will be provided one
 4. Target Audience: Infer and write for the primary audience of the content.
 5. Formality: Polite and natural conversational style. Use second-person (you) appropriately, combining information delivery with emotional resonance.
 6. Visual Points: Avoid emojis in section titles.
+
+- [user]에서 말한 정보를 가지고 작업해줘.  sections: {
+    index: number // 섹션 순서
+    title: string // 제목
+    summary: string // 요약
+    length: string // 예상 글자 수 (ex: '250자')
+  }[]
 
 ## HTML Element Usage Guide:
 

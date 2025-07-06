@@ -1,12 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { GoogleGenerativeAI } from '@google/generative-ai'
-import { AIService, ThumbnailData, Topic } from './ai.interface'
+import { AIService, BlogOutline, BlogPost, ThumbnailData, Topic } from './ai.interface'
 import { SettingsService } from '../settings/settings.service'
+import { Type, GoogleGenAI, Modality } from '@google/genai'
+import * as fs from 'node:fs'
+import { postingContentsPrompt, tableOfContentsPrompt } from '@main/app/modules/content-generate/prompts'
 
 @Injectable()
 export class GeminiService implements AIService {
   private readonly logger = new Logger(GeminiService.name)
-  private gemini: GoogleGenerativeAI | null = null
+  private gemini: GoogleGenAI | null = null
 
   constructor(private readonly settingsService: SettingsService) {}
 
@@ -18,28 +20,39 @@ export class GeminiService implements AIService {
       throw new Error('Gemini API 키가 설정되지 않았습니다. 설정에서 API 키를 입력해주세요.')
     }
 
-    this.gemini = new GoogleGenerativeAI(apiKey.trim())
+    this.gemini = new GoogleGenAI({ apiKey: apiKey.trim() })
   }
 
-  private async getGemini(): Promise<GoogleGenerativeAI> {
-    if (!this.gemini) {
-      await this.initialize()
+  private async getGemini(): Promise<GoogleGenAI> {
+    const settings = await this.settingsService.getSettings()
+    const apiKey = settings.geminiApiKey
+
+    if (!apiKey) {
+      throw new Error('Gemini API 키가 설정되지 않았습니다. 설정에서 API 키를 입력해주세요.')
     }
-    return this.gemini!
+
+    return new GoogleGenAI({ apiKey: apiKey.trim() })
   }
 
   async validateApiKey(apiKey: string): Promise<{ valid: boolean; error?: string; model?: string }> {
     try {
-      const genAI = new GoogleGenerativeAI(apiKey.trim())
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
+      const genAI = new GoogleGenAI({ apiKey: apiKey.trim() })
+      const result = await genAI.models.generateContent({
+        model: 'gemini-1.5-pro',
+        contents: 'hello',
+        config: {
+          maxOutputTokens: 10,
+        },
+      })
+      const response = result.text
 
-      // 간단한 프롬프트로 API 키 검증
-      const result = await model.generateContent('Hello')
-      await result.response.text()
+      if (!response) {
+        throw new Error('API 응답이 비어있습니다.')
+      }
 
       return {
         valid: true,
-        model: 'gemini-pro',
+        model: 'gemini-1.5-pro',
       }
     } catch (error) {
       this.logger.error('Gemini API 키 검증 실패:', error)
@@ -53,6 +66,8 @@ export class GeminiService implements AIService {
         errorMessage = 'API 할당량이 초과되었습니다. 나중에 다시 시도해주세요.'
       } else if (error.message?.includes('permission')) {
         errorMessage = 'API 키에 필요한 권한이 없습니다.'
+      } else if (error.message?.includes('not found')) {
+        errorMessage = 'API 버전 또는 모델이 올바르지 않습니다. Gemini API가 활성화되어 있는지 확인해주세요.'
       }
 
       return {
@@ -66,9 +81,6 @@ export class GeminiService implements AIService {
     this.logger.log(`Gemini로 주제 "${topic}"에 대해 ${limit}개의 제목을 생성합니다.`)
 
     try {
-      const genAI = await this.getGemini()
-      const model = genAI.getGenerativeModel({ model: 'gemini-pro' })
-
       const prompt = `다음 주제에 대해 SEO에 최적화된 블로그 제목 ${limit}개를 생성해주세요.
 주제: ${topic}
 
@@ -80,23 +92,76 @@ export class GeminiService implements AIService {
 5. 숫자나 리스트 형식 선호
 6. 각 제목은 새로운 줄에 작성
 
+응답 형식:
+{
+  "titles": [
+    {
+      "title": "제목1",
+      "content": "내용1"
+    }
+    // ... 추가 제목들
+  ]
+}
+
 제목 목록:`
 
-      const result = await model.generateContent(prompt)
-      // TODO gemini맞게 수정해야함
-      const response = JSON.parse(result.response.text())
-      return response.titles || []
+      const genAI = await this.getGemini()
+      const result = await genAI.models.generateContent({
+        model: 'gemini-1.5-pro',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              titles: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    title: { type: Type.STRING },
+                    content: { type: Type.STRING },
+                  },
+                  required: ['title', 'content'],
+                },
+              },
+            },
+            required: ['titles'],
+            propertyOrdering: ['titles'],
+          },
+        },
+      })
+
+      const response = result.text
+      let parsedResponse
+
+      try {
+        parsedResponse = JSON.parse(response)
+      } catch (parseError) {
+        // JSON 파싱 실패 시 텍스트 응답을 제목 목록으로 변환
+        const lines = response.split('\n').filter(line => line.trim())
+        parsedResponse = {
+          titles: lines.map(line => ({
+            title: line,
+            content: line,
+          })),
+        }
+      }
+
+      return parsedResponse.titles || []
     } catch (error) {
       this.logger.error('Gemini API 호출 중 오류 발생:', error)
+      if (error.message?.includes('not found')) {
+        throw new Error(
+          'Gemini API가 활성화되어 있지 않거나, API 버전이 올바르지 않습니다. Google Cloud Console에서 Gemini API를 활성화해주세요.',
+        )
+      }
       throw new Error(`Gemini API 오류: ${error.message}`)
     }
   }
 
   async generateAiImagePrompt(html: string): Promise<string> {
     try {
-      const genAI = await this.getGemini()
-      const model = genAI.getGenerativeModel({ model: 'gemini-pro' })
-
       const prompt = `다음 HTML 컨텐츠를 분석하여 이미지 생성을 위한 상세한 프롬프트를 작성해주세요.
 컨텐츠: ${html}
 
@@ -108,50 +173,182 @@ export class GeminiService implements AIService {
 
 프롬프트:`
 
-      const result = await model.generateContent(prompt)
-      return result.response.text().trim()
+      const genAI = await this.getGemini()
+      const result = await genAI.models.generateContent({
+        model: 'gemini-1.5-pro',
+        contents: prompt,
+        config: {},
+      })
+      return result.text
     } catch (error) {
       this.logger.error('이미지 프롬프트 생성 중 오류:', error)
       throw new Error(`Gemini API 오류: ${error.message}`)
     }
   }
 
+  async generateBlogOutline(title: string, description: string): Promise<BlogOutline> {
+    this.logger.log(`Gemini로 주제 "${title}"에 대한 목차를 생성합니다.`)
+
+    const prompt = `${tableOfContentsPrompt}
+[user]
+title: ${title}
+description: ${description}`
+
+    try {
+      const ai = await this.getGemini() // GoogleGenAI 인스턴스
+
+      const resp = await ai.models.generateContent({
+        model: 'gemini-1.5-pro',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json', // JSON 출력 강제 :contentReference[oaicite:2]{index=2}
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              sections: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    index: { type: Type.NUMBER },
+                    title: { type: Type.STRING },
+                    summary: { type: Type.STRING },
+                    length: { type: Type.STRING },
+                  },
+                  required: ['index', 'title', 'summary', 'length'],
+                },
+                minItems: 1,
+              },
+            },
+            required: ['sections'],
+          },
+        },
+      })
+
+      const parsed = JSON.parse(resp.text) as BlogOutline
+      return parsed
+    } catch (error) {
+      this.logger.error('Gemini API 호출 중 오류 발생:', error)
+      throw new Error(`Gemini API 오류: ${error.message}`)
+    }
+  }
+
+  async generateBlogPost(blogOutline: BlogOutline): Promise<BlogPost> {
+    this.logger.log(`Gemini로 블로그 콘텐츠 생성 시작`)
+
+    const prompt = `${postingContentsPrompt}
+[user]
+${JSON.stringify(blogOutline)}`
+
+    try {
+      const ai = await this.getGemini()
+
+      const resp = await ai.models.generateContent({
+        model: 'gemini-1.5-pro',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              sections: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    html: { type: Type.STRING },
+                  },
+                  required: ['html'],
+                },
+                minItems: 1,
+              },
+            },
+            required: ['sections'],
+            propertyOrdering: ['sections'],
+          },
+        },
+      })
+
+      const result = JSON.parse(resp.text) as BlogPost
+      return result
+    } catch (error: any) {
+      this.logger.error('Gemini API 호출 오류:', error)
+      throw new Error(`Gemini API 오류: ${error.message}`)
+    }
+  }
+
   async generatePixabayPrompt(html: string): Promise<string> {
     try {
-      const genAI = await this.getGemini()
-      const model = genAI.getGenerativeModel({ model: 'gemini-pro' })
-
-      const prompt = `다음 HTML 컨텐츠를 분석하여 Pixabay 이미지 검색에 사용할 키워드를 추출해주세요.
+      const prompt = `다음 HTML 컨텐츠를 분석하여 이미지 검색에 사용할 키워드를 생성해주세요.
 컨텐츠: ${html}
 
 규칙:
-1. 영어로 작성
-2. 1-3개의 핵심 키워드만 추출
-3. 일반적이고 검색 가능한 단어 사용
-4. 쉼표로 구분
+1. 한글 키워드
+2. 명사 위주
+3. 2-3개의 단어로 구성
+4. 구체적이고 검색 가능한 단어 선택
 
 키워드:`
 
-      const result = await model.generateContent(prompt)
-      return result.response.text().trim()
+      const genAI = await this.getGemini()
+      const result = await genAI.models.generateContent({
+        model: 'gemini-1.5-pro',
+        contents: prompt,
+        config: {},
+      })
+
+      return result.text
     } catch (error) {
       this.logger.error('Pixabay 키워드 생성 중 오류:', error)
       throw new Error(`Gemini API 오류: ${error.message}`)
     }
   }
 
+  /**
+   * Gemini를 사용하여 이미지 생성
+   */
   async generateImage(prompt: string): Promise<string> {
-    // Gemini는 현재 이미지 생성을 지원하지 않음
-    throw new Error('Gemini는 현재 이미지 생성을 지원하지 않습니다. 다른 서비스를 사용해주세요.')
+    this.logger.log(`Gemini로 이미지 생성: ${prompt}`)
+
+    try {
+      const ai = await this.getGemini() // getGemini()는 GoogleGenAI 인스턴스를 반환한다고 가정
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.0-flash-preview-image-generation',
+        contents: prompt,
+        config: {
+          responseModalities: [Modality.TEXT, Modality.IMAGE],
+        },
+      })
+
+      let imageUrl: string | undefined
+      const parts = response.candidates[0].content.parts
+
+      // 텍스트 설명 + 이미지 저장
+      for (const part of parts) {
+        if (part.inlineData?.data) {
+          const buffer = Buffer.from(part.inlineData.data, 'base64')
+          const fileName = `output-${Date.now()}.png`
+          fs.writeFileSync(fileName, buffer)
+          imageUrl = fileName // 로컬 파일 경로 반환
+        }
+      }
+
+      if (!imageUrl) {
+        throw new Error('이미지 데이터를 받지 못했습니다.')
+      }
+
+      return imageUrl
+    } catch (error) {
+      this.logger.error('Gemini 이미지 생성 중 오류:', error)
+      throw error
+    }
   }
 
   async generateThumbnailData(content: string): Promise<ThumbnailData> {
     this.logger.log('Gemini로 썸네일 텍스트 데이터를 생성합니다.')
 
     try {
-      const genAI = await this.getGemini()
-      const model = genAI.getGenerativeModel({ model: 'gemini-pro' })
-
       const prompt = `다음 컨텐츠를 분석하여 썸네일 이미지에 사용할 텍스트를 생성해주세요.
 컨텐츠: ${content}
 
@@ -168,11 +365,29 @@ export class GeminiService implements AIService {
   "keywords": ["키워드1", "키워드2", "키워드3"]
 }`
 
-      const result = await model.generateContent(prompt)
-      const response = result.response.text()
-
+      const genAI = await this.getGemini()
+      const result = await genAI.models.generateContent({
+        model: 'gemini-1.5-pro',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json', // JSON 출력 필수
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              mainText: { type: Type.STRING },
+              subText: { type: Type.STRING },
+              keywords: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING },
+              },
+            },
+            required: ['mainText', 'subText', 'keywords'],
+            propertyOrdering: ['mainText', 'subText', 'keywords'],
+          },
+        },
+      })
       try {
-        const data = JSON.parse(response)
+        const data = JSON.parse(result.text)
         return {
           mainText: data.mainText || '',
           subText: data.subText,
@@ -182,7 +397,7 @@ export class GeminiService implements AIService {
         this.logger.error('JSON 파싱 오류:', parseError)
         // 파싱 실패 시 기본값 반환
         return {
-          mainText: response.split('\n')[0] || '',
+          mainText: result.text.split('\n')[0] || '',
           keywords: [],
         }
       }

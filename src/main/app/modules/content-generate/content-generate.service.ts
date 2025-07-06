@@ -6,11 +6,10 @@ import { JobLogsService } from '../job-logs/job-logs.service'
 import axios from 'axios'
 import sharp from 'sharp'
 import { StorageService } from '@main/app/modules/google/storage/storage.service'
-import { postingContentsPrompt, tableOfContentsPrompt } from '@main/app/modules/content-generate/prompts'
 import Bottleneck from 'bottleneck'
 import { sleep } from '@main/app/utils/sleep'
-import { BlogOutline, BlogPost } from '@main/app/modules/ai/ai.interface'
-import { OpenAiService } from '@main/app/modules/ai/openai.service'
+import { AIService, BlogOutline, BlogPost } from '@main/app/modules/ai/ai.interface'
+import { AIFactory } from '@main/app/modules/ai/ai.factory'
 
 export interface SectionContent {
   html: string
@@ -29,7 +28,7 @@ export class ContentGenerateService implements OnModuleInit {
   private imageGenerationLimiter: Bottleneck
 
   constructor(
-    private readonly openAiService: OpenAiService,
+    private readonly aiFactory: AIFactory,
     private readonly perplexityService: PerplexityService,
     private readonly imagePixabayService: ImagePixabayService,
     private readonly storageService: StorageService,
@@ -38,12 +37,18 @@ export class ContentGenerateService implements OnModuleInit {
   ) {
     this.imageGenerationLimiter = new Bottleneck({
       maxConcurrent: 3,
-      minTime: 1000, // 작업 간 최소 1초 간격
+      minTime: 1000,
     })
   }
 
   async onModuleInit() {
     this.logger.log('ContentGenerateService initialized with concurrent limit of 3')
+  }
+
+  private async getAIService(): Promise<AIService> {
+    const aiService = await this.aiFactory.getAIService()
+    await aiService.initialize()
+    return aiService
   }
 
   async generate(title: string, desc: string, jobId?: string): Promise<string> {
@@ -52,11 +57,13 @@ export class ContentGenerateService implements OnModuleInit {
     }
 
     try {
+      const aiService = await this.getAIService()
+
       // 1. 블로그 아웃라인 생성
       if (jobId) {
         await this.jobLogsService.createJobLog(jobId, '블로그 목차 생성 시작')
       }
-      const blogOutline = await this.generateBlogOutline(title, desc)
+      const blogOutline = await this.generateBlogOutline(title, desc, aiService)
       if (jobId) {
         await this.jobLogsService.createJobLog(jobId, '블로그 목차 생성 완료')
       }
@@ -65,7 +72,7 @@ export class ContentGenerateService implements OnModuleInit {
       if (jobId) {
         await this.jobLogsService.createJobLog(jobId, '블로그 포스트 생성 시작')
       }
-      const blogPost = await this.generateBlogPost(blogOutline)
+      const blogPost = await this.generateBlogPost(blogOutline, aiService)
       if (jobId) {
         await this.jobLogsService.createJobLog(jobId, '블로그 포스트 생성 완료')
       }
@@ -78,11 +85,10 @@ export class ContentGenerateService implements OnModuleInit {
       const processedSections: ProcessedSection[] = await Promise.all(
         blogPost.sections.map(async (section: SectionContent, sectionIndex: number) => {
           try {
-            const [imageUrl, links, adHtml, aiImagePrompt] = await Promise.all([
-              this.generateAndUploadImage(section.html, sectionIndex, jobId),
+            const [imageUrl, links, adHtml] = await Promise.all([
+              this.generateAndUploadImage(section.html, sectionIndex, jobId, aiService),
               this.generateLinks(section.html, sectionIndex, jobId),
               this.generateAdScript(sectionIndex),
-              this.openAiService.generateAiImagePrompt(section.html),
             ])
             return {
               ...section,
@@ -90,7 +96,6 @@ export class ContentGenerateService implements OnModuleInit {
               imageUrl,
               links,
               adHtml,
-              aiImagePrompt,
             }
           } catch (error) {
             if (jobId) {
@@ -171,14 +176,15 @@ export class ContentGenerateService implements OnModuleInit {
       return []
     }
   }
+
   /**
-   * 링크 생성을 처리하는 메서드
+   * SEO 정보를 생성하는 메서드
    */
   private async generateSeo(html: string, sectionIndex: number): Promise<string> {
     try {
       return ''
     } catch (error) {
-      this.logger.warn(`섹션 ${sectionIndex} 링크 처리 중 오류: ${error.message}`)
+      this.logger.warn(`섹션 ${sectionIndex} SEO 처리 중 오류: ${error.message}`)
       return ''
     }
   }
@@ -188,45 +194,6 @@ export class ContentGenerateService implements OnModuleInit {
    */
   async generateThumbnailImage(title: string, subtitle?: string): Promise<string | undefined> {
     try {
-      // const settings = await this.settingsService.getSettings()
-      //
-      // if (!settings.thumbnailEnabled) {
-      //   this.logger.log('썸네일 생성이 비활성화되어 있습니다.')
-      //   return undefined
-      // }
-      //
-      // const thumbnailUrl = await this.thumbnailGenerator.generateThumbnailImage(title, subtitle)
-      //
-      // if (thumbnailUrl) {
-      //   this.logger.log(`썸네일 생성 완료: ${thumbnailUrl}`)
-      //
-      //   if (thumbnailUrl.startsWith('file://')) {
-      //     try {
-      //       const fs = require('fs')
-      //       const filePath = thumbnailUrl.replace('file://', '')
-      //       const thumbnailBuffer = fs.readFileSync(filePath)
-      //
-      //       const uploadResult = await this.storageService.uploadImage(thumbnailBuffer, {
-      //         contentType: 'image/png',
-      //         isPublic: true,
-      //       })
-      //
-      //       try {
-      //         fs.unlinkSync(filePath)
-      //       } catch (deleteError) {
-      //         this.logger.warn(`로컬 썸네일 파일 삭제 실패: ${deleteError.message}`)
-      //       }
-      //
-      //       return uploadResult.url
-      //     } catch (uploadError) {
-      //       this.logger.error('GCS 업로드 실패:', uploadError)
-      //       return thumbnailUrl
-      //     }
-      //   }
-      //
-      //   return thumbnailUrl
-      // }
-
       return undefined
     } catch (error) {
       this.logger.error('썸네일 생성 실패:', error)
@@ -253,10 +220,12 @@ export class ContentGenerateService implements OnModuleInit {
     html: string,
     sectionIndex: number,
     jobId?: string,
+    aiService?: AIService,
   ): Promise<string | undefined> {
     try {
       const settings = await this.settingsService.getSettings()
       const imageType = settings.imageType || 'none'
+      const currentAiService = aiService || (await this.getAIService())
 
       let imageUrl: string | undefined
 
@@ -265,7 +234,7 @@ export class ContentGenerateService implements OnModuleInit {
           if (jobId) {
             await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} Pixabay 이미지 검색 시작`)
           }
-          const pixabayKeyword = await this.openAiService.generatePixabayPrompt(html)
+          const pixabayKeyword = await currentAiService.generatePixabayPrompt(html)
           imageUrl = await this.imagePixabayService.searchImage(pixabayKeyword)
           if (jobId) {
             await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} Pixabay 이미지 검색 완료`)
@@ -286,32 +255,24 @@ export class ContentGenerateService implements OnModuleInit {
             await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} AI 이미지 생성 시작`)
           }
 
-          // AI 이미지 프롬프트는 한 번만 생성
-          const aiImagePrompt = await this.openAiService.generateAiImagePrompt(html)
+          const aiImagePrompt = await currentAiService.generateAiImagePrompt(html)
 
-          // AI 이미지 생성을 동시성 제어와 함께 실행
           const generateWithRetry = async (retries = 6, initialDelay = 1000) => {
             let lastError: any = null
 
             for (let i = 0; i < retries; i++) {
               try {
-                // Bottleneck을 사용한 동시성 제어
                 return await this.imageGenerationLimiter.schedule(async () => {
-                  const result = await this.openAiService.generateImage(aiImagePrompt)
+                  const result = await currentAiService.generateImage(aiImagePrompt)
                   return result
                 })
               } catch (error) {
                 lastError = error
-                // OpenAI 서비스에서 발생한 429 에러 체크
                 const isRateLimitError = error?.stack?.[0]?.status === 429 || error?.status === 429
 
                 if (i < retries - 1) {
-                  // 지수 백오프 + 랜덤 지터 적용
-                  const jitter = Math.random() * 0.3 // 0-30% 랜덤 지터
-                  const backoffDelay = Math.min(
-                    initialDelay * Math.pow(2, i) * (1 + jitter), // 지수 증가 + 지터
-                    60000, // 최대 60초
-                  )
+                  const jitter = Math.random() * 0.3
+                  const backoffDelay = Math.min(initialDelay * Math.pow(2, i) * (1 + jitter), 60000)
 
                   if (jobId) {
                     await this.jobLogsService.createJobLog(
@@ -418,121 +379,33 @@ export class ContentGenerateService implements OnModuleInit {
   }
 
   /**
-   * OpenAI를 사용하여 목차 생성
+   * AI 서비스를 사용하여 목차 생성
    */
-  async generateBlogOutline(title: string, description: string): Promise<BlogOutline> {
-    this.logger.log(`OpenAI로 주제 "${title}"에 대한 목차를 생성합니다.`)
+  async generateBlogOutline(title: string, description: string, aiService?: AIService): Promise<BlogOutline> {
+    this.logger.log(`AI 서비스로 주제 "${title}"에 대한 목차를 생성합니다.`)
 
-    const systemPrompt = tableOfContentsPrompt
+    const currentAiService = aiService || (await this.getAIService())
 
     try {
-      const openai = await this.openAiService.getOpenAI()
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: systemPrompt,
-          },
-          {
-            role: 'user',
-            content: `title: ${title}, description: ${description}`,
-          },
-        ],
-        response_format: {
-          type: 'json_schema',
-          json_schema: {
-            name: 'blog_outline',
-            strict: true,
-            schema: {
-              type: 'object',
-              properties: {
-                sections: {
-                  type: 'array',
-                  items: {
-                    type: 'object',
-                    properties: {
-                      index: { type: 'integer', description: '섹션 순서' },
-                      title: { type: 'string', description: '제목' },
-                      summary: { type: 'string', description: '요약' },
-                      length: {
-                        type: 'string',
-                        description: "예상 글자 수 (ex: '250자')",
-                        pattern: '^[0-9]+자$',
-                      },
-                    },
-                    required: ['index', 'title', 'summary', 'length'],
-                    additionalProperties: false,
-                  },
-                  minItems: 1,
-                },
-              },
-              required: ['sections'],
-              additionalProperties: false,
-            },
-          },
-        },
-      })
+      const blogOutline = await currentAiService.generateBlogOutline(title, description)
 
-      const response: BlogOutline = JSON.parse(completion.choices[0].message.content)
-      return response
+      return blogOutline
     } catch (error) {
-      this.logger.error('OpenAI API 호출 중 오류 발생:', error)
-      throw new Error(`OpenAI API 오류: ${error.message}`)
+      this.logger.error('AI API 호출 중 오류 발생:', error)
+      throw new Error(`AI API 오류: ${error.message}`)
     }
   }
 
-  async generateBlogPost(blogOutline: BlogOutline): Promise<BlogPost> {
-    const systemPrompt = postingContentsPrompt
+  async generateBlogPost(blogOutline: BlogOutline, aiService?: AIService): Promise<BlogPost> {
+    const currentAiService = aiService || (await this.getAIService())
 
     try {
-      const openai = await this.openAiService.getOpenAI()
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: systemPrompt,
-          },
-          {
-            role: 'user',
-            content: `${JSON.stringify(blogOutline)}`,
-          },
-        ],
-        temperature: 0.7,
-        response_format: {
-          type: 'json_schema',
-          json_schema: {
-            name: 'blog_post_html',
-            strict: true,
-            schema: {
-              type: 'object',
-              properties: {
-                sections: {
-                  type: 'array',
-                  items: {
-                    type: 'object',
-                    properties: {
-                      html: { type: 'string', description: 'HTML content for each section' },
-                    },
-                    required: ['html'],
-                    additionalProperties: false,
-                  },
-                  minItems: 1,
-                },
-              },
-              required: ['sections'],
-              additionalProperties: false,
-            },
-          },
-        },
-      })
+      const blogPost = await currentAiService.generateBlogPost(blogOutline)
 
-      const response: BlogPost = JSON.parse(completion.choices[0].message.content)
-      return response
+      return blogPost
     } catch (error) {
-      this.logger.error('OpenAI API 호출 중 오류 발생:', error)
-      throw new Error(`OpenAI API 오류: ${error.message}`)
+      this.logger.error('AI API 호출 중 오류 발생:', error)
+      throw new Error(`AI API 오류: ${error.message}`)
     }
   }
 

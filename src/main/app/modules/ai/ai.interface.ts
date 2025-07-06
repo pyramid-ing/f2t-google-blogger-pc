@@ -43,6 +43,10 @@ export interface AIService {
    */
   generateTopics(topic: string, limit: number): Promise<Topic[]>
 
+  generateBlogOutline(title: string, description: string): Promise<BlogOutline>
+
+  generateBlogPost(blogOutline: BlogOutline): Promise<BlogPost>
+
   /**
    * 이미지 생성을 위한 프롬프트 생성
    */

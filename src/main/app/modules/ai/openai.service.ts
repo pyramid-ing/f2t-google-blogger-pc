@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common'
 import OpenAI from 'openai'
 import { SettingsService } from '../settings/settings.service'
-import { AIService, ThumbnailData, Topic } from './ai.interface'
+import { AIService, BlogOutline, BlogPost, ThumbnailData, Topic } from './ai.interface'
+import { postingContentsPrompt, tableOfContentsPrompt } from '@main/app/modules/content-generate/prompts'
 
 @Injectable()
 export class OpenAiService implements AIService {
@@ -211,7 +212,121 @@ export class OpenAiService implements AIService {
       throw error
     }
   }
+  async generateBlogOutline(title: string, description: string): Promise<BlogOutline> {
+    this.logger.log(`OpenAI로 주제 "${title}"에 대한 목차를 생성합니다.`)
 
+    const systemPrompt = tableOfContentsPrompt
+
+    try {
+      const openai = await this.getOpenAI()
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: systemPrompt,
+          },
+          {
+            role: 'user',
+            content: `title: ${title}, description: ${description}`,
+          },
+        ],
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            name: 'blog_outline',
+            strict: true,
+            schema: {
+              type: 'object',
+              properties: {
+                sections: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      index: { type: 'integer', description: '섹션 순서' },
+                      title: { type: 'string', description: '제목' },
+                      summary: { type: 'string', description: '요약' },
+                      length: {
+                        type: 'string',
+                        description: "예상 글자 수 (ex: '250자')",
+                        pattern: '^[0-9]+자$',
+                      },
+                    },
+                    required: ['index', 'title', 'summary', 'length'],
+                    additionalProperties: false,
+                  },
+                  minItems: 1,
+                },
+              },
+              required: ['sections'],
+              additionalProperties: false,
+            },
+          },
+        },
+      })
+
+      const response: BlogOutline = JSON.parse(completion.choices[0].message.content)
+      return response
+    } catch (error) {
+      this.logger.error('OpenAI API 호출 중 오류 발생:', error)
+      throw new Error(`OpenAI API 오류: ${error.message}`)
+    }
+  }
+
+  async generateBlogPost(blogOutline: BlogOutline): Promise<BlogPost> {
+    const systemPrompt = postingContentsPrompt
+
+    try {
+      const openai = await this.getOpenAI()
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content: systemPrompt,
+          },
+          {
+            role: 'user',
+            content: `${JSON.stringify(blogOutline)}`,
+          },
+        ],
+        temperature: 0.7,
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            name: 'blog_post_html',
+            strict: true,
+            schema: {
+              type: 'object',
+              properties: {
+                sections: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      html: { type: 'string', description: 'HTML content for each section' },
+                    },
+                    required: ['html'],
+                    additionalProperties: false,
+                  },
+                  minItems: 1,
+                },
+              },
+              required: ['sections'],
+              additionalProperties: false,
+            },
+          },
+        },
+      })
+
+      const response: BlogPost = JSON.parse(completion.choices[0].message.content)
+      return response
+    } catch (error) {
+      this.logger.error('OpenAI API 호출 중 오류 발생:', error)
+      throw new Error(`OpenAI API 오류: ${error.message}`)
+    }
+  }
   /**
    * HTML 컨텐츠를 분석하여 썸네일용 제목과 부제목 생성
    */
