@@ -10,9 +10,10 @@ import Bottleneck from 'bottleneck'
 import { sleep } from '@main/app/utils/sleep'
 import { AIService, BlogOutline, BlogPost } from '@main/app/modules/ai/ai.interface'
 import { AIFactory } from '@main/app/modules/ai/ai.factory'
-import fs from 'fs'
-import path from 'node:path'
+import * as fs from 'fs'
+import * as path from 'path'
 import { EnvConfig } from '@main/config/env.config'
+import { UtilService } from '../util/util.service'
 
 export interface SectionContent {
   html: string
@@ -37,6 +38,7 @@ export class ContentGenerateService implements OnModuleInit {
     private readonly storageService: StorageService,
     private readonly settingsService: SettingsService,
     private readonly jobLogsService: JobLogsService,
+    private readonly utilService: UtilService,
   ) {
     this.imageGenerationLimiter = new Bottleneck({
       maxConcurrent: 3,
@@ -331,8 +333,9 @@ export class ContentGenerateService implements OnModuleInit {
 
           let imageBuffer: Buffer
           // 로컬 파일 경로인 경우
-          if (imageUrl.startsWith('/') || imageUrl.startsWith('.')) {
-            imageBuffer = fs.readFileSync(imageUrl)
+          if (this.utilService.isLocalPath(imageUrl)) {
+            const normalizedPath = path.normalize(imageUrl)
+            imageBuffer = fs.readFileSync(normalizedPath)
           } else {
             // 원격 URL인 경우
             const response = await axios.get(imageUrl, {

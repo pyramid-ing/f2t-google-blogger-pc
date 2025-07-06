@@ -5,9 +5,10 @@ import { MediaModule } from '../media/media.module'
 import { SettingsModule } from '../settings/settings.module'
 import { StorageModule } from '@main/app/modules/google/storage/storage.module'
 import { JobLogsModule } from '../job-logs/job-logs.module'
+import { UtilModule } from '../util/util.module'
 
 @Module({
-  imports: [AIModule, MediaModule, SettingsModule, StorageModule, JobLogsModule],
+  imports: [AIModule, MediaModule, SettingsModule, StorageModule, JobLogsModule, UtilModule],
   providers: [ContentGenerateService],
   exports: [ContentGenerateService],
 })
