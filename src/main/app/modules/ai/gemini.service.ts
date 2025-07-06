@@ -134,23 +134,9 @@ export class GeminiService implements AIService {
         },
       })
 
-      const response = result.text
-      let parsedResponse
+      const res = JSON.parse(result.text)
 
-      try {
-        parsedResponse = JSON.parse(response)
-      } catch (parseError) {
-        // JSON 파싱 실패 시 텍스트 응답을 제목 목록으로 변환
-        const lines = response.split('\n').filter(line => line.trim())
-        parsedResponse = {
-          titles: lines.map(line => ({
-            title: line,
-            content: line,
-          })),
-        }
-      }
-
-      return parsedResponse.titles || []
+      return res.titles || []
     } catch (error) {
       this.logger.error('Gemini API 호출 중 오류 발생:', error)
       if (error.message?.includes('not found')) {

@@ -78,7 +78,7 @@ export class OpenAiService implements AIService {
     try {
       const openai = await this.getOpenAI()
       const completion = await openai.chat.completions.create({
-        model: 'gpt-3.5-turbo',
+        model: 'gpt-4o',
         messages: [
           {
             role: 'system',
@@ -101,6 +101,32 @@ export class OpenAiService implements AIService {
           },
         ],
         temperature: 0.7,
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            name: 'titlesResponse',
+            strict: true,
+            schema: {
+              type: 'object',
+              properties: {
+                titles: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      title: { type: 'string' },
+                      content: { type: 'string' },
+                    },
+                    required: ['title', 'content'],
+                    additionalProperties: false,
+                  },
+                },
+              },
+              required: ['titles'],
+              additionalProperties: false,
+            },
+          },
+        },
       })
 
       const response = JSON.parse(completion.choices[0].message.content)
