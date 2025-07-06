@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { PrismaService } from '@main/app/modules/common/prisma/prisma.service'
-import { AIProvider, AppSettings } from './settings.types'
+import { AppSettings } from './settings.types'
 
 @Injectable()
 export class SettingsService {
@@ -9,19 +9,12 @@ export class SettingsService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  private async loadSettings() {
+  async getSettings(): Promise<AppSettings> {
     const settings = await this.prisma.settings.findFirst({
       where: { id: 1 },
     })
 
-    this.settings = settings.data as unknown as AppSettings
-  }
-
-  async getSettings(): Promise<AppSettings> {
-    if (!this.settings) {
-      await this.loadSettings()
-    }
-    return this.settings!
+    return settings.data as unknown as AppSettings
   }
 
   async updateSettings(settings: Partial<AppSettings>) {
@@ -36,12 +29,6 @@ export class SettingsService {
       },
     })
 
-    // 캐시된 설정 업데이트
-    await this.loadSettings()
     return this.settings!
-  }
-
-  getCurrentAIProvider(): AIProvider {
-    return (this.settings?.aiProvider || 'openai') as AIProvider
   }
 }

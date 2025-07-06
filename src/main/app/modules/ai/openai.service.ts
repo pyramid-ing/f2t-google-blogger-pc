@@ -47,9 +47,23 @@ export class OpenAiService implements AIService {
       }
     } catch (error) {
       this.logger.error('OpenAI API 키 검증 실패:', error)
+
+      // 에러 메시지 가공
+      let errorMessage = '알 수 없는 오류가 발생했습니다.'
+
+      if (error.message?.includes('Incorrect API key')) {
+        errorMessage = 'API 키가 유효하지 않습니다. 올바른 API 키를 입력해주세요.'
+      } else if (error.message?.includes('Rate limit')) {
+        errorMessage = 'API 할당량이 초과되었습니다. 나중에 다시 시도해주세요.'
+      } else if (error.message?.includes('insufficient_quota')) {
+        errorMessage = '계정의 할당량이 부족합니다. 결제 상태를 확인해주세요.'
+      } else if (error.message?.includes('access_denied')) {
+        errorMessage = 'API 키에 필요한 권한이 없습니다.'
+      }
+
       return {
         valid: false,
-        error: error.message,
+        error: errorMessage,
       }
     }
   }
