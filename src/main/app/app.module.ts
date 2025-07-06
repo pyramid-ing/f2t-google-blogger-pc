@@ -11,10 +11,10 @@ import { SettingsModule } from './modules/settings/settings.module'
 import { TopicModule } from './modules/topic/topic.module'
 import { WorkflowModule } from './modules/workflow/workflow.module'
 import { GoogleModule } from '@main/app/modules/google/google.module'
-import { AIModule } from '@main/app/modules/ai/ai.module'
 import { JobModule } from './modules/job/job.module'
 import { CommonModule } from '@main/app/modules/common/common.module'
 import { ContentGenerateModule } from '@main/app/modules/content-generate/content-generate.module'
+import { AIModule } from '@main/app/modules/ai/ai.module'
 
 @Module({
   imports: [

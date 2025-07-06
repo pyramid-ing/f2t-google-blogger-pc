@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { OpenAiService, Topic } from 'src/main/app/modules/ai/openai.service'
+import { OpenAiService } from 'src/main/app/modules/ai/openai.service'
+import { Topic } from '@main/app/modules/ai/ai.interface'
 
 @Injectable()
 export class TopicService {
@@ -14,7 +15,7 @@ export class TopicService {
     this.logger.log(`주제 "${topic}"에 대한 제목 생성을 시작합니다.`)
 
     try {
-      const titles = await this.openAiService.generateSeoTitles(topic, limit)
+      const titles = await this.openAiService.generateTopics(topic, limit)
       this.logger.log(`${titles.length}개의 제목이 생성되었습니다.`)
       return titles
     } catch (error) {

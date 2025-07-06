@@ -21,7 +21,7 @@ export class StorageService {
       return this.storage
     }
 
-    const settings = await this.settingsService.getAppSettings()
+    const settings = await this.settingsService.getSettings()
 
     if (!settings.gcsKeyContent || !settings.gcsBucketName) {
       throw new Error('GCS 설정이 완료되지 않았습니다. 서비스 계정 키 JSON과 버킷명을 확인해주세요.')
@@ -54,7 +54,7 @@ export class StorageService {
 
     try {
       const storage = await this.initializeStorage()
-      const settings = await this.settingsService.getAppSettings()
+      const settings = await this.settingsService.getSettings()
       const bucket = storage.bucket(settings.gcsBucketName!)
 
       // 파일명 생성 (제공되지 않은 경우 자동 생성)
@@ -113,7 +113,7 @@ export class StorageService {
   async deleteImage(fileName: string): Promise<void> {
     try {
       const storage = await this.initializeStorage()
-      const settings = await this.settingsService.getAppSettings()
+      const settings = await this.settingsService.getSettings()
       const bucket = storage.bucket(settings.gcsBucketName!)
       const file = bucket.file(fileName)
 
@@ -148,7 +148,7 @@ export class StorageService {
   async testConnection(): Promise<{ success: boolean; error?: string }> {
     try {
       const storage = await this.initializeStorage()
-      const settings = await this.settingsService.getAppSettings()
+      const settings = await this.settingsService.getSettings()
       const bucket = storage.bucket(settings.gcsBucketName!)
 
       // 버킷 존재 여부 확인

@@ -23,6 +23,7 @@
 - `date-fns`: 날짜 처리
 - `axios`: HTTP 클라이언트
 - `winston`: 로깅
+- xlsx:  엑셀관리
 
 ### 데이터 검증
 - `class-validator`: DTO 유효성 검증 (NestJS DTO에서 사용)
@@ -38,7 +39,7 @@
 - `react-query`: 서버 상태 관리
 
 ### UI 컴포넌트
-- `@mui/material`: Material-UI 컴포넌트
+- `antd`:
 - `@emotion/styled`: CSS-in-JS
 
 ### 폼 & 검증
@@ -70,7 +71,6 @@
        "@nestjs/common": "^10.0.0",
        "prisma": "^5.0.0",
        "react": "^18.0.0",
-       "@mui/material": "^5.0.0",
        "date-fns": "^2.30.0",
        "recoil": "^0.7.0",
        "typescript": "^5.0.0",

@@ -9,7 +9,7 @@ export class ImagePixabayService {
   constructor(private readonly settingsService: SettingsService) {}
 
   private async getPixabayApiKey(): Promise<string> {
-    const settings = await this.settingsService.getAppSettings()
+    const settings = await this.settingsService.getSettings()
     const apiKey = settings.pixabayApiKey
 
     if (!apiKey) {

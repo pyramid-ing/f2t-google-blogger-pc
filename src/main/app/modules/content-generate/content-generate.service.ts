@@ -1,16 +1,16 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { BlogOutline, BlogPost, OpenAiService } from '../ai/openai.service'
 import { LinkResult, PerplexityService } from '../ai/perplexity.service'
 import { ImagePixabayService } from '../media/image-pixabay.service'
 import { SettingsService } from '../settings/settings.service'
 import { JobLogsService } from '../job-logs/job-logs.service'
 import axios from 'axios'
 import sharp from 'sharp'
-import { ThumbnailGeneratorService } from '../media/thumbnail-generator.service'
 import { StorageService } from '@main/app/modules/google/storage/storage.service'
 import { postingContentsPrompt, tableOfContentsPrompt } from '@main/app/modules/content-generate/prompts'
 import Bottleneck from 'bottleneck'
 import { sleep } from '@main/app/utils/sleep'
+import { BlogOutline, BlogPost } from '@main/app/modules/ai/ai.interface'
+import { OpenAiService } from '@main/app/modules/ai/openai.service'
 
 export interface SectionContent {
   html: string
@@ -34,7 +34,6 @@ export class ContentGenerateService implements OnModuleInit {
     private readonly imagePixabayService: ImagePixabayService,
     private readonly storageService: StorageService,
     private readonly settingsService: SettingsService,
-    private readonly thumbnailGenerator: ThumbnailGeneratorService,
     private readonly jobLogsService: JobLogsService,
   ) {
     this.imageGenerationLimiter = new Bottleneck({
@@ -189,44 +188,44 @@ export class ContentGenerateService implements OnModuleInit {
    */
   async generateThumbnailImage(title: string, subtitle?: string): Promise<string | undefined> {
     try {
-      const settings = await this.settingsService.getAppSettings()
-
-      if (!settings.thumbnailEnabled) {
-        this.logger.log('썸네일 생성이 비활성화되어 있습니다.')
-        return undefined
-      }
-
-      const thumbnailUrl = await this.thumbnailGenerator.generateThumbnailImage(title, subtitle)
-
-      if (thumbnailUrl) {
-        this.logger.log(`썸네일 생성 완료: ${thumbnailUrl}`)
-
-        if (thumbnailUrl.startsWith('file://')) {
-          try {
-            const fs = require('fs')
-            const filePath = thumbnailUrl.replace('file://', '')
-            const thumbnailBuffer = fs.readFileSync(filePath)
-
-            const uploadResult = await this.storageService.uploadImage(thumbnailBuffer, {
-              contentType: 'image/png',
-              isPublic: true,
-            })
-
-            try {
-              fs.unlinkSync(filePath)
-            } catch (deleteError) {
-              this.logger.warn(`로컬 썸네일 파일 삭제 실패: ${deleteError.message}`)
-            }
-
-            return uploadResult.url
-          } catch (uploadError) {
-            this.logger.error('GCS 업로드 실패:', uploadError)
-            return thumbnailUrl
-          }
-        }
-
-        return thumbnailUrl
-      }
+      // const settings = await this.settingsService.getSettings()
+      //
+      // if (!settings.thumbnailEnabled) {
+      //   this.logger.log('썸네일 생성이 비활성화되어 있습니다.')
+      //   return undefined
+      // }
+      //
+      // const thumbnailUrl = await this.thumbnailGenerator.generateThumbnailImage(title, subtitle)
+      //
+      // if (thumbnailUrl) {
+      //   this.logger.log(`썸네일 생성 완료: ${thumbnailUrl}`)
+      //
+      //   if (thumbnailUrl.startsWith('file://')) {
+      //     try {
+      //       const fs = require('fs')
+      //       const filePath = thumbnailUrl.replace('file://', '')
+      //       const thumbnailBuffer = fs.readFileSync(filePath)
+      //
+      //       const uploadResult = await this.storageService.uploadImage(thumbnailBuffer, {
+      //         contentType: 'image/png',
+      //         isPublic: true,
+      //       })
+      //
+      //       try {
+      //         fs.unlinkSync(filePath)
+      //       } catch (deleteError) {
+      //         this.logger.warn(`로컬 썸네일 파일 삭제 실패: ${deleteError.message}`)
+      //       }
+      //
+      //       return uploadResult.url
+      //     } catch (uploadError) {
+      //       this.logger.error('GCS 업로드 실패:', uploadError)
+      //       return thumbnailUrl
+      //     }
+      //   }
+      //
+      //   return thumbnailUrl
+      // }
 
       return undefined
     } catch (error) {
@@ -256,7 +255,7 @@ export class ContentGenerateService implements OnModuleInit {
     jobId?: string,
   ): Promise<string | undefined> {
     try {
-      const settings = await this.settingsService.getAppSettings()
+      const settings = await this.settingsService.getSettings()
       const imageType = settings.imageType || 'none'
 
       let imageUrl: string | undefined
@@ -401,7 +400,7 @@ export class ContentGenerateService implements OnModuleInit {
    */
   private async generateAdScript(sectionIndex: number): Promise<string | undefined> {
     try {
-      const settings = await this.settingsService.getAppSettings()
+      const settings = await this.settingsService.getSettings()
       const adEnabled = settings.adEnabled || false
       const adScript = settings.adScript
 

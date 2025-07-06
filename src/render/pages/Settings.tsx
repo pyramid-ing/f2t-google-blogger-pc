@@ -1,20 +1,13 @@
-import { SettingOutlined } from '@ant-design/icons'
 import React from 'react'
-import PageContainer from '../components/shared/PageContainer'
-import SettingsTabs from '../features/settings/SettingsTabs'
+import { Tabs } from 'antd'
+import PageContainer from '@render/components/shared/PageContainer'
+import SettingsTabs from '@render/features/settings/SettingsTabs'
+
+const { TabPane } = Tabs
 
 const Settings: React.FC = () => {
   return (
-    <PageContainer
-      title={
-        <span>
-          <SettingOutlined style={{ marginRight: 8 }} />
-          설정
-        </span>
-      }
-      maxWidth="1000px"
-      centered
-    >
+    <PageContainer>
       <SettingsTabs />
     </PageContainer>
   )

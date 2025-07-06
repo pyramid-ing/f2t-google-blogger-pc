@@ -8,10 +8,13 @@ datasource db {
 }
 
 model Settings {
-  id        Int      @id @default(autoincrement())
-  data      Json
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           Int      @id @default(1)
+  openaiApiKey String?
+  geminiApiKey String?
+  aiProvider   String   @default("openai")
+  data         Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 model ThumbnailLayout {

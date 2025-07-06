@@ -1,0 +1,70 @@
+import { LinkResult } from '@main/app/modules/ai/perplexity.service'
+
+export interface ThumbnailData {
+  mainText: string
+  subText?: string
+  keywords: string[]
+}
+
+export interface Topic {
+  title: string
+  content: string
+}
+
+// Define the TypeScript interface based on the JSON schema
+export interface BlogOutline {
+  sections: {
+    index: number // 섹션 순서
+    title: string // 제목
+    summary: string // 요약
+    length: string // 예상 글자 수 (ex: '250자')
+  }[]
+}
+
+// Define the TypeScript interface based on the new JSON schema
+export interface BlogPost {
+  thumbnailUrl?: string
+  seo?: string // jsonLd
+  sections: {
+    html: string // HTML content for each section
+    imageUrl?: string // Optional image URL for each section
+    links?: LinkResult[] // Optional related links for each section
+    aiImagePrompt?: string // Optional AI image prompt for each section
+  }[]
+}
+export interface AIService {
+  /**
+   * AI 서비스 초기화 및 설정
+   */
+  initialize(): Promise<void>
+
+  /**
+   * SEO에 최적화된 제목 생성
+   */
+  generateTopics(topic: string, limit: number): Promise<Topic[]>
+
+  /**
+   * 이미지 생성을 위한 프롬프트 생성
+   */
+  generateAiImagePrompt(html: string): Promise<string>
+
+  /**
+   * Pixabay 검색을 위한 키워드 생성
+   */
+  generatePixabayPrompt(html: string): Promise<string>
+
+  /**
+   * AI를 사용한 이미지 생성
+   */
+  generateImage(prompt: string): Promise<string>
+
+  /**
+   * 썸네일 텍스트 데이터 생성
+   */
+  generateThumbnailData(content: string): Promise<ThumbnailData>
+
+  /**
+   * API 키 유효성 검증
+   */
+  validateApiKey(apiKey: string): Promise<{ valid: boolean; error?: string; model?: string }>
+}

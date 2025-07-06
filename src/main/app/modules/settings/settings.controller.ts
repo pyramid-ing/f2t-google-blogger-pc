@@ -1,78 +1,22 @@
-import { Body, Controller, Get, Logger, Post, Put, Param } from '@nestjs/common'
-import { SettingsService } from 'src/main/app/modules/settings/settings.service'
+import { Body, Controller, Get, Post } from '@nestjs/common'
+import { SettingsService } from './settings.service'
 
 @Controller('settings')
 export class SettingsController {
-  private readonly logger = new Logger(SettingsController.name)
-
   constructor(private readonly settingsService: SettingsService) {}
 
-  @Get('global')
-  async getGlobalSettings() {
-    try {
-      const setting = await this.settingsService.findByKey('global')
-      return { success: true, data: setting?.data || {} }
-    } catch (error) {
-      this.logger.error('글로벌 설정 조회 실패:', error)
-      return { success: false, error: error.message }
-    }
-  }
-
-  @Post('global')
-  async saveGlobalSettings(@Body() data: any) {
-    try {
-      await this.settingsService.saveByKey('global', data)
-      return { success: true }
-    } catch (error) {
-      this.logger.error('글로벌 설정 저장 실패:', error)
-      return { success: false, error: error.message }
-    }
-  }
-
-  @Get('app')
-  async getAppSettings() {
-    try {
-      const setting = await this.settingsService.findByKey('app')
-      return { success: true, data: setting?.data }
-    } catch (error) {
-      this.logger.error('앱 설정 조회 실패:', error)
-      return { success: false, error: error.message }
-    }
-  }
-
-  @Post('app')
-  async saveAppSettings(@Body() data: any) {
-    try {
-      await this.settingsService.saveByKey('app', data)
-      return { success: true }
-    } catch (error) {
-      this.logger.error('앱 설정 저장 실패:', error)
-      return { success: false, error: error.message }
-    }
-  }
-
   @Get()
-  async getAllSettings() {
-    return this.settingsService.findAll()
+  async getSettings() {
+    return this.settingsService.getSettings()
   }
 
-  @Get(':key')
-  async getSettingByKey(@Param('key') key: string) {
-    return this.settingsService.findByKey(key)
+  @Post()
+  async updateSettings(@Body() settings: any) {
+    return this.settingsService.updateSettings(settings)
   }
 
-  @Put(':key')
-  async updateSetting(@Param('key') key: string, @Body() data: any) {
-    return this.settingsService.upsert(key, data)
-  }
-
-  @Post('validate-openai-key')
-  async validateOpenAIKey(@Body() body: { apiKey: string }) {
-    return this.settingsService.validateOpenAIKey(body.apiKey)
-  }
-
-  @Post('validate-perplexity-key')
-  async validatePerplexityKey(@Body() body: { apiKey: string }) {
-    return this.settingsService.validatePerplexityKey(body.apiKey)
+  @Post('validate-ai-key')
+  async validateAIKey(@Body() dto: any) {
+    return this.settingsService.validateAIKey(dto)
   }
 }

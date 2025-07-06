@@ -8,8 +8,10 @@ export interface AppSettings {
   bloggerBlogId?: string // 선택된 Blogger 블로그 ID
 
   // AI 설정
-  openaiApiKey?: string // OpenAI API 키
-  perplexityApiKey?: string // Perplexity API 키
+  aiProvider: 'openai' | 'gemini'
+  openaiApiKey?: string
+  geminiApiKey?: string
+  perplexityApiKey?: string
 
   // 이미지 설정
   imageType?: 'ai' | 'pixabay' | 'none' // 이미지 생성 방식 (none: 사용안함)
@@ -31,4 +33,18 @@ export interface AppSettings {
   // 광고 설정
   adEnabled?: boolean // 광고 활성화 여부
   adScript?: string // 광고 스크립트 코드
+
+  // 기존 설정들...
+  blogId?: string
+  blogName?: string
+  blogUrl?: string
+  googleAccessToken?: string
+  googleRefreshToken?: string
+  googleTokenExpiry?: number
+}
+
+export interface AISettings {
+  openaiApiKey?: string
+  geminiApiKey?: string
+  aiProvider: 'openai' | 'gemini'
 }

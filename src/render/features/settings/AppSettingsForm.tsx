@@ -8,7 +8,37 @@ const { TextArea } = Input
 const AppSettingsForm: React.FC = () => {
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
-  const [settings, setSettings] = useState<AppSettings>({})
+  const [settings, setSettings] = useState<AppSettings>({
+    adEnabled: false,
+    adScript: '',
+    aiProvider: undefined,
+    blogId: '',
+    blogName: '',
+    blogUrl: '',
+    bloggerBlogId: '',
+    gcsBucketName: '',
+    gcsKeyContent: '',
+    gcsProjectId: '',
+    geminiApiKey: '',
+    googleAccessToken: '',
+    googleRefreshToken: '',
+    googleTokenExpiry: 0,
+    imageType: undefined,
+    oauth2AccessToken: '',
+    oauth2ClientId: '',
+    oauth2ClientSecret: '',
+    oauth2RefreshToken: '',
+    oauth2TokenExpiry: '',
+    openaiApiKey: '',
+    perplexityApiKey: '',
+    pixabayApiKey: '',
+    thumbnailBackgroundImage: '',
+    thumbnailDefaultLayoutId: '',
+    thumbnailEnabled: false,
+    thumbnailFontFamily: '',
+    thumbnailFontSize: 0,
+    thumbnailTextColor: '',
+  })
 
   // 설정 로드
   useEffect(() => {

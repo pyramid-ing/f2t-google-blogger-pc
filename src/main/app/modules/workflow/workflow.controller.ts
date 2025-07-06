@@ -15,7 +15,7 @@ import { Response } from 'express'
 import * as XLSX from 'xlsx'
 import { TopicJobService } from '../topic/topic-job.service'
 import { BlogPostJobService } from '../blog-post-job/blog-post-job.service'
-import type { BlogPostExcelRow } from '../blog-post-job/blog-post-job.service'
+import { BlogPostExcelRow } from '@main/app/modules/blog-post-job/blog-post-job.types'
 
 @Controller('workflow')
 export class WorkflowController {

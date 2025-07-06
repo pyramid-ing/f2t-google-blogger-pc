@@ -46,9 +46,8 @@ export class OauthService {
    */
   async getAccessToken(): Promise<string> {
     try {
-      const globalSettings = await this.settingsService.getAppSettings()
-      const { oauth2AccessToken, oauth2RefreshToken, oauth2TokenExpiry, oauth2ClientId, oauth2ClientSecret } =
-        globalSettings
+      const settings = await this.settingsService.getSettings()
+      const { oauth2AccessToken, oauth2RefreshToken, oauth2TokenExpiry, oauth2ClientId, oauth2ClientSecret } = settings
 
       if (!oauth2AccessToken) {
         throw new GoogleAuthError('Google OAuth 토큰이 없습니다. 먼저 로그인해주세요.', 'getAccessToken', {
@@ -64,12 +63,12 @@ export class OauthService {
         this.logger.log('Google 토큰 만료 감지, 자동 갱신 시도...')
         try {
           const newTokens = await this.refreshAccessToken(oauth2RefreshToken, oauth2ClientId, oauth2ClientSecret)
-          const updatedGlobalSetting = {
-            ...globalSettings,
+          const updatedSetting = {
+            ...settings,
             oauth2AccessToken: newTokens.accessToken,
             oauth2TokenExpiry: new Date(newTokens.expiresAt).toISOString(),
           }
-          await this.settingsService.updateAppSettings(updatedGlobalSetting)
+          await this.settingsService.updateSettings(updatedSetting)
           this.logger.log('Google 토큰이 자동으로 갱신되었습니다.')
           return newTokens.accessToken
         } catch (refreshError: any) {
@@ -139,7 +138,7 @@ export class OauthService {
    */
   async processOAuthCallback(code: string) {
     try {
-      const globalSettings = await this.settingsService.getAppSettings()
+      const globalSettings = await this.settingsService.getSettings()
       if (!globalSettings) {
         throw new GoogleConfigError('Google 설정이 존재하지 않습니다.', 'processOAuthCallback', 'global_settings')
       }
@@ -162,7 +161,7 @@ export class OauthService {
         oauth2RefreshToken: tokens.refreshToken,
         oauth2TokenExpiry: new Date(tokens.expiresAt).toISOString(),
       }
-      await this.settingsService.updateAppSettings(updatedGoogleSettings)
+      await this.settingsService.updateSettings(updatedGoogleSettings)
       this.logger.log('OAuth 토큰 저장 완료')
       return { tokens, userInfo }
     } catch (error: any) {
@@ -250,7 +249,7 @@ export class OauthService {
    */
   async refreshToken() {
     try {
-      const appSettings = await this.settingsService.getAppSettings()
+      const appSettings = await this.settingsService.getSettings()
       const { oauth2ClientId, oauth2ClientSecret, oauth2RefreshToken } = appSettings
       if (!oauth2RefreshToken) {
         throw new Error('Refresh token이 없습니다.')
@@ -261,7 +260,7 @@ export class OauthService {
         oauth2AccessToken: newTokens.accessToken,
         oauth2TokenExpiry: new Date(newTokens.expiresAt).toISOString(),
       }
-      await this.settingsService.updateAppSettings(updatedSettings)
+      await this.settingsService.updateSettings(updatedSettings)
       return {
         success: true,
         message: '토큰이 성공적으로 갱신되었습니다.',
@@ -277,7 +276,7 @@ export class OauthService {
    */
   async getOAuthStatus() {
     try {
-      const globalSettings = await this.settingsService.getAppSettings()
+      const globalSettings = await this.settingsService.getSettings()
       const { oauth2AccessToken, oauth2RefreshToken, oauth2TokenExpiry } = globalSettings
       if (!oauth2AccessToken) {
         return {
@@ -326,14 +325,14 @@ export class OauthService {
    */
   async logout() {
     try {
-      const globalSettings = await this.settingsService.getAppSettings()
+      const globalSettings = await this.settingsService.getSettings()
       const updatedGoogleSettings = {
         ...globalSettings,
         oauth2AccessToken: '',
         oauth2RefreshToken: '',
         oauth2TokenExpiry: '',
       }
-      await this.settingsService.updateAppSettings(updatedGoogleSettings)
+      await this.settingsService.updateSettings(updatedGoogleSettings)
       return {
         success: true,
         message: 'Google 계정 연동이 해제되었습니다.',

@@ -211,7 +211,7 @@ export class GoogleBloggerService {
    */
   async postToBlogger(request: Omit<BloggerTypes.BloggerPostRequest, 'blogId'>): Promise<BloggerTypes.BloggerPost> {
     const { title, content, labels } = request
-    const settings = await this.settingsService.getAppSettings()
+    const settings = await this.settingsService.getSettings()
     const blogId = settings.bloggerBlogId
     if (!blogId) throw new Error('bloggerBlogId가 설정되어 있지 않습니다. 설정에서 블로그를 선택하세요.')
     try {

@@ -25,7 +25,7 @@ export class PerplexityService {
   constructor(private readonly settingsService: SettingsService) {}
 
   private async getApiKey(): Promise<string> {
-    const settings = await this.settingsService.getAppSettings()
+    const settings = await this.settingsService.getSettings()
     const apiKey = settings.perplexityApiKey
 
     if (!apiKey) {
