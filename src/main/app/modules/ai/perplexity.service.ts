@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { createPerplexity } from '@ai-sdk/perplexity'
 import { generateText } from 'ai'
 import axios from 'axios'
 import { SettingsService } from '../settings/settings.service'
+import { createPerplexity } from '@ai-sdk/perplexity'
 
 // iconv-lite import (optional, graceful fallback if not installed)
 let iconv: any = null
@@ -20,7 +20,7 @@ export interface LinkResult {
 @Injectable()
 export class PerplexityService {
   private readonly logger = new Logger(PerplexityService.name)
-  private perplexityProvider: any
+  private perplexityProvider: any = null
 
   constructor(private readonly settingsService: SettingsService) {}
 
@@ -43,6 +43,44 @@ export class PerplexityService {
       })
     }
     return this.perplexityProvider
+  }
+
+  async validateApiKey(apiKey: string): Promise<{ valid: boolean; error?: string; model?: string }> {
+    try {
+      const provider = createPerplexity({
+        apiKey,
+      })
+      const model = provider('sonar-pro')
+
+      const { text } = await generateText({
+        model,
+        prompt: 'hello',
+        maxTokens: 1,
+        temperature: 0.1,
+      })
+
+      return {
+        valid: true,
+        model: 'sonar-pro',
+      }
+    } catch (error) {
+      this.logger.error('Perplexity API 키 검증 실패:', error)
+
+      let errorMessage = '알 수 없는 오류가 발생했습니다.'
+
+      if (error.message?.includes('Invalid API key') || error.message?.includes('Authentication failed')) {
+        errorMessage = 'API 키가 유효하지 않습니다. 올바른 API 키를 입력해주세요.'
+      } else if (error.message?.includes('rate limit') || error.message?.includes('Too Many Requests')) {
+        errorMessage = 'API 할당량이 초과되었습니다. 나중에 다시 시도해주세요.'
+      } else if (error.message?.includes('insufficient_quota') || error.message?.includes('Account limit exceeded')) {
+        errorMessage = '계정의 할당량이 부족합니다. 결제 상태를 확인해주세요.'
+      }
+
+      return {
+        valid: false,
+        error: errorMessage,
+      }
+    }
   }
 
   /**

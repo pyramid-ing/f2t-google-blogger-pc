@@ -22,7 +22,13 @@ export const updateSettings = async (settings: Partial<AppSettings>): Promise<Ap
   return response.data
 }
 
-export const validateAIKey = async ({ provider, apiKey }: { provider: 'openai' | 'gemini'; apiKey: string }) => {
+export const validateAIKey = async ({
+  provider,
+  apiKey,
+}: {
+  provider: 'openai' | 'gemini' | 'perplexity'
+  apiKey: string
+}) => {
   try {
     const response = await api.post<ValidateAIKeyResponseDto>('/ai/validate-key', {
       provider,
