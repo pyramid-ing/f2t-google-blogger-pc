@@ -11,6 +11,8 @@ import { sleep } from '@main/app/utils/sleep'
 import { AIService, BlogOutline, BlogPost } from '@main/app/modules/ai/ai.interface'
 import { AIFactory } from '@main/app/modules/ai/ai.factory'
 import fs from 'fs'
+import path from 'node:path'
+import { EnvConfig } from '@main/config/env.config'
 
 export interface SectionContent {
   html: string
@@ -43,7 +45,16 @@ export class ContentGenerateService implements OnModuleInit {
   }
 
   async onModuleInit() {
-    this.logger.log('ContentGenerateService initialized with concurrent limit of 3')
+    try {
+      const files = fs.readdirSync(EnvConfig.tempDir)
+      for (const file of files) {
+        const filePath = path.join(EnvConfig.tempDir, file)
+        fs.unlinkSync(filePath)
+      }
+      this.logger.log('temp 디렉토리 초기화 완료')
+    } catch (error) {
+      this.logger.error('temp 디렉토리 초기화 중 오류:', error)
+    }
   }
 
   private async getAIService(): Promise<AIService> {
