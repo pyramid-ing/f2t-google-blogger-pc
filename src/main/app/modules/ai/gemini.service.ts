@@ -3,6 +3,8 @@ import { AIService, BlogOutline, BlogPost, ThumbnailData, Topic } from './ai.int
 import { SettingsService } from '../settings/settings.service'
 import { Type, GoogleGenAI, Modality } from '@google/genai'
 import * as fs from 'node:fs'
+import * as path from 'node:path'
+import { EnvConfig } from '@main/config/env.config'
 import { postingContentsPrompt, tableOfContentsPrompt } from '@main/app/modules/content-generate/prompts'
 
 @Injectable()
@@ -309,9 +311,15 @@ ${JSON.stringify(blogOutline)}`
    */
   async generateImage(prompt: string): Promise<string> {
     this.logger.log(`Gemini로 이미지 생성: ${prompt}`)
+    let tempFilePath: string | undefined
 
     try {
-      const ai = await this.getGemini() // getGemini()는 GoogleGenAI 인스턴스를 반환한다고 가정
+      const ai = await this.getGemini()
+
+      // temp 디렉토리가 없으면 생성
+      if (!fs.existsSync(EnvConfig.tempDir)) {
+        fs.mkdirSync(EnvConfig.tempDir, { recursive: true })
+      }
 
       const response = await ai.models.generateContent({
         model: 'gemini-2.0-flash-preview-image-generation',
@@ -321,7 +329,6 @@ ${JSON.stringify(blogOutline)}`
         },
       })
 
-      let imageUrl: string | undefined
       const parts = response.candidates[0].content.parts
 
       // 텍스트 설명 + 이미지 저장
@@ -329,16 +336,14 @@ ${JSON.stringify(blogOutline)}`
         if (part.inlineData?.data) {
           const buffer = Buffer.from(part.inlineData.data, 'base64')
           const fileName = `output-${Date.now()}.png`
-          fs.writeFileSync(fileName, buffer)
-          imageUrl = fileName // 로컬 파일 경로 반환
+          tempFilePath = path.join(EnvConfig.tempDir, fileName)
+          fs.writeFileSync(tempFilePath, buffer)
+
+          return tempFilePath // 로컬 파일 경로 반환
         }
       }
 
-      if (!imageUrl) {
-        throw new Error('이미지 데이터를 받지 못했습니다.')
-      }
-
-      return imageUrl
+      throw new Error('이미지 데이터를 받지 못했습니다.')
     } catch (error) {
       this.logger.error('Gemini 이미지 생성 중 오류:', error)
       throw error

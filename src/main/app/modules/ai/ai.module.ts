@@ -6,9 +6,10 @@ import { CommonModule } from '../common/common.module'
 import { AIFactory } from './ai.factory'
 import { SettingsModule } from '../settings/settings.module'
 import { AIController } from './ai.controller'
+import { StorageModule } from '../google/storage/storage.module'
 
 @Module({
-  imports: [CommonModule, SettingsModule],
+  imports: [CommonModule, SettingsModule, StorageModule],
   providers: [OpenAiService, PerplexityService, GeminiService, AIFactory],
   exports: [OpenAiService, PerplexityService, GeminiService, AIFactory],
   controllers: [AIController],

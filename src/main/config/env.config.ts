@@ -28,6 +28,7 @@ export class EnvConfig {
   public static dbUrl = `file:${EnvConfig.dbPath}`
 
   public static exportsDir = path.join(EnvConfig.userDataCustomPath, 'exports')
+  public static tempDir = path.join(EnvConfig.userDataCustomPath, 'temp')
 
   private static engineName = ''
   private static libName = ''
@@ -135,6 +136,7 @@ export class EnvConfig {
       isPackaged: this.isPackaged,
       resourcePath: this.resourcePath,
       exportsDir: this.exportsDir,
+      tempDir: this.tempDir,
     }
   }
 }

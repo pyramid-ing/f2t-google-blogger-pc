@@ -10,6 +10,7 @@ import Bottleneck from 'bottleneck'
 import { sleep } from '@main/app/utils/sleep'
 import { AIService, BlogOutline, BlogPost } from '@main/app/modules/ai/ai.interface'
 import { AIFactory } from '@main/app/modules/ai/ai.factory'
+import fs from 'fs'
 
 export interface SectionContent {
   html: string
@@ -316,12 +317,20 @@ export class ContentGenerateService implements OnModuleInit {
           if (jobId) {
             await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 이미지 최적화 및 업로드 시작`)
           }
-          const response = await axios.get(imageUrl, {
-            responseType: 'arraybuffer',
-            timeout: 30000,
-          })
 
-          const imageBuffer = Buffer.from(response.data)
+          let imageBuffer: Buffer
+          // 로컬 파일 경로인 경우
+          if (imageUrl.startsWith('/') || imageUrl.startsWith('.')) {
+            imageBuffer = fs.readFileSync(imageUrl)
+          } else {
+            // 원격 URL인 경우
+            const response = await axios.get(imageUrl, {
+              responseType: 'arraybuffer',
+              timeout: 30000,
+            })
+            imageBuffer = Buffer.from(response.data)
+          }
+
           const optimizedBuffer = await this.optimizeImage(imageBuffer)
 
           const uploadResult = await this.storageService.uploadImage(optimizedBuffer, {
