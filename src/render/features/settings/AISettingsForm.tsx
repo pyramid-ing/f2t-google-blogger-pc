@@ -25,17 +25,17 @@ export const AISettingsForm: React.FC = () => {
     }
   }
 
-  const handleSaveSettings = async () => {
+  const handleSaveSettings = async (values: any) => {
     setLoading(true)
     try {
       const settings = await getSettings()
 
       await updateSettings({
         ...settings,
-        perplexityApiKey: settings.perplexityApiKey,
-        aiProvider: settings.aiProvider,
-        openaiApiKey: settings.aiProvider,
-        geminiApiKey: settings.aiProvider,
+        perplexityApiKey: values.perplexityApiKey,
+        aiProvider: values.aiProvider,
+        openaiApiKey: values.openaiApiKey,
+        geminiApiKey: values.geminiApiKey,
       })
       message.success('AI 설정이 저장되었습니다.')
     } catch (error) {
