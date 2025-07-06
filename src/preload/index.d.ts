@@ -18,7 +18,6 @@ interface UpdateResult {
 declare global {
   interface Window {
     electronAPI: {
-      getBackendPort: () => Promise<number>
       openExternal: (url: string) => Promise<void>
       
       // 앱 정보 API

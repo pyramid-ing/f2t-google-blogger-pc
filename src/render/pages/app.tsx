@@ -1,20 +1,10 @@
-import React, { useEffect } from 'react'
+import React from 'react'
 import { Route, Routes } from 'react-router-dom'
 import AppLayout from '../layouts/AppLayout'
 import Dashboard from './Dashboard'
 import SettingsPage from './Settings'
 
 const App: React.FC = () => {
-  useEffect(() => {
-    // 백엔드 포트 확인
-    window.electronAPI
-      .getBackendPort()
-      .then(port => {})
-      .catch(error => {
-        console.error('백엔드 포트 확인 실패:', error)
-      })
-  }, [])
-
   return (
     <AppLayout>
       <Routes>
