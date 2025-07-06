@@ -46,7 +46,7 @@ export const AISettingsForm: React.FC = () => {
     }
   }
 
-  const validateKey = async (provider: 'openai' | 'gemini', key: string) => {
+  const validateKey = async (provider: 'openai' | 'gemini' | 'perplexity', key: string) => {
     try {
       setValidating(true)
       const result = await validateAIKey({ provider, apiKey: key })
