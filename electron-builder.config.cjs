@@ -21,6 +21,7 @@ const config = {
   asar: true,
   asarUnpack: [
     'node_modules/@prisma/engines/**/*',
+    'node_modules/sharp/**/*'
   ],
   files: [
     'dist/main/**/*',
@@ -28,6 +29,11 @@ const config = {
     'dist/render/**/*',
   ],
   extraResources: [
+    {
+      from: 'node_modules/sharp',
+      to: 'node_modules/sharp',
+      filter: ['**/*']
+    },
     {
       from: 'node_modules/@prisma',
       to: 'node_modules/@prisma',
