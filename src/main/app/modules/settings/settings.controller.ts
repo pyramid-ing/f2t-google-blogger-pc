@@ -14,9 +14,4 @@ export class SettingsController {
   async updateSettings(@Body() settings: any) {
     return this.settingsService.updateSettings(settings)
   }
-
-  @Post('validate-ai-key')
-  async validateAIKey(@Body() dto: any) {
-    return this.settingsService.validateAIKey(dto)
-  }
 }

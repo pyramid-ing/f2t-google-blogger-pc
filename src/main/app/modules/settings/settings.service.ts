@@ -1,63 +1,47 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { PrismaService } from '@main/app/modules/common/prisma/prisma.service'
-import { GeminiService } from '../ai/gemini.service'
-import { OpenAiService } from '../ai/openai.service'
-import { Prisma } from '@prisma/client'
-import { AIProvider, AppSettings, ValidateAIKeyDto } from './settings.types'
+import { AIProvider, AppSettings } from './settings.types'
 
 @Injectable()
 export class SettingsService {
+  private settings: AppSettings | null = null
   private readonly logger = new Logger(SettingsService.name)
-  private settings: AppSettings = {
-    aiProvider: 'openai',
-  }
 
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly openAiService: OpenAiService,
-    private readonly geminiService: GeminiService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   private async loadSettings() {
-    const settings = await this.getSettings()
-    this.settings = settings
+    const settings = await this.prisma.settings.findFirst({
+      where: { id: 1 },
+    })
+
+    this.settings = settings.data as unknown as AppSettings
   }
 
   async getSettings(): Promise<AppSettings> {
-    const settings = await this.prisma.settings.findFirst()
-
-    return settings.data as unknown as AppSettings
+    if (!this.settings) {
+      await this.loadSettings()
+    }
+    return this.settings!
   }
 
-  async updateSettings(settings: AppSettings) {
-    const data = settings as unknown as Prisma.JsonObject
-
-    const updatedSettings = await this.prisma.settings.upsert({
+  async updateSettings(settings: Partial<AppSettings>) {
+    await this.prisma.settings.upsert({
       where: { id: 1 },
       create: {
         id: 1,
-        data,
+        data: settings,
       },
       update: {
-        data,
+        data: settings,
       },
     })
 
+    // 캐시된 설정 업데이트
     await this.loadSettings()
-    return {
-      data: updatedSettings.data as unknown as AppSettings,
-    }
-  }
-
-  async validateAIKey(dto: ValidateAIKeyDto) {
-    if (dto.provider === 'openai') {
-      return this.openAiService.validateApiKey(dto.apiKey)
-    } else {
-      return this.geminiService.validateApiKey(dto.apiKey)
-    }
+    return this.settings!
   }
 
   getCurrentAIProvider(): AIProvider {
-    return this.settings.aiProvider
+    return (this.settings?.aiProvider || 'openai') as AIProvider
   }
 }

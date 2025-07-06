@@ -138,11 +138,11 @@ export class OauthService {
    */
   async processOAuthCallback(code: string) {
     try {
-      const globalSettings = await this.settingsService.getSettings()
-      if (!globalSettings) {
+      const settings = await this.settingsService.getSettings()
+      if (!settings) {
         throw new GoogleConfigError('Google 설정이 존재하지 않습니다.', 'processOAuthCallback', 'global_settings')
       }
-      const { oauth2ClientId, oauth2ClientSecret } = globalSettings
+      const { oauth2ClientId, oauth2ClientSecret } = settings
       if (!oauth2ClientId || !oauth2ClientSecret) {
         throw new GoogleConfigError(
           'OAuth2 Client ID 또는 Client Secret이 설정되지 않았습니다.',
@@ -156,7 +156,7 @@ export class OauthService {
       const tokens = await this.exchangeCodeForTokens(code, oauth2ClientId, oauth2ClientSecret)
       const userInfo = await this.getGoogleUserInfo(tokens.accessToken)
       const updatedGoogleSettings = {
-        ...globalSettings,
+        ...settings,
         oauth2AccessToken: tokens.accessToken,
         oauth2RefreshToken: tokens.refreshToken,
         oauth2TokenExpiry: new Date(tokens.expiresAt).toISOString(),

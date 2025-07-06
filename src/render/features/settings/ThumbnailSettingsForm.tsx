@@ -19,7 +19,7 @@
 // import { EyeOutlined, EditOutlined, DeleteOutlined, PlusOutlined, StarOutlined, StarFilled } from '@ant-design/icons'
 // import { AppSettings } from '../../types/settings'
 // import { ThumbnailLayout } from '../../types/thumbnail'
-// import { saveAppSettingsToServer, thumbnailApi, ThumbnailLayout as ApiThumbnailLayout } from '../../api'
+// import { updateSettings, thumbnailApi, ThumbnailLayout as ApiThumbnailLayout } from '../../api'
 // import ThumbnailEditor from '../../components/ThumbnailEditor/ThumbnailEditor'
 //
 // const { Text, Title } = Typography
@@ -91,7 +91,7 @@
 //       }
 //
 //       const updatedSettings = { ...settings }
-//       await saveAppSettingsToServer(updatedSettings)
+//       await updateSettings(updatedSettings)
 //       message.success('썸네일 설정이 저장되었습니다.')
 //     } catch (error) {
 //       console.error('설정 저장 실패:', error)

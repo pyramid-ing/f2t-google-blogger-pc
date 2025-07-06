@@ -8,13 +8,10 @@ datasource db {
 }
 
 model Settings {
-  id           Int      @id @default(1)
-  openaiApiKey String?
-  geminiApiKey String?
-  aiProvider   String   @default("openai")
-  data         Json?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id        Int      @id @default(1)
+  data      Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model ThumbnailLayout {
@@ -82,15 +79,15 @@ model BlogJob {
 }
 
 model TopicJob {
-  id        String   @id @default(cuid())
-  jobId     String   @unique
-  topic     String // 요청 주제
-  limit     Int // 생성 개수
-  result    Json? // 생성된 토픽 결과 (배열)
-  status    String   @default("draft")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  xlsxFileName   String?
+  id           String   @id @default(cuid())
+  jobId        String   @unique
+  topic        String // 요청 주제
+  limit        Int // 생성 개수
+  result       Json? // 생성된 토픽 결과 (배열)
+  status       String   @default("draft")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  xlsxFileName String?
 
   job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
 }

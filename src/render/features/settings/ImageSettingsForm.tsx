@@ -1,6 +1,6 @@
 import { Button, Form, Input, message, Radio, Card, Divider } from 'antd'
 import React, { useEffect, useState } from 'react'
-import { getAppSettingsFromServer, saveAppSettingsToServer, thumbnailApi } from '../../api'
+import { getSettings, updateSettings, thumbnailApi } from '../../api'
 
 const { TextArea } = Input
 
@@ -14,7 +14,7 @@ const ImageSettingsForm: React.FC = () => {
     const loadSettings = async () => {
       setLoading(true)
       try {
-        const settings = await getAppSettingsFromServer()
+        const settings = await getSettings()
         form.setFieldsValue({
           imageType: settings.imageType || 'pixabay',
           pixabayApiKey: settings.pixabayApiKey || '',
@@ -35,9 +35,9 @@ const ImageSettingsForm: React.FC = () => {
   const handleSaveSettings = async (values: any) => {
     setSaving(true)
     try {
-      const currentSettings = await getAppSettingsFromServer()
+      const currentSettings = await getSettings()
 
-      await saveAppSettingsToServer({
+      await updateSettings({
         ...currentSettings,
         imageType: values.imageType,
         pixabayApiKey: values.pixabayApiKey,

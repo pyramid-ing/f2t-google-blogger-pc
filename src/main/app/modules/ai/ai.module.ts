@@ -5,10 +5,12 @@ import { GeminiService } from './gemini.service'
 import { CommonModule } from '../common/common.module'
 import { AIFactory } from './ai.factory'
 import { SettingsModule } from '../settings/settings.module'
+import { AIController } from './ai.controller'
 
 @Module({
   imports: [CommonModule, SettingsModule],
   providers: [OpenAiService, PerplexityService, GeminiService, AIFactory],
   exports: [OpenAiService, PerplexityService, GeminiService, AIFactory],
+  controllers: [AIController],
 })
 export class AIModule {}

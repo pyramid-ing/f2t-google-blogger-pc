@@ -6,7 +6,7 @@ import { SettingsService } from '../settings/settings.service'
 @Injectable()
 export class GeminiService implements AIService {
   private readonly logger = new Logger(GeminiService.name)
-  private genAI: GoogleGenerativeAI | null = null
+  private gemini: GoogleGenerativeAI | null = null
 
   constructor(private readonly settingsService: SettingsService) {}
 
@@ -18,14 +18,14 @@ export class GeminiService implements AIService {
       throw new Error('Gemini API 키가 설정되지 않았습니다. 설정에서 API 키를 입력해주세요.')
     }
 
-    this.genAI = new GoogleGenerativeAI(apiKey.trim())
+    this.gemini = new GoogleGenerativeAI(apiKey.trim())
   }
 
   private async getGemini(): Promise<GoogleGenerativeAI> {
-    if (!this.genAI) {
+    if (!this.gemini) {
       await this.initialize()
     }
-    return this.genAI!
+    return this.gemini!
   }
 
   async validateApiKey(apiKey: string): Promise<{ valid: boolean; error?: string; model?: string }> {

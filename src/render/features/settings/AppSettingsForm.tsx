@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Switch, Input, Button, Form, message } from 'antd'
-import { getAppSettingsFromServer, saveAppSettingsToServer } from '../../api'
+import { getSettings, updateSettings } from '../../api'
 import { AppSettings } from '../../types/settings'
 
 const { TextArea } = Input
@@ -47,7 +47,7 @@ const AppSettingsForm: React.FC = () => {
 
   const loadSettings = async () => {
     try {
-      const data = await getAppSettingsFromServer()
+      const data = await getSettings()
       setSettings(data)
       form.setFieldsValue(data)
     } catch (error) {
@@ -59,9 +59,9 @@ const AppSettingsForm: React.FC = () => {
   const handleSave = async (values: AppSettings) => {
     setLoading(true)
     try {
-      const settings = await getAppSettingsFromServer()
+      const settings = await getSettings()
 
-      await saveAppSettingsToServer({
+      await updateSettings({
         ...settings,
         adEnabled: values.adEnabled,
         adScript: values.adScript,

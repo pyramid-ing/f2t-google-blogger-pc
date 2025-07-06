@@ -1,3 +1,5 @@
+export type AIProvider = 'openai' | 'gemini'
+
 export interface AppSettings {
   // Google OAuth 관련 설정
   oauth2ClientId?: string // OAuth2 Client ID
@@ -8,7 +10,7 @@ export interface AppSettings {
   bloggerBlogId?: string // 선택된 Blogger 블로그 ID
 
   // AI 설정
-  aiProvider: 'openai' | 'gemini'
+  aiProvider: AIProvider
   openaiApiKey?: string
   geminiApiKey?: string
   perplexityApiKey?: string
@@ -46,5 +48,5 @@ export interface AppSettings {
 export interface AISettings {
   openaiApiKey?: string
   geminiApiKey?: string
-  aiProvider: 'openai' | 'gemini'
+  aiProvider: AIProvider
 }

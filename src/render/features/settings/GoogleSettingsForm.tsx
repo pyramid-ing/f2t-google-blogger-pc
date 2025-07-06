@@ -1,8 +1,8 @@
 import { Button, Form, Input, message, Space, Avatar, Select } from 'antd'
 import React, { useEffect, useState } from 'react'
 import {
-  getAppSettingsFromServer,
-  saveAppSettingsToServer,
+  getSettings,
+  updateSettings,
   startGoogleLogin,
   getGoogleUserInfo,
   isGoogleLoggedIn,
@@ -25,7 +25,7 @@ const GoogleSettingsForm: React.FC = () => {
     const loadSettings = async () => {
       setLoading(true)
       try {
-        const settings = await getAppSettingsFromServer()
+        const settings = await getSettings()
         setClientId(settings.oauth2ClientId || '')
         setClientSecret(settings.oauth2ClientSecret || '')
         form.setFieldsValue(settings)
@@ -52,9 +52,9 @@ const GoogleSettingsForm: React.FC = () => {
   const handleSaveSettings = async () => {
     setSaving(true)
     try {
-      const settings = await getAppSettingsFromServer()
+      const settings = await getSettings()
 
-      await saveAppSettingsToServer({
+      await updateSettings({
         ...settings,
         oauth2ClientId: clientId,
         oauth2ClientSecret: clientSecret,
