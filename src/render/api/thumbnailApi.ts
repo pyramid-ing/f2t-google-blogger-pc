@@ -119,12 +119,6 @@ export const thumbnailApi = {
     return response.data
   },
 
-  // GCS 연결 테스트
-  testGCSConnection: async (): Promise<{ success: boolean; error?: string }> => {
-    const response = await api.get('/api/thumbnail/test-gcs')
-    return response.data
-  },
-
   // 배경이미지 업로드
   uploadBackgroundImage: async (file: File): Promise<{ success: boolean; fileName?: string; error?: string }> => {
     const formData = new FormData()

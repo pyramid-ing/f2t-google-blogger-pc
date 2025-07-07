@@ -1,6 +1,7 @@
 import { Button, Form, Input, message, Radio, Card, Divider } from 'antd'
 import React, { useEffect, useState } from 'react'
-import { getSettings, updateSettings, thumbnailApi } from '../../api'
+import { getSettings, updateSettings } from '../../api'
+import { testGoogleStorgeConnection } from '@render/api/googleStorageApi'
 
 const { TextArea } = Input
 
@@ -57,7 +58,7 @@ const ImageSettingsForm: React.FC = () => {
   const testGCSConnection = async () => {
     try {
       setTestingGCS(true)
-      const result = await thumbnailApi.testGCSConnection()
+      const result = await testGoogleStorgeConnection()
 
       if (result.success) {
         message.success('GCS 연결 테스트 성공!')
