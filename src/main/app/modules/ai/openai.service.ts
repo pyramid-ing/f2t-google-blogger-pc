@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common'
 import OpenAI from 'openai'
 import { SettingsService } from '../settings/settings.service'
 import { AIService, BlogOutline, BlogPost, ThumbnailData, Topic } from './ai.interface'
-import { postingContentsPrompt, tableOfContentsPrompt } from '@main/app/modules/content-generate/prompts'
+import { postingContentsPrompt, tableOfContentsPrompt } from '@main/app/modules/ai/prompts'
 
 @Injectable()
 export class OpenAiService implements AIService {

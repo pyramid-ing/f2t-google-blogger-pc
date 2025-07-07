@@ -95,17 +95,15 @@ export class PerplexityService {
       const prompt = `
 다음 HTML 섹션의 내용을 분석하고, 관련된 신뢰할 수 있는 링크를 찾아주세요.
 
-우선순위:
-1. 정부 기관, 공공기관 등 공신력 있는 기관 (.go.kr, .gov, .edu 등)
-2. 위키백과 (wikipedia.org)
-3. 나무위키 (namu.wiki)
-4. 기타 신뢰할 수 있는 출처(뉴스, 신문 등)
-5. tistory, naver blog는 제외. 
 
 HTML 내용:
 ${htmlContent}
 
-응답은 반드시 JSON 배열 형식으로만 제공해주세요. 각 링크는 name(제목)과 link(URL)를 포함해야 합니다. 예시:
+응답은 반드시 JSON 배열 형식으로만 제공해주세요. 각 링크는 name(제목)과 link(URL)를 포함해야 합니다. 
+
+제목은 본문내용에 들어가는 링크로써 어울리는 이름으로. 최후에 적당한게없으면 해당 사이트 meta:title
+
+예시:
 [
   {"name": "한국 정부 공식 사이트", "link": "https://example.gov.kr/link1"}
 ]

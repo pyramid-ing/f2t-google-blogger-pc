@@ -5,7 +5,7 @@ import { Type, GoogleGenAI, Modality } from '@google/genai'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { EnvConfig } from '@main/config/env.config'
-import { postingContentsPrompt, tableOfContentsPrompt } from '@main/app/modules/content-generate/prompts'
+import { postingContentsPrompt, tableOfContentsPrompt } from '@main/app/modules/ai/prompts'
 
 @Injectable()
 export class GeminiService implements AIService {
@@ -40,7 +40,7 @@ export class GeminiService implements AIService {
     try {
       const genAI = new GoogleGenAI({ apiKey: apiKey.trim() })
       const result = await genAI.models.generateContent({
-        model: 'gemini-1.5-pro',
+        model: 'gemini-2.5-pro',
         contents: 'hello',
         config: {
           maxOutputTokens: 10,
@@ -54,7 +54,7 @@ export class GeminiService implements AIService {
 
       return {
         valid: true,
-        model: 'gemini-1.5-pro',
+        model: 'gemini-2.5-pro',
       }
     } catch (error) {
       this.logger.error('Gemini API 키 검증 실패:', error)
@@ -109,7 +109,7 @@ export class GeminiService implements AIService {
 
       const genAI = await this.getGemini()
       const result = await genAI.models.generateContent({
-        model: 'gemini-1.5-pro',
+        model: 'gemini-2.5-pro',
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
@@ -148,32 +148,6 @@ export class GeminiService implements AIService {
     }
   }
 
-  async generateAiImagePrompt(html: string): Promise<string> {
-    try {
-      const prompt = `다음 HTML 컨텐츠를 분석하여 이미지 생성을 위한 상세한 프롬프트를 작성해주세요.
-컨텐츠: ${html}
-
-규칙:
-1. 영어로 작성
-2. 상세하고 구체적인 설명
-3. 이미지 스타일, 구도, 분위기 포함
-4. 최대 100단어
-
-프롬프트:`
-
-      const genAI = await this.getGemini()
-      const result = await genAI.models.generateContent({
-        model: 'gemini-1.5-pro',
-        contents: prompt,
-        config: {},
-      })
-      return result.text
-    } catch (error) {
-      this.logger.error('이미지 프롬프트 생성 중 오류:', error)
-      throw new Error(`Gemini API 오류: ${error.message}`)
-    }
-  }
-
   async generateBlogOutline(title: string, description: string): Promise<BlogOutline> {
     this.logger.log(`Gemini로 주제 "${title}"에 대한 목차를 생성합니다.`)
 
@@ -186,10 +160,11 @@ description: ${description}`
       const ai = await this.getGemini() // GoogleGenAI 인스턴스
 
       const resp = await ai.models.generateContent({
-        model: 'gemini-1.5-pro',
+        model: 'gemini-2.5-pro',
         contents: prompt,
         config: {
           responseMimeType: 'application/json', // JSON 출력 강제 :contentReference[oaicite:2]{index=2}
+          maxOutputTokens: 60000,
           responseSchema: {
             type: Type.OBJECT,
             properties: {
@@ -225,17 +200,18 @@ description: ${description}`
     this.logger.log(`Gemini로 블로그 콘텐츠 생성 시작`)
 
     const prompt = `${postingContentsPrompt}
-[user]
+[콘텐츠 아웃라인:]
 ${JSON.stringify(blogOutline)}`
 
     try {
       const ai = await this.getGemini()
 
       const resp = await ai.models.generateContent({
-        model: 'gemini-1.5-pro',
+        model: 'gemini-2.5-pro',
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
+          maxOutputTokens: 60000,
           responseSchema: {
             type: Type.OBJECT,
             properties: {
@@ -280,7 +256,7 @@ ${JSON.stringify(blogOutline)}`
 
       const genAI = await this.getGemini()
       const result = await genAI.models.generateContent({
-        model: 'gemini-1.5-pro',
+        model: 'gemini-2.5-pro',
         contents: prompt,
         config: {},
       })
@@ -288,6 +264,33 @@ ${JSON.stringify(blogOutline)}`
       return result.text
     } catch (error) {
       this.logger.error('Pixabay 키워드 생성 중 오류:', error)
+      throw new Error(`Gemini API 오류: ${error.message}`)
+    }
+  }
+
+  async generateAiImagePrompt(html: string): Promise<string> {
+    try {
+      const prompt = `다음 HTML 컨텐츠를 분석하여 이미지 생성을 위한 상세한 프롬프트를 작성해주세요.
+컨텐츠: ${html}
+
+규칙:
+1. 영어 프롬프트로 출력
+2. 하지만 독자는 한국인이므로 한국인이 이해가능한 이미지(절대 한글로 글자 적지마.(깨짐 문제))
+2. 상세하고 구체적인 설명
+3. 이미지 스타일, 구도, 분위기 포함
+4. 최대 100단어
+
+프롬프트:`
+
+      const genAI = await this.getGemini()
+      const result = await genAI.models.generateContent({
+        model: 'gemini-2.5-pro',
+        contents: prompt,
+        config: {},
+      })
+      return result.text
+    } catch (error) {
+      this.logger.error('이미지 프롬프트 생성 중 오류:', error)
       throw new Error(`Gemini API 오류: ${error.message}`)
     }
   }
@@ -358,7 +361,7 @@ ${JSON.stringify(blogOutline)}`
 
       const genAI = await this.getGemini()
       const result = await genAI.models.generateContent({
-        model: 'gemini-1.5-pro',
+        model: 'gemini-2.5-pro',
         contents: prompt,
         config: {
           responseMimeType: 'application/json', // JSON 출력 필수
