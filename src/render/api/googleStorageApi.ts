@@ -1,6 +1,12 @@
 import { api } from './apiClient'
 
-export async function testGoogleStorgeConnection(): Promise<{ success: boolean; error?: string }> {
+interface GCSTestResponse {
+  status: 'success' | 'error'
+  message: string
+  error?: string
+}
+
+export async function testGoogleStorgeConnection(): Promise<GCSTestResponse> {
   const response = await api.get('/storage/test-connection')
   return response.data
 }

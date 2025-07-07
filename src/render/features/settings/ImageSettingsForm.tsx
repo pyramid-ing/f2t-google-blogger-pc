@@ -60,10 +60,10 @@ const ImageSettingsForm: React.FC = () => {
       setTestingGCS(true)
       const result = await testGoogleStorgeConnection()
 
-      if (result.success) {
+      if (result.status === 'success') {
         message.success('GCS 연결 테스트 성공!')
       } else {
-        message.error(`GCS 연결 실패: ${result.error}`)
+        message.error(`GCS 연결 실패: ${result.error || result.message}`)
       }
     } catch (error) {
       console.error('GCS 연결 테스트 실패:', error)
