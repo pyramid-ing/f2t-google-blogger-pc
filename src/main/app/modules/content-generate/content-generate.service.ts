@@ -19,7 +19,7 @@ export interface SectionContent {
   html: string
   imageUrl?: string
   adHtml?: string
-  links?: any[]
+  links?: LinkResult[]
 }
 
 export interface ProcessedSection extends SectionContent {
@@ -175,10 +175,20 @@ export class ContentGenerateService implements OnModuleInit {
    */
   private async generateLinks(html: string, sectionIndex: number, jobId?: string): Promise<LinkResult[]> {
     try {
+      const settings = await this.settingsService.getSettings()
+
+      // 링크 생성이 비활성화되어 있으면 빈 배열 반환
+      if (!settings.linkEnabled) {
+        return []
+      }
+
       if (jobId) {
         await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 관련 링크 생성 시작`)
       }
+
+      // 설정된 링크 수만큼만 생성
       const links = await this.perplexityService.generateRelevantLinks(html)
+
       if (jobId) {
         await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 관련 링크 ${links.length}개 생성 완료`)
       }

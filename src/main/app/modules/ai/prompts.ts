@@ -49,7 +49,7 @@ description: '편의점에서 판매하는 가성비 좋은 혜자 도시락 중
     "index": 1,
     "title": "서론",
     "summary": "- 혜자 도시락이란?\\n- 왜 가성비 도시락이 인기일까?\\n- 이 글에서 다룰 핵심 내용은?",
-    "length": "300자"
+    "length": "200자"
   },
   {
     "index": 2,
@@ -61,7 +61,7 @@ description: '편의점에서 판매하는 가성비 좋은 혜자 도시락 중
     "index": 3,
     "title": "편의점별 인기 도시락",
     "summary": "- CU: 혜자 제육 도시락\\n- GS25: 직화불고기 도시락\\n- 세븐일레븐: 고기듬뿍 스테이크\\n- 이마트24: 훈제오리\\n- 홈플러스: 왕돈까스 도시락",
-    "length": "800자"
+    "length": "300자"
   },
   {
     "index": 4,
@@ -73,7 +73,7 @@ description: '편의점에서 판매하는 가성비 좋은 혜자 도시락 중
     "index": 5,
     "title": "FAQ",
     "summary": "- 혜자 도시락은 어디서 사나요?\\n- 유통기한은 얼마나 되나요?\\n- 전자레인지 조리 시간은?\\n- 할인 구매 가능한가요?\\n- 칼로리는 얼마나 되나요?",
-    "length": "500자"
+    "length": "300자"
   },
   {
     "index": 6,
@@ -129,11 +129,26 @@ sections: {
   - 표 내용은 깔끔하게 2~4열로 구성
 
 ### 4. FAQ 구성
-- FAQ 섹션이 존재할 경우:
+- FAQ 섹션이 존재할 경우: 
+!반드시 아래와같은 마크업 스타일을 지켜!
 <h2>자주 묻는 질문</h2>
-<h3>Q. 질문 내용</h3>
-<p>A. 답변 내용을 친절하게 설명해 주세요. 필요 시 <strong>중요 내용</strong>을 강조해 주세요.</p>
-기타 주의사항
+<div class="chat-screen">
+  <!-- 질문 -->
+  <div class="chat-line chat-left">
+    <div class="chat-bubble chat-bubble-left">
+      <h3>Q. 배송은 얼마나 걸리나요?</h3>
+    </div>
+  </div>
+
+  <!-- 답변 -->
+  <div class="chat-line chat-right">
+    <div class="chat-bubble chat-bubble-right">
+      <p>A. 보통 <strong>1~3일 이내</strong>에 도착합니다. <em>도서산간 지역은 추가로 1~2일이 소요될 수 있어요.</em></p>
+    </div>
+  </div>
+</div>
+
+### 기타 주의사항
 글자 수는 length보다 더 풍부하게 써도 괜찮음 (예: 250자 → 약 400~500자)
 
 최종적으로 모든 섹션 글자수가 반드시 2000자 이상 되도록 작성해줘.

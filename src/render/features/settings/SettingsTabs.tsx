@@ -4,29 +4,38 @@ import { AISettingsForm } from './AISettingsForm'
 import AppSettingsForm from './AppSettingsForm'
 import GoogleSettingsForm from './GoogleSettingsForm'
 import ImageSettingsForm from './ImageSettingsForm'
-
-const { TabPane } = Tabs
+import LinkSettingsForm from './LinkSettingsForm'
 
 const SettingsTabs: React.FC = () => {
-  return (
-    <Tabs defaultActiveKey="ai">
-      <TabPane tab="AI 설정" key="ai">
-        <AISettingsForm />
-      </TabPane>
-      <TabPane tab="앱 설정" key="app">
-        <AppSettingsForm />
-      </TabPane>
-      <TabPane tab="Google 설정" key="google">
-        <GoogleSettingsForm />
-      </TabPane>
-      <TabPane tab="이미지 설정" key="image">
-        <ImageSettingsForm />
-      </TabPane>
-      {/*<TabPane tab="썸네일 설정" key="thumbnail">*/}
-      {/*  <ThumbnailSettingsForm />*/}
-      {/*</TabPane>*/}
-    </Tabs>
-  )
+  const items = [
+    {
+      key: 'ai',
+      label: 'AI 설정',
+      children: <AISettingsForm />,
+    },
+    {
+      key: 'app',
+      label: '앱 설정',
+      children: <AppSettingsForm />,
+    },
+    {
+      key: 'google',
+      label: 'Google 설정',
+      children: <GoogleSettingsForm />,
+    },
+    {
+      key: 'image',
+      label: '이미지 설정',
+      children: <ImageSettingsForm />,
+    },
+    {
+      key: 'link',
+      label: '링크 설정',
+      children: <LinkSettingsForm />,
+    },
+  ]
+
+  return <Tabs defaultActiveKey="ai" items={items} />
 }
 
 export default SettingsTabs

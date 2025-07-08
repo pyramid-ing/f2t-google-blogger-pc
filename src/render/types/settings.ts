@@ -36,6 +36,9 @@ export interface AppSettings {
   adEnabled?: boolean // 광고 활성화 여부
   adScript?: string // 광고 스크립트 코드
 
+  // 링크 설정
+  linkEnabled?: boolean // 링크 활성화 여부
+
   // 기존 설정들...
   blogId?: string
   blogName?: string
