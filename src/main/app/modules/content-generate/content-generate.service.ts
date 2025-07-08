@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { LinkResult, PerplexityService } from '../ai/perplexity.service'
+import { LinkResult, PerplexityService, YoutubeResult } from '../ai/perplexity.service'
 import { ImagePixabayService } from '../media/image-pixabay.service'
 import { SettingsService } from '../settings/settings.service'
 import { JobLogsService } from '../job-logs/job-logs.service'
@@ -20,6 +20,7 @@ export interface SectionContent {
   imageUrl?: string
   adHtml?: string
   links?: LinkResult[]
+  youtubeLinks?: YoutubeResult[]
 }
 
 export interface ProcessedSection extends SectionContent {
@@ -99,9 +100,10 @@ export class ContentGenerateService implements OnModuleInit {
       const processedSections: ProcessedSection[] = await Promise.all(
         blogPost.sections.map(async (section: SectionContent, sectionIndex: number) => {
           try {
-            const [imageUrl, links, adHtml] = await Promise.all([
+            const [imageUrl, links, youtubeLinks, adHtml] = await Promise.all([
               this.generateAndUploadImage(section.html, sectionIndex, jobId, aiService),
               this.generateLinks(section.html, sectionIndex, jobId),
+              this.generateYoutubeLinks(section.html, sectionIndex, jobId),
               this.generateAdScript(sectionIndex),
             ])
             return {
@@ -109,6 +111,7 @@ export class ContentGenerateService implements OnModuleInit {
               sectionIndex,
               imageUrl,
               links,
+              youtubeLinks,
               adHtml,
             }
           } catch (error) {
@@ -196,6 +199,44 @@ export class ContentGenerateService implements OnModuleInit {
     } catch (error) {
       if (jobId) {
         await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 링크 생성 실패: ${error.message}`, 'error')
+      }
+      return []
+    }
+  }
+
+  /**
+   * 유튜브 링크 생성을 처리하는 메서드
+   */
+  private async generateYoutubeLinks(html: string, sectionIndex: number, jobId?: string): Promise<YoutubeResult[]> {
+    try {
+      const settings = await this.settingsService.getSettings()
+
+      // 유튜브 링크 생성이 비활성화되어 있으면 빈 배열 반환
+      if (!settings.youtubeEnabled) {
+        return []
+      }
+
+      if (jobId) {
+        await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 관련 유튜브 링크 생성 시작`)
+      }
+
+      // 유튜브 링크 생성
+      const youtubeLinks = await this.perplexityService.generateYoutubeLinks(html)
+
+      if (jobId) {
+        await this.jobLogsService.createJobLog(
+          jobId,
+          `섹션 ${sectionIndex} 관련 유튜브 링크 ${youtubeLinks.length}개 생성 완료`,
+        )
+      }
+      return youtubeLinks
+    } catch (error) {
+      if (jobId) {
+        await this.jobLogsService.createJobLog(
+          jobId,
+          `섹션 ${sectionIndex} 유튜브 링크 생성 실패: ${error.message}`,
+          'error',
+        )
       }
       return []
     }
@@ -464,6 +505,20 @@ export class ContentGenerateService implements OnModuleInit {
         if (section.links && section.links.length > 0) {
           section.links.forEach(linkResult => {
             sectionHtml += `\n<a href="${linkResult.link}" target="_blank" rel="noopener noreferrer" style="display: block; margin: 4px 0; color: #007bff; text-decoration: none; font-size: 14px; padding: 2px 0;">🔗 ${linkResult.name}</a>`
+          })
+        }
+        // 유튜브 링크 임베딩 추가
+        if (section.youtubeLinks && section.youtubeLinks.length > 0) {
+          section.youtubeLinks.forEach(youtube => {
+            sectionHtml += `
+            <div class="youtube-embed" style="margin: 20px 0; text-align: center;">
+                <iframe width="560" height="315" src="https://www.youtube.com/embed/${youtube.videoId}" 
+                title="YouTube video player" 
+                frameborder="0" 
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                referrerpolicy="strict-origin-when-cross-origin" 
+                allowfullscreen></iframe>
+            </div>`
           })
         }
         // 이미지 추가

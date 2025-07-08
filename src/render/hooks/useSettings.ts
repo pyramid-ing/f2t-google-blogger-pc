@@ -241,6 +241,7 @@ export const useAppSettings = () => {
       adEnabled?: boolean
       adScript?: string
       linkEnabled?: boolean
+      youtubeEnabled?: boolean
       blogId?: string
       blogName?: string
       blogUrl?: string
@@ -255,6 +256,7 @@ export const useAppSettings = () => {
       adEnabled: settings.adEnabled,
       adScript: settings.adScript,
       linkEnabled: settings.linkEnabled,
+      youtubeEnabled: settings.youtubeEnabled,
       blogId: settings.blogId,
       blogName: settings.blogName,
       blogUrl: settings.blogUrl,

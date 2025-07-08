@@ -9,6 +9,7 @@ const LinkSettingsForm: React.FC = () => {
   useEffect(() => {
     form.setFieldsValue({
       linkEnabled: appSettings.linkEnabled || false,
+      youtubeEnabled: appSettings.youtubeEnabled || false,
     })
   }, [appSettings, form])
 
@@ -17,6 +18,7 @@ const LinkSettingsForm: React.FC = () => {
       const values = form.getFieldsValue()
       await updateAppSettings({
         linkEnabled: values.linkEnabled,
+        youtubeEnabled: values.youtubeEnabled,
       })
     } catch (error) {
       // 에러는 훅에서 처리됨
@@ -27,7 +29,11 @@ const LinkSettingsForm: React.FC = () => {
     <div style={{ padding: '20px' }}>
       <h2>링크 설정</h2>
       <Form form={form} layout="vertical">
-        <Form.Item name="linkEnabled" label="링크 생성 활성화" valuePropName="checked">
+        <Form.Item name="linkEnabled" label="일반 링크 생성 활성화" valuePropName="checked">
+          <Switch />
+        </Form.Item>
+
+        <Form.Item name="youtubeEnabled" label="유튜브 링크 생성 활성화" valuePropName="checked">
           <Switch />
         </Form.Item>
 

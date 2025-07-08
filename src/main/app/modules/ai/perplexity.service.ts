@@ -17,6 +17,12 @@ export interface LinkResult {
   link: string
 }
 
+export interface YoutubeResult {
+  title: string
+  videoId: string
+  url: string
+}
+
 @Injectable()
 export class PerplexityService {
   private readonly logger = new Logger(PerplexityService.name)
@@ -166,6 +172,106 @@ ${htmlContent}
       return []
     } catch (error) {
       this.logger.error('Perplexity API 호출 중 오류 발생:', error)
+
+      // 오류 발생 시 빈 배열 반환 (워크플로우 중단 방지)
+      return []
+    }
+  }
+
+  /**
+   * HTML 섹션을 분석하여 관련 유튜브 링크를 생성합니다
+   * @param htmlContent HTML 섹션 내용
+   * @returns 관련 유튜브 링크 배열
+   */
+  async generateYoutubeLinks(htmlContent: string): Promise<YoutubeResult[]> {
+    this.logger.log(`Perplexity로 유튜브 링크 생성 시작`)
+
+    try {
+      const prompt = `
+다음 HTML 섹션의 내용을 분석하고, 관련된 유튜브 동영상을 찾아주세요.
+
+HTML 내용:
+${htmlContent}
+
+응답은 반드시 JSON 배열 형식으로만 제공해주세요. 각 동영상은 title, videoId, url을 포함해야 합니다.
+
+제목은 본문내용과 관련된 설명적인 제목으로.
+
+예시:
+[
+  {
+    "title": "관련 주제 설명 영상",
+    "videoId": "dQw4w9WgXcQ",
+    "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+  }
+]
+
+최대 1개의 동영상만 제공하고, 실제 존재하는 유튜브 동영상이어야 합니다.
+`
+
+      const provider = await this.getPerplexityProvider()
+      const model = provider('sonar-pro')
+
+      const systemPrompt =
+        '당신은 유튜브에서 신뢰할 수 있는 교육적 콘텐츠를 찾는 전문가입니다. 한국어 콘텐츠를 우선적으로 찾아주시고, 설명이 잘 되어 있는 동영상을 찾아주세요.'
+      const fullPrompt = `${systemPrompt}\n\n${prompt}`
+
+      const { text: content, sources } = await generateText({
+        model,
+        prompt: fullPrompt,
+        maxTokens: 500,
+        temperature: 0.2,
+      })
+
+      this.logger.log(`Perplexity 유튜브 응답: ${content}`)
+      this.logger.log(`Sources: ${JSON.stringify(sources)}`)
+
+      // JSON 파싱 시도
+      try {
+        const youtubeLinks = JSON.parse(content)
+        if (Array.isArray(youtubeLinks)) {
+          // 각 항목이 올바른 형태인지 확인하고 변환
+          const validLinks: YoutubeResult[] = youtubeLinks
+            .filter(
+              item =>
+                item &&
+                typeof item.title === 'string' &&
+                typeof item.videoId === 'string' &&
+                typeof item.url === 'string',
+            )
+            .map(item => ({
+              title: item.title,
+              videoId: item.videoId,
+              url: item.url,
+            }))
+            .slice(0, 1) // 최대 1개까지만
+
+          this.logger.log(`생성된 유튜브 링크 수: ${validLinks.length}`)
+          return validLinks
+        }
+      } catch (parseError) {
+        this.logger.warn('유튜브 JSON 파싱 실패, 정규식으로 URL 추출 시도')
+
+        // JSON 파싱 실패 시 정규식으로 YouTube URL 추출
+        const youtubeRegex = /https?:\/\/(?:www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)/g
+        const matches = content.match(youtubeRegex) || []
+        const urls = matches.slice(0, 1)
+
+        const youtubeResults = urls.map(url => {
+          const videoId = url.match(/v=([a-zA-Z0-9_-]+)/)?.[1] || ''
+          return {
+            title: '관련 동영상',
+            videoId,
+            url,
+          }
+        })
+
+        return youtubeResults
+      }
+
+      return []
+    } catch (error) {
+      this.logger.error('Perplexity 유튜브 API 호출 중 오류 발생:', error)
 
       // 오류 발생 시 빈 배열 반환 (워크플로우 중단 방지)
       return []

@@ -38,6 +38,7 @@ export interface AppSettings {
 
   // 링크 설정
   linkEnabled?: boolean // 링크 활성화 여부
+  youtubeEnabled?: boolean // 유튜브 링크 활성화 여부
 
   // 기존 설정들...
   blogId?: string

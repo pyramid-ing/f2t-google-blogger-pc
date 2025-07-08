@@ -1,4 +1,4 @@
-import { LinkResult } from '@main/app/modules/ai/perplexity.service'
+import { LinkResult, YoutubeResult } from '@main/app/modules/ai/perplexity.service'
 
 export interface ThumbnailData {
   mainText: string
@@ -29,6 +29,7 @@ export interface BlogPost {
     html: string // HTML content for each section
     imageUrl?: string // Optional image URL for each section
     links?: LinkResult[] // Optional related links for each section
+    youtubeLinks?: YoutubeResult[] // Optional YouTube links for each section
     aiImagePrompt?: string // Optional AI image prompt for each section
     adHtml?: string // Optional advertisement HTML for each section
   }[]
