@@ -1,77 +1,27 @@
-import React, { useState, useEffect } from 'react'
-import { Switch, Input, Button, Form, message } from 'antd'
-import { getSettings, updateSettings } from '../../api'
-import { AppSettings } from '../../types/settings'
+import React, { useEffect } from 'react'
+import { Switch, Input, Button, Form } from 'antd'
+import { useAppSettings } from '@render/hooks/useSettings'
 
 const { TextArea } = Input
 
 const AppSettingsForm: React.FC = () => {
   const [form] = Form.useForm()
-  const [loading, setLoading] = useState(false)
-  const [settings, setSettings] = useState<AppSettings>({
-    adEnabled: false,
-    adScript: '',
-    aiProvider: undefined,
-    blogId: '',
-    blogName: '',
-    blogUrl: '',
-    bloggerBlogId: '',
-    gcsBucketName: '',
-    gcsKeyContent: '',
-    gcsProjectId: '',
-    geminiApiKey: '',
-    googleAccessToken: '',
-    googleRefreshToken: '',
-    googleTokenExpiry: 0,
-    imageType: undefined,
-    oauth2AccessToken: '',
-    oauth2ClientId: '',
-    oauth2ClientSecret: '',
-    oauth2RefreshToken: '',
-    oauth2TokenExpiry: '',
-    openaiApiKey: '',
-    perplexityApiKey: '',
-    pixabayApiKey: '',
-    thumbnailBackgroundImage: '',
-    thumbnailDefaultLayoutId: '',
-    thumbnailEnabled: false,
-    thumbnailFontFamily: '',
-    thumbnailFontSize: 0,
-    thumbnailTextColor: '',
-  })
+  const { appSettings, updateAppSettings, isLoading, isSaving } = useAppSettings()
 
-  // 설정 로드
+  // 설정 로드 시 폼 초기화
   useEffect(() => {
-    loadSettings()
-  }, [])
-
-  const loadSettings = async () => {
-    try {
-      const data = await getSettings()
-      setSettings(data)
-      form.setFieldsValue(data)
-    } catch (error) {
-      message.error('설정을 불러오는데 실패했습니다.')
-    }
-  }
+    form.setFieldsValue(appSettings)
+  }, [appSettings, form])
 
   // 설정 저장
-  const handleSave = async (values: AppSettings) => {
-    setLoading(true)
+  const handleSave = async (values: any) => {
     try {
-      const settings = await getSettings()
-
-      await updateSettings({
-        ...settings,
+      await updateAppSettings({
         adEnabled: values.adEnabled,
         adScript: values.adScript,
       })
-      setSettings(values)
-      message.success('설정이 저장되었습니다.')
     } catch (error) {
-      message.error('설정 저장에 실패했습니다.')
-    } finally {
-      setLoading(false)
+      // 에러는 훅에서 처리됨
     }
   }
 
@@ -111,7 +61,7 @@ const AppSettingsForm: React.FC = () => {
         </div>
 
         <Form.Item>
-          <Button type="primary" htmlType="submit" loading={loading}>
+          <Button type="primary" htmlType="submit" loading={isSaving}>
             설정 저장
           </Button>
         </Form.Item>

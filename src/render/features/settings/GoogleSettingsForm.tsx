@@ -1,20 +1,18 @@
 import { Button, Form, Input, message, Space, Avatar, Select } from 'antd'
 import React, { useEffect, useState, useRef } from 'react'
 import {
-  getSettings,
-  updateSettings,
   startGoogleLogin,
   getGoogleUserInfo,
   isGoogleLoggedIn,
   getBloggerBlogsFromServer,
   logoutGoogle,
-} from '../../api'
+} from '@render/api'
+import { useGoogleSettings } from '@render/hooks/useSettings'
 import { UserOutlined } from '@ant-design/icons'
 
 const GoogleSettingsForm: React.FC = () => {
   const [form] = Form.useForm()
-  const [loading, setLoading] = useState(false)
-  const [saving, setSaving] = useState(false)
+  const { googleSettings, updateGoogleSettings, isLoading, isSaving } = useGoogleSettings()
   const [clientId, setClientId] = useState('')
   const [clientSecret, setClientSecret] = useState('')
   const [userInfo, setUserInfo] = useState<any>(null)
@@ -23,15 +21,21 @@ const GoogleSettingsForm: React.FC = () => {
   const [selectedBlogId, setSelectedBlogId] = useState<string | undefined>(undefined)
   const checkLoginInterval = useRef<NodeJS.Timeout>()
 
-  const loadSettings = async () => {
-    setLoading(true)
-    try {
-      const settings = await getSettings()
-      setClientId(settings.oauth2ClientId || '')
-      setClientSecret(settings.oauth2ClientSecret || '')
-      form.setFieldsValue(settings)
-      setSelectedBlogId(settings.bloggerBlogId)
+  // 초기 설정 로드 (한 번만 실행)
+  useEffect(() => {
+    const initializeSettings = () => {
+      setClientId(googleSettings.oauth2ClientId || '')
+      setClientSecret(googleSettings.oauth2ClientSecret || '')
+      form.setFieldsValue(googleSettings)
+      setSelectedBlogId(googleSettings.bloggerBlogId)
+    }
 
+    initializeSettings()
+  }, [googleSettings, form])
+
+  // 구글 로그인 상태 확인 및 블로그 목록 로드
+  const checkGoogleLoginStatus = async () => {
+    try {
       const loggedIn = await isGoogleLoggedIn()
       if (loggedIn) {
         const user = await getGoogleUserInfo()
@@ -47,33 +51,33 @@ const GoogleSettingsForm: React.FC = () => {
         form.setFieldValue('bloggerBlogId', undefined)
       }
     } catch (error) {
-      console.error('Error loading settings:', error)
-    } finally {
-      setLoading(false)
+      console.error('Error checking login status:', error)
     }
   }
 
+  // 컴포넌트 마운트 시 한 번만 로그인 상태 확인
   useEffect(() => {
-    loadSettings()
+    checkGoogleLoginStatus()
+  }, [])
+
+  // 컴포넌트 언마운트 시 인터벌 정리
+  useEffect(() => {
+    return () => {
+      if (checkLoginInterval.current) {
+        clearInterval(checkLoginInterval.current)
+      }
+    }
   }, [])
 
   const handleSaveSettings = async () => {
-    setSaving(true)
     try {
-      const settings = await getSettings()
-
-      await updateSettings({
-        ...settings,
+      await updateGoogleSettings({
         oauth2ClientId: clientId,
         oauth2ClientSecret: clientSecret,
         bloggerBlogId: selectedBlogId,
       })
-      message.success('구글 설정이 저장되었습니다.')
     } catch (error) {
-      console.error('Error saving settings:', error)
-      message.error('구글 설정 저장 중 오류가 발생했습니다.')
-    } finally {
-      setSaving(false)
+      // 에러는 훅에서 처리됨
     }
   }
 
@@ -87,7 +91,7 @@ const GoogleSettingsForm: React.FC = () => {
       try {
         const loggedIn = await isGoogleLoggedIn()
         if (loggedIn) {
-          await loadSettings()
+          await checkGoogleLoginStatus() // loadSettings 대신 checkGoogleLoginStatus 호출
           if (checkLoginInterval.current) {
             clearInterval(checkLoginInterval.current)
           }
@@ -112,32 +116,12 @@ const GoogleSettingsForm: React.FC = () => {
       setIsLoggedIn(false)
       setBlogList([])
       setSelectedBlogId(undefined)
-
-      // form의 bloggerBlogId 필드 초기화
       form.setFieldValue('bloggerBlogId', undefined)
-
-      // 설정에서 블로그 ID 제거
-      const settings = await getSettings()
-      await updateSettings({
-        ...settings,
-        bloggerBlogId: '',
-      })
-
-      message.success('구글 계정 연동이 해제되었습니다.')
-    } catch (error: any) {
-      console.error('Error during logout:', error)
-      message.error('로그아웃 중 오류가 발생했습니다: ' + error.message)
+      message.success('로그아웃되었습니다.')
+    } catch (error) {
+      message.error('로그아웃 중 오류가 발생했습니다.')
     }
   }
-
-  // 컴포넌트 언마운트 시 인터벌 정리
-  useEffect(() => {
-    return () => {
-      if (checkLoginInterval.current) {
-        clearInterval(checkLoginInterval.current)
-      }
-    }
-  }, [])
 
   return (
     <div style={{ padding: '20px' }}>
@@ -161,14 +145,14 @@ const GoogleSettingsForm: React.FC = () => {
             value={selectedBlogId}
             onChange={setSelectedBlogId}
             placeholder="블로그를 선택하세요"
-            loading={loading}
+            loading={isLoading}
             options={blogList.map(blog => ({ label: `${blog.name}(${blog.id})`, value: blog.id }))}
             allowClear
           />
         </Form.Item>
         <Form.Item>
           <Space>
-            <Button type="primary" onClick={handleSaveSettings} loading={saving}>
+            <Button type="primary" onClick={handleSaveSettings} loading={isSaving}>
               저장
             </Button>
             <Button type="primary" onClick={handleLogin}>
