@@ -13,21 +13,19 @@ import { UserOutlined } from '@ant-design/icons'
 const GoogleSettingsForm: React.FC = () => {
   const [form] = Form.useForm()
   const { googleSettings, updateGoogleSettings, isLoading, isSaving } = useGoogleSettings()
-  const [clientId, setClientId] = useState('')
-  const [clientSecret, setClientSecret] = useState('')
   const [userInfo, setUserInfo] = useState<any>(null)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [blogList, setBlogList] = useState<any[]>([])
-  const [selectedBlogId, setSelectedBlogId] = useState<string | undefined>(undefined)
   const checkLoginInterval = useRef<NodeJS.Timeout>()
 
   // 초기 설정 로드 (한 번만 실행)
   useEffect(() => {
     const initializeSettings = () => {
-      setClientId(googleSettings.oauth2ClientId || '')
-      setClientSecret(googleSettings.oauth2ClientSecret || '')
-      form.setFieldsValue(googleSettings)
-      setSelectedBlogId(googleSettings.bloggerBlogId)
+      form.setFieldsValue({
+        oauth2ClientId: googleSettings.oauth2ClientId || '',
+        oauth2ClientSecret: googleSettings.oauth2ClientSecret || '',
+        bloggerBlogId: googleSettings.bloggerBlogId || '',
+      })
     }
 
     initializeSettings()
@@ -47,7 +45,6 @@ const GoogleSettingsForm: React.FC = () => {
         setUserInfo(null)
         setIsLoggedIn(false)
         setBlogList([])
-        setSelectedBlogId(undefined)
         form.setFieldValue('bloggerBlogId', undefined)
       }
     } catch (error) {
@@ -69,12 +66,12 @@ const GoogleSettingsForm: React.FC = () => {
     }
   }, [])
 
-  const handleSaveSettings = async () => {
+  const handleSaveSettings = async (values: any) => {
     try {
       await updateGoogleSettings({
-        oauth2ClientId: clientId,
-        oauth2ClientSecret: clientSecret,
-        bloggerBlogId: selectedBlogId,
+        oauth2ClientId: values.oauth2ClientId,
+        oauth2ClientSecret: values.oauth2ClientSecret,
+        bloggerBlogId: values.bloggerBlogId,
       })
     } catch (error) {
       // 에러는 훅에서 처리됨
@@ -82,6 +79,12 @@ const GoogleSettingsForm: React.FC = () => {
   }
 
   const handleLogin = () => {
+    const clientId = form.getFieldValue('oauth2ClientId')
+    if (!clientId) {
+      message.error('OAuth2 Client ID를 먼저 입력해주세요.')
+      return
+    }
+
     startGoogleLogin(clientId)
     // 로그인 시도 후 상태 체크 인터벌 시작
     if (checkLoginInterval.current) {
@@ -91,7 +94,7 @@ const GoogleSettingsForm: React.FC = () => {
       try {
         const loggedIn = await isGoogleLoggedIn()
         if (loggedIn) {
-          await checkGoogleLoginStatus() // loadSettings 대신 checkGoogleLoginStatus 호출
+          await checkGoogleLoginStatus()
           if (checkLoginInterval.current) {
             clearInterval(checkLoginInterval.current)
           }
@@ -115,7 +118,6 @@ const GoogleSettingsForm: React.FC = () => {
       setUserInfo(null)
       setIsLoggedIn(false)
       setBlogList([])
-      setSelectedBlogId(undefined)
       form.setFieldValue('bloggerBlogId', undefined)
       message.success('로그아웃되었습니다.')
     } catch (error) {
@@ -134,16 +136,14 @@ const GoogleSettingsForm: React.FC = () => {
         </div>
       </div>
       <Form form={form} layout="vertical" onFinish={handleSaveSettings}>
-        <Form.Item label="OAuth2 Client ID">
-          <Input value={clientId} onChange={e => setClientId(e.target.value)} />
+        <Form.Item name="oauth2ClientId" label="OAuth2 Client ID">
+          <Input placeholder="OAuth2 Client ID를 입력하세요" />
         </Form.Item>
-        <Form.Item label="OAuth2 Client Secret">
-          <Input type="password" value={clientSecret} onChange={e => setClientSecret(e.target.value)} />
+        <Form.Item name="oauth2ClientSecret" label="OAuth2 Client Secret">
+          <Input.Password placeholder="OAuth2 Client Secret을 입력하세요" />
         </Form.Item>
         <Form.Item label="Blogger 블로그 선택" name="bloggerBlogId">
           <Select
-            value={selectedBlogId}
-            onChange={setSelectedBlogId}
             placeholder="블로그를 선택하세요"
             loading={isLoading}
             options={blogList.map(blog => ({ label: `${blog.name}(${blog.id})`, value: blog.id }))}
@@ -152,7 +152,7 @@ const GoogleSettingsForm: React.FC = () => {
         </Form.Item>
         <Form.Item>
           <Space>
-            <Button type="primary" onClick={handleSaveSettings} loading={isSaving}>
+            <Button type="primary" htmlType="submit" loading={isSaving}>
               저장
             </Button>
             <Button type="primary" onClick={handleLogin}>
