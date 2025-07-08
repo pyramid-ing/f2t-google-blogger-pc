@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { generateText } from 'ai'
+import { generateObject, generateText } from 'ai'
 import axios from 'axios'
+import { z } from 'zod'
 import { SettingsService } from '../settings/settings.service'
 import { createPerplexity } from '@ai-sdk/perplexity'
 
@@ -22,6 +23,26 @@ export interface YoutubeResult {
   videoId: string
   url: string
 }
+
+// Zod 스키마 정의
+const LinkResultSchema = z.object({
+  name: z.string().min(1).describe('링크의 제목 또는 설명'),
+  link: z.string().min(1).describe('실제 URL 링크'),
+})
+
+const LinkResultArraySchema = z.object({
+  links: z.array(LinkResultSchema).max(1).describe('관련 링크 배열 (최대 1개)'),
+})
+
+const YoutubeResultSchema = z.object({
+  title: z.string().min(1).describe('유튜브 동영상 제목'),
+  videoId: z.string().min(1).describe('유튜브 비디오 ID'),
+  url: z.string().min(1).describe('유튜브 동영상 URL'),
+})
+
+const YoutubeResultArraySchema = z.object({
+  videos: z.array(YoutubeResultSchema).max(1).describe('유튜브 동영상 배열 (최대 1개)'),
+})
 
 @Injectable()
 export class PerplexityService {
@@ -101,79 +122,33 @@ export class PerplexityService {
       const prompt = `
 다음 HTML 섹션의 내용을 분석하고, 관련된 신뢰할 수 있는 링크를 찾아주세요.
 
-
 HTML 내용:
 ${htmlContent}
 
-응답은 반드시 JSON 배열 형식으로만 제공해주세요. 각 링크는 name(제목)과 link(URL)를 포함해야 합니다. 
-
-제목은 본문내용에 들어가는 링크로써 어울리는 이름으로. 최후에 적당한게없으면 해당 사이트 meta:title
-
-예시:
-[
-  {"name": "한국 정부 공식 사이트", "link": "https://example.gov.kr/link1"}
-]
-
-최대 1개의 링크만 제공하고, 링크는 실제 존재하는 유효한 URL이어야 합니다.
+요구사항:
+- 본문 내용과 관련된 신뢰할 수 있는 링크 1개를 찾아주세요
+- 링크의 제목(name)은 본문에 들어가는 링크로 어울리는 이름으로 작성해주세요
+- 최후에 적당한 게 없으면 해당 사이트의 meta title을 사용해주세요
+- 실제 존재하는 유효한 URL이어야 합니다
+- 한국어 콘텐츠에 대해서는 한국의 공신력 있는 기관과 사이트를 우선해주세요
 `
 
       const provider = await this.getPerplexityProvider()
       const model = provider('sonar-pro')
 
-      const systemPrompt =
-        '당신은 신뢰할 수 있는 정보원을 찾는 전문가입니다. 한국어 콘텐츠에 대해서는 한국의 공신력 있는 기관과 사이트를 우선적으로 찾아주세요.'
-      const fullPrompt = `${systemPrompt}\n\n${prompt}`
-
-      const { text: content, sources } = await generateText({
+      const { object } = await generateObject({
         model,
-        prompt: fullPrompt,
+        schema: LinkResultArraySchema,
+        prompt,
         maxTokens: 500,
         temperature: 0.2,
+        mode: 'json',
       })
 
-      this.logger.log(`Perplexity 응답: ${content}`)
-      this.logger.log(`Sources: ${JSON.stringify(sources)}`)
-
-      // JSON 파싱 시도
-      try {
-        const links = JSON.parse(content)
-        if (Array.isArray(links)) {
-          // 각 항목이 올바른 형태인지 확인하고 변환
-          const validLinks: LinkResult[] = links
-            .filter(item => item && typeof item.name === 'string' && typeof item.link === 'string')
-            .map(item => ({
-              name: item.name,
-              link: item.link,
-            }))
-            .slice(0, 1) // 최대 1개까지만
-
-          this.logger.log(`생성된 링크 수: ${validLinks.length}`)
-          return validLinks
-        }
-      } catch (parseError) {
-        this.logger.warn('JSON 파싱 실패, 정규식으로 URL 추출 시도')
-
-        // JSON 파싱 실패 시 정규식으로 URL 추출하고 의미 있는 name 설정
-        const urlRegex = /https?:\/\/[^\s\]"']+/g
-        const extractedUrls = content.match(urlRegex) || []
-        const urls = extractedUrls.slice(0, 1)
-
-        // 각 URL에 대해 title을 가져오기 (Promise.all 사용)
-        const linkResults = await Promise.all(
-          urls.map(async url => ({
-            name: await this.generateLinkNameFromUrl(url),
-            link: url,
-          })),
-        )
-
-        return linkResults
-      }
-
-      return []
+      this.logger.log(`생성된 링크 수: ${object.links.length}`)
+      return object.links as LinkResult[]
     } catch (error) {
       this.logger.error('Perplexity API 호출 중 오류 발생:', error)
-
-      // 오류 발생 시 빈 배열 반환 (워크플로우 중단 방지)
       return []
     }
   }
@@ -193,87 +168,31 @@ ${htmlContent}
 HTML 내용:
 ${htmlContent}
 
-응답은 반드시 JSON 배열 형식으로만 제공해주세요. 각 동영상은 title, videoId, url을 포함해야 합니다.
-
-제목은 본문내용과 관련된 설명적인 제목으로.
-
-예시:
-[
-  {
-    "title": "관련 주제 설명 영상",
-    "videoId": "dQw4w9WgXcQ",
-    "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-  }
-]
-
-최대 1개의 동영상만 제공하고, 실제 존재하는 유튜브 동영상이어야 합니다.
+요구사항:
+- 본문 내용과 관련된 교육적이고 설명이 잘 되어 있는 유튜브 동영상 1개를 찾아주세요
+- 제목(title)은 본문 내용과 관련된 설명적인 제목으로 작성해주세요
+- videoId는 유튜브 URL에서 추출한 정확한 비디오 ID여야 합니다
+- url은 완전한 유튜브 동영상 URL이어야 합니다
+- 한국어 콘텐츠를 우선적으로 찾아주세요
+- 실제 존재하는 유튜브 동영상이어야 합니다
 `
 
       const provider = await this.getPerplexityProvider()
       const model = provider('sonar-pro')
 
-      const systemPrompt =
-        '당신은 유튜브에서 신뢰할 수 있는 교육적 콘텐츠를 찾는 전문가입니다. 한국어 콘텐츠를 우선적으로 찾아주시고, 설명이 잘 되어 있는 동영상을 찾아주세요.'
-      const fullPrompt = `${systemPrompt}\n\n${prompt}`
-
-      const { text: content, sources } = await generateText({
+      const { object } = await generateObject({
         model,
-        prompt: fullPrompt,
+        schema: YoutubeResultArraySchema,
+        prompt,
         maxTokens: 500,
         temperature: 0.2,
+        mode: 'json',
       })
 
-      this.logger.log(`Perplexity 유튜브 응답: ${content}`)
-      this.logger.log(`Sources: ${JSON.stringify(sources)}`)
-
-      // JSON 파싱 시도
-      try {
-        const youtubeLinks = JSON.parse(content)
-        if (Array.isArray(youtubeLinks)) {
-          // 각 항목이 올바른 형태인지 확인하고 변환
-          const validLinks: YoutubeResult[] = youtubeLinks
-            .filter(
-              item =>
-                item &&
-                typeof item.title === 'string' &&
-                typeof item.videoId === 'string' &&
-                typeof item.url === 'string',
-            )
-            .map(item => ({
-              title: item.title,
-              videoId: item.videoId,
-              url: item.url,
-            }))
-            .slice(0, 1) // 최대 1개까지만
-
-          this.logger.log(`생성된 유튜브 링크 수: ${validLinks.length}`)
-          return validLinks
-        }
-      } catch (parseError) {
-        this.logger.warn('유튜브 JSON 파싱 실패, 정규식으로 URL 추출 시도')
-
-        // JSON 파싱 실패 시 정규식으로 YouTube URL 추출
-        const youtubeRegex = /https?:\/\/(?:www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)/g
-        const matches = content.match(youtubeRegex) || []
-        const urls = matches.slice(0, 1)
-
-        const youtubeResults = urls.map(url => {
-          const videoId = url.match(/v=([a-zA-Z0-9_-]+)/)?.[1] || ''
-          return {
-            title: '관련 동영상',
-            videoId,
-            url,
-          }
-        })
-
-        return youtubeResults
-      }
-
-      return []
+      this.logger.log(`생성된 유튜브 링크 수: ${object.videos.length}`)
+      return object.videos as YoutubeResult[]
     } catch (error) {
       this.logger.error('Perplexity 유튜브 API 호출 중 오류 발생:', error)
-
-      // 오류 발생 시 빈 배열 반환 (워크플로우 중단 방지)
       return []
     }
   }
