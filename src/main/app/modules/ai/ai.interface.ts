@@ -30,6 +30,7 @@ export interface BlogPost {
     imageUrl?: string // Optional image URL for each section
     links?: LinkResult[] // Optional related links for each section
     aiImagePrompt?: string // Optional AI image prompt for each section
+    adHtml?: string // Optional advertisement HTML for each section
   }[]
 }
 export interface AIService {
