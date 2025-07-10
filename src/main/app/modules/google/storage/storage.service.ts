@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { Storage } from '@google-cloud/storage'
 import { SettingsService } from '../../settings/settings.service'
-import * as crypto from 'crypto'
 
 export interface StorageUploadOptions {
   fileName?: string
