@@ -507,6 +507,10 @@ export class ContentGenerateService implements OnModuleInit {
             sectionHtml += `\n<a href="${linkResult.link}" target="_blank" rel="noopener noreferrer" style="display: block; margin: 4px 0; color: #007bff; text-decoration: none; font-size: 14px; padding: 2px 0;">🔗 ${linkResult.name}</a>`
           })
         }
+        // 이미지 추가
+        if (section.imageUrl) {
+          sectionHtml += `\n<img src="${section.imageUrl}" alt="section image" style="width: 100%; height: auto; margin: 10px 0;" />`
+        }
         // 유튜브 링크 임베딩 추가
         if (section.youtubeLinks && section.youtubeLinks.length > 0) {
           section.youtubeLinks.forEach(youtube => {
@@ -520,10 +524,6 @@ export class ContentGenerateService implements OnModuleInit {
                 allowfullscreen></iframe>
             </div>`
           })
-        }
-        // 이미지 추가
-        if (section.imageUrl) {
-          sectionHtml += `\n<img src="${section.imageUrl}" alt="section image" style="width: 100%; height: auto; margin: 10px 0;" />`
         }
         // AI 이미지 프롬프트(디버깅용)
         if (section.aiImagePrompt) {
