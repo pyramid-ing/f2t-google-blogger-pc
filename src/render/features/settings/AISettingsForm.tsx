@@ -62,6 +62,8 @@ export const AISettingsForm: React.FC = () => {
       const values = form.getFieldsValue()
       let apiKey = ''
 
+      await handleSaveSettings(values)
+
       switch (provider) {
         case 'openai':
           apiKey = values.openaiApiKey
