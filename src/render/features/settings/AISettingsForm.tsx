@@ -29,20 +29,28 @@ export const AISettingsForm: React.FC = () => {
     perplexity: null,
   })
 
+  // aiSettings가 변경될 때마다 폼 값을 업데이트
   useEffect(() => {
-    form.setFieldsValue(aiSettings)
+    if (aiSettings) {
+      form.setFieldsValue({
+        aiProvider: aiSettings.aiProvider || 'gemini',
+        openaiApiKey: aiSettings.openaiApiKey || '',
+        geminiApiKey: aiSettings.geminiApiKey || '',
+        perplexityApiKey: aiSettings.perplexityApiKey || '',
+      })
+    }
   }, [aiSettings, form])
 
   const handleSaveSettings = async (values: any) => {
     try {
       await updateAISettings({
-        perplexityApiKey: values.perplexityApiKey,
         aiProvider: values.aiProvider,
-        openaiApiKey: values.openaiApiKey,
-        geminiApiKey: values.geminiApiKey,
+        openaiApiKey: values.openaiApiKey || '',
+        geminiApiKey: values.geminiApiKey || '',
+        perplexityApiKey: values.perplexityApiKey || '',
       })
     } catch (error) {
-      // 에러는 훅에서 처리됨
+      console.error('Error saving settings:', error)
     }
   }
 
@@ -131,55 +139,71 @@ export const AISettingsForm: React.FC = () => {
         </Form.Item>
 
         <Form.Item
-          name="openaiApiKey"
-          label="OpenAI API Key"
-          rules={[
-            {
-              required: aiSettings.aiProvider === 'openai',
-              message: 'OpenAI API Key를 입력해주세요',
-            },
-          ]}
-          extra={
-            <>
-              <Button
-                size="small"
-                onClick={() => handleValidateKey('openai')}
-                loading={validating.openai}
-                style={{ marginTop: '8px' }}
-              >
-                API 키 검증
-              </Button>
-              <ValidationStatus result={validationResults.openai} />
-            </>
-          }
+          noStyle
+          shouldUpdate={(prevValues, currentValues) => prevValues.aiProvider !== currentValues.aiProvider}
         >
-          <Input.Password placeholder="OpenAI API Key를 입력하세요" />
-        </Form.Item>
+          {({ getFieldValue }) => {
+            const provider = getFieldValue('aiProvider')
+            return (
+              <>
+                {provider === 'openai' && (
+                  <Form.Item
+                    name="openaiApiKey"
+                    label="OpenAI API Key"
+                    rules={[
+                      {
+                        required: provider === 'openai',
+                        message: 'OpenAI API Key를 입력해주세요',
+                      },
+                    ]}
+                    extra={
+                      <>
+                        <Button
+                          size="small"
+                          onClick={() => handleValidateKey('openai')}
+                          loading={validating.openai}
+                          style={{ marginTop: '8px' }}
+                        >
+                          API 키 검증
+                        </Button>
+                        <ValidationStatus result={validationResults.openai} />
+                      </>
+                    }
+                  >
+                    <Input.Password placeholder="OpenAI API Key를 입력하세요" />
+                  </Form.Item>
+                )}
 
-        <Form.Item
-          name="geminiApiKey"
-          label="Gemini API Key"
-          rules={[
-            {
-              required: aiSettings.aiProvider === 'gemini',
-              message: 'Gemini API Key를 입력해주세요',
-            },
-          ]}
-          extra={
-            <>
-              <Button
-                size="small"
-                onClick={() => handleValidateKey('gemini')}
-                loading={validating.gemini}
-                style={{ marginTop: '8px' }}
-              >
-                API 키 검증
-              </Button>
-              <ValidationStatus result={validationResults.gemini} />
-            </>
-          }
-        >
-          <Input.Password placeholder="Gemini API Key를 입력하세요" />
+                {provider === 'gemini' && (
+                  <Form.Item
+                    name="geminiApiKey"
+                    label="Gemini API Key"
+                    rules={[
+                      {
+                        required: provider === 'gemini',
+                        message: 'Gemini API Key를 입력해주세요',
+                      },
+                    ]}
+                    extra={
+                      <>
+                        <Button
+                          size="small"
+                          onClick={() => handleValidateKey('gemini')}
+                          loading={validating.gemini}
+                          style={{ marginTop: '8px' }}
+                        >
+                          API 키 검증
+                        </Button>
+                        <ValidationStatus result={validationResults.gemini} />
+                      </>
+                    }
+                  >
+                    <Input.Password placeholder="Gemini API Key를 입력하세요" />
+                  </Form.Item>
+                )}
+              </>
+            )
+          }}
         </Form.Item>
 
         <Divider />
