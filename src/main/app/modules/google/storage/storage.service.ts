@@ -28,7 +28,7 @@ export class StorageService {
 
       return new Storage({
         credentials,
-        projectId: settings.gcsProjectId || credentials.project_id,
+        projectId: credentials.project_id,
       })
     } catch (error) {
       this.logger.error('GCS 초기화 실패:', error)
