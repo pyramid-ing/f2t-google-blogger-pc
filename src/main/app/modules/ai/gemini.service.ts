@@ -40,7 +40,7 @@ export class GeminiService implements AIService {
     try {
       const genAI = new GoogleGenAI({ apiKey: apiKey.trim() })
       const result = await genAI.models.generateContent({
-        model: 'gemini-2.5-pro',
+        model: 'gemini-1.5-pro',
         contents: 'hello',
         config: {
           maxOutputTokens: 10,

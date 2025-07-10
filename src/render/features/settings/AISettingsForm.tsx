@@ -1,12 +1,33 @@
 import React, { useEffect } from 'react'
 import { validateAIKey } from '@render/api/settingsApi'
-import { Button, Form, Input, Radio, message, Divider } from 'antd'
+import { Button, Form, Input, Radio, Divider } from 'antd'
 import { useAISettings } from '@render/hooks/useSettings'
+import { CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
+
+type ValidationResult = {
+  isValid: boolean
+  message: string
+}
+
+type ValidationResults = {
+  openai: ValidationResult | null
+  gemini: ValidationResult | null
+  perplexity: ValidationResult | null
+}
 
 export const AISettingsForm: React.FC = () => {
   const [form] = Form.useForm()
   const { aiSettings, updateAISettings, isLoading, isSaving } = useAISettings()
-  const [validating, setValidating] = React.useState(false)
+  const [validating, setValidating] = React.useState<{ [key: string]: boolean }>({
+    openai: false,
+    gemini: false,
+    perplexity: false,
+  })
+  const [validationResults, setValidationResults] = React.useState<ValidationResults>({
+    openai: null,
+    gemini: null,
+    perplexity: null,
+  })
 
   useEffect(() => {
     form.setFieldsValue(aiSettings)
@@ -25,25 +46,73 @@ export const AISettingsForm: React.FC = () => {
     }
   }
 
-  const handleValidateKey = async () => {
-    setValidating(true)
+  const handleValidateKey = async (provider: 'openai' | 'gemini' | 'perplexity') => {
+    setValidating(prev => ({ ...prev, [provider]: true }))
+    setValidationResults(prev => ({ ...prev, [provider]: null }))
+
     try {
       const values = form.getFieldsValue()
+      let apiKey = ''
+
+      switch (provider) {
+        case 'openai':
+          apiKey = values.openaiApiKey
+          break
+        case 'gemini':
+          apiKey = values.geminiApiKey
+          break
+        case 'perplexity':
+          apiKey = values.perplexityApiKey
+          break
+      }
+
+      if (!apiKey) {
+        setValidationResults(prev => ({
+          ...prev,
+          [provider]: { isValid: false, message: 'API 키를 입력해주세요.' },
+        }))
+        return
+      }
+
       const result = await validateAIKey({
-        provider: values.aiProvider,
-        apiKey: values.aiProvider === 'openai' ? values.openaiApiKey : values.geminiApiKey,
+        provider,
+        apiKey,
       })
 
       if (result.valid) {
-        message.success('API 키가 유효합니다.')
+        setValidationResults(prev => ({
+          ...prev,
+          [provider]: { isValid: true, message: 'API 키가 유효합니다.' },
+        }))
       } else {
-        message.error(`API 키가 유효하지 않습니다: ${result.error}`)
+        setValidationResults(prev => ({
+          ...prev,
+          [provider]: { isValid: false, message: `API 키가 유효하지 않습니다: ${result.error}` },
+        }))
       }
     } catch (error) {
-      message.error('API 키 검증 중 오류가 발생했습니다.')
+      setValidationResults(prev => ({
+        ...prev,
+        [provider]: { isValid: false, message: 'API 키 검증 중 오류가 발생했습니다.' },
+      }))
     } finally {
-      setValidating(false)
+      setValidating(prev => ({ ...prev, [provider]: false }))
     }
+  }
+
+  const ValidationStatus: React.FC<{ result: ValidationResult | null }> = ({ result }) => {
+    if (!result) return null
+
+    return (
+      <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {result.isValid ? (
+          <CheckCircleOutlined style={{ color: '#52c41a' }} />
+        ) : (
+          <CloseCircleOutlined style={{ color: '#ff4d4f' }} />
+        )}
+        <span style={{ color: result.isValid ? '#52c41a' : '#ff4d4f' }}>{result.message}</span>
+      </div>
+    )
   }
 
   return (
@@ -70,6 +139,19 @@ export const AISettingsForm: React.FC = () => {
               message: 'OpenAI API Key를 입력해주세요',
             },
           ]}
+          extra={
+            <>
+              <Button
+                size="small"
+                onClick={() => handleValidateKey('openai')}
+                loading={validating.openai}
+                style={{ marginTop: '8px' }}
+              >
+                API 키 검증
+              </Button>
+              <ValidationStatus result={validationResults.openai} />
+            </>
+          }
         >
           <Input.Password placeholder="OpenAI API Key를 입력하세요" />
         </Form.Item>
@@ -83,25 +165,49 @@ export const AISettingsForm: React.FC = () => {
               message: 'Gemini API Key를 입력해주세요',
             },
           ]}
+          extra={
+            <>
+              <Button
+                size="small"
+                onClick={() => handleValidateKey('gemini')}
+                loading={validating.gemini}
+                style={{ marginTop: '8px' }}
+              >
+                API 키 검증
+              </Button>
+              <ValidationStatus result={validationResults.gemini} />
+            </>
+          }
         >
           <Input.Password placeholder="Gemini API Key를 입력하세요" />
         </Form.Item>
 
         <Divider />
 
-        <Form.Item name="perplexityApiKey" label="Perplexity API Key (선택사항)">
+        <Form.Item
+          name="perplexityApiKey"
+          label="Perplexity API Key (선택사항)"
+          extra={
+            <>
+              <Button
+                size="small"
+                onClick={() => handleValidateKey('perplexity')}
+                loading={validating.perplexity}
+                style={{ marginTop: '8px' }}
+              >
+                API 키 검증
+              </Button>
+              <ValidationStatus result={validationResults.perplexity} />
+            </>
+          }
+        >
           <Input.Password placeholder="Perplexity API Key를 입력하세요" />
         </Form.Item>
 
         <Form.Item>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <Button type="primary" htmlType="submit" loading={isSaving}>
-              설정 저장
-            </Button>
-            <Button onClick={handleValidateKey} loading={validating}>
-              API 키 검증
-            </Button>
-          </div>
+          <Button type="primary" htmlType="submit" loading={isSaving}>
+            설정 저장
+          </Button>
         </Form.Item>
       </Form>
     </div>
