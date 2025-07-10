@@ -398,8 +398,10 @@ export class ContentGenerateService implements OnModuleInit {
 
           const optimizedBuffer = await this.optimizeImage(imageBuffer)
 
+          // GCS 업로드 (fileName을 jobId/sectionIndex.webp로 지정)
           const uploadResult = await this.storageService.uploadImage(optimizedBuffer, {
             contentType: 'image/webp',
+            fileName: jobId ? `${jobId}/${sectionIndex}.webp` : undefined,
           })
 
           if (jobId) {

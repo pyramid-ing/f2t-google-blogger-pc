@@ -51,7 +51,7 @@ export class StorageService {
       const bucket = storage.bucket(settings.gcsBucketName!)
 
       // 파일명 생성 (제공되지 않은 경우 자동 생성)
-      const finalFileName = fileName || this.generateFileName(contentType)
+      const finalFileName = fileName
       const file = bucket.file(finalFileName)
 
       // 업로드 스트림 생성 (Uniform bucket-level access 호환)
@@ -116,14 +116,6 @@ export class StorageService {
       this.logger.error('GCS 이미지 삭제 실패:', error)
       throw new Error(`이미지 삭제 실패: ${error.message}`)
     }
-  }
-
-  private generateFileName(contentType: string): string {
-    const timestamp = Date.now()
-    const randomString = crypto.randomBytes(8).toString('hex')
-    const extension = this.getExtensionFromContentType(contentType)
-
-    return `thumbnails/${timestamp}-${randomString}.${extension}`
   }
 
   private getExtensionFromContentType(contentType: string): string {
