@@ -135,8 +135,8 @@ export const AISettingsForm: React.FC = () => {
           rules={[{ required: true, message: 'AI 제공자를 선택해주세요' }]}
         >
           <Radio.Group>
-            <Radio value="openai">OpenAI</Radio>
-            <Radio value="gemini">Google Gemini</Radio>
+            <Radio value="openai">챗GPT</Radio>
+            <Radio value="gemini">구글 제미나이</Radio>
           </Radio.Group>
         </Form.Item>
 
@@ -151,11 +151,11 @@ export const AISettingsForm: React.FC = () => {
                 {provider === 'openai' && (
                   <Form.Item
                     name="openaiApiKey"
-                    label="OpenAI API Key"
+                    label="챗GPT API키"
                     rules={[
                       {
                         required: provider === 'openai',
-                        message: 'OpenAI API Key를 입력해주세요',
+                        message: '챗GPT API키를 입력해주세요',
                       },
                     ]}
                     extra={
@@ -172,18 +172,18 @@ export const AISettingsForm: React.FC = () => {
                       </>
                     }
                   >
-                    <Input.Password placeholder="OpenAI API Key를 입력하세요" />
+                    <Input.Password placeholder="챗GPT API키를 입력하세요" />
                   </Form.Item>
                 )}
 
                 {provider === 'gemini' && (
                   <Form.Item
                     name="geminiApiKey"
-                    label="Gemini API Key"
+                    label="제미나이 API키"
                     rules={[
                       {
                         required: provider === 'gemini',
-                        message: 'Gemini API Key를 입력해주세요',
+                        message: '제미나이 API키를 입력해주세요',
                       },
                     ]}
                     extra={
@@ -200,7 +200,7 @@ export const AISettingsForm: React.FC = () => {
                       </>
                     }
                   >
-                    <Input.Password placeholder="Gemini API Key를 입력하세요" />
+                    <Input.Password placeholder="제미나이 API키를 입력하세요" />
                   </Form.Item>
                 )}
               </>
@@ -212,7 +212,7 @@ export const AISettingsForm: React.FC = () => {
 
         <Form.Item
           name="perplexityApiKey"
-          label="Perplexity API Key (선택사항)"
+          label="퍼플렉서티 API키 (선택사항)"
           extra={
             <>
               <Button
@@ -227,7 +227,7 @@ export const AISettingsForm: React.FC = () => {
             </>
           }
         >
-          <Input.Password placeholder="Perplexity API Key를 입력하세요" />
+          <Input.Password placeholder="퍼플렉서티 API키를 입력하세요" />
         </Form.Item>
 
         <Form.Item>

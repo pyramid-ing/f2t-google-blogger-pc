@@ -78,18 +78,26 @@ const ImageSettingsForm: React.FC = () => {
 
         <Form.Item
           name="pixabayApiKey"
-          label="Pixabay API Key"
-          tooltip="Pixabay에서 이미지를 검색하기 위한 API 키를 입력하세요."
+          label="픽사베이 API키"
+          tooltip="픽사베이에서 이미지를 검색하기 위한 API 키를 입력하세요."
         >
-          <Input type="password" placeholder="Pixabay API 키 입력" disabled={isLoading} />
+          <Input type="password" placeholder="픽사베이 API키 입력" disabled={isLoading} />
         </Form.Item>
 
-        <Form.Item name="gcsBucketName" label="GCS Bucket Name" tooltip="Google Cloud Storage 버킷 이름을 입력하세요.">
-          <Input placeholder="GCS Bucket Name 입력" disabled={isLoading} />
+        <Form.Item
+          name="gcsBucketName"
+          label="스토리지 버킷 이름"
+          tooltip="Google Cloud Storage 버킷 이름을 입력하세요."
+        >
+          <Input placeholder="스토리지 버킷 이름 입력" disabled={isLoading} />
         </Form.Item>
 
-        <Form.Item name="gcsKeyContent" label="GCS Key Content" tooltip="Google Cloud Storage 키 내용을 입력하세요.">
-          <TextArea rows={4} placeholder="GCS Key Content 입력" disabled={isLoading} />
+        <Form.Item
+          name="gcsKeyContent"
+          label="서비스 계정 키 파일"
+          tooltip="Google Cloud Storage 서비스 계정 키 파일 내용을 입력하세요."
+        >
+          <TextArea rows={4} placeholder="서비스 계정 키 파일 입력" disabled={isLoading} />
         </Form.Item>
 
         <Form.Item>

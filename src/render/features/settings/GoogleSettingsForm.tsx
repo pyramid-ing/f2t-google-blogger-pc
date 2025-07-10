@@ -136,13 +136,13 @@ const GoogleSettingsForm: React.FC = () => {
         </div>
       </div>
       <Form form={form} layout="vertical" onFinish={handleSaveSettings}>
-        <Form.Item name="oauth2ClientId" label="OAuth2 Client ID">
-          <Input placeholder="OAuth2 Client ID를 입력하세요" />
+        <Form.Item name="oauth2ClientId" label="클라이언트 ID">
+          <Input placeholder="클라이언트 ID를 입력하세요" />
         </Form.Item>
-        <Form.Item name="oauth2ClientSecret" label="OAuth2 Client Secret">
-          <Input.Password placeholder="OAuth2 Client Secret을 입력하세요" />
+        <Form.Item name="oauth2ClientSecret" label="클라이언트 보안 비밀번호">
+          <Input.Password placeholder="클라이언트 보안 비밀번호를 입력하세요" />
         </Form.Item>
-        <Form.Item label="Blogger 블로그 선택" name="bloggerBlogId">
+        <Form.Item label="블로그스팟 블로그 선택" name="bloggerBlogId">
           <Select
             placeholder="블로그를 선택하세요"
             loading={isLoading}
