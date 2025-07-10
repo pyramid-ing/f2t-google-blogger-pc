@@ -12,15 +12,10 @@ export interface StorageUploadOptions {
 @Injectable()
 export class StorageService {
   private readonly logger = new Logger(StorageService.name)
-  private storage: Storage | null = null
 
   constructor(private readonly settingsService: SettingsService) {}
 
   private async initializeStorage(): Promise<Storage> {
-    if (this.storage) {
-      return this.storage
-    }
-
     const settings = await this.settingsService.getSettings()
 
     if (!settings.gcsKeyContent || !settings.gcsBucketName) {
@@ -31,12 +26,10 @@ export class StorageService {
       // JSON 문자열을 파싱하여 자격 증명으로 사용
       const credentials = JSON.parse(settings.gcsKeyContent)
 
-      this.storage = new Storage({
+      return new Storage({
         credentials,
         projectId: settings.gcsProjectId || credentials.project_id,
       })
-
-      return this.storage
     } catch (error) {
       this.logger.error('GCS 초기화 실패:', error)
       if (error instanceof SyntaxError) {
