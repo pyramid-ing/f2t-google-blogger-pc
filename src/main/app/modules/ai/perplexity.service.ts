@@ -77,7 +77,7 @@ export class PerplexityService {
       const provider = createPerplexity({
         apiKey,
       })
-      const model = provider('sonar-pro')
+      const model = provider('sonar')
 
       const { text } = await generateText({
         model,
@@ -88,7 +88,7 @@ export class PerplexityService {
 
       return {
         valid: true,
-        model: 'sonar-pro',
+        model: 'sonar',
       }
     } catch (error) {
       this.logger.error('Perplexity API 키 검증 실패:', error)
@@ -134,7 +134,7 @@ ${htmlContent}
 `
 
       const provider = await this.getPerplexityProvider()
-      const model = provider('sonar-pro')
+      const model = provider('sonar')
 
       const { object } = await generateObject({
         model,
@@ -178,7 +178,7 @@ ${htmlContent}
 `
 
       const provider = await this.getPerplexityProvider()
-      const model = provider('sonar-pro')
+      const model = provider('sonar')
 
       const { object } = await generateObject({
         model,
