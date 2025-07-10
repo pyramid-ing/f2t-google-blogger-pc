@@ -501,6 +501,12 @@ export class ContentGenerateService implements OnModuleInit {
     html += blogPostHtml.sections
       .map(section => {
         let sectionHtml = section.html
+
+        // 광고 추가 (섹션 컨텐츠 바로 다음)
+        if (section.adHtml) {
+          sectionHtml += `\n${section.adHtml}`
+        }
+
         // 관련 링크 추가
         if (section.links && section.links.length > 0) {
           section.links.forEach(linkResult => {
