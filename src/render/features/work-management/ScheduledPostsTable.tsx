@@ -1,4 +1,5 @@
 import { Button, Input, message, Modal, Popconfirm, Popover, Select, Space, Table, Tag, Checkbox } from 'antd'
+import { LinkOutlined } from '@ant-design/icons'
 import React, { useEffect, useState } from 'react'
 import styled from 'styled-components'
 import {
@@ -638,9 +639,27 @@ const ScheduledPostsTable: React.FC = () => {
             width: 300,
             sorter: true,
             ellipsis: { showTitle: false },
-            render: (text: string) => (
-              <span title={text} style={{ cursor: 'default' }}>
-                {text || '-'}
+            render: (text: string, row: Job) => (
+              <span title={text} style={{ cursor: row.resultUrl ? 'pointer' : 'default' }}>
+                {row.status === JOB_STATUS.COMPLETED && row.resultUrl ? (
+                  <a
+                    onClick={e => {
+                      e.preventDefault()
+                      window.electronAPI.openExternal(row.resultUrl)
+                    }}
+                    style={{
+                      color: '#1890ff',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    {text || '-'}
+                    <LinkOutlined style={{ fontSize: '12px', opacity: 0.7 }} />
+                  </a>
+                ) : (
+                  text || '-'
+                )}
               </span>
             ),
           },
@@ -672,9 +691,15 @@ const ScheduledPostsTable: React.FC = () => {
                           e.preventDefault()
                           window.electronAPI.openExternal(row.resultUrl)
                         }}
-                        style={{ cursor: 'pointer' }}
+                        style={{
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
                       >
-                        📝 결과 보기 →
+                        등록된 포스팅 보기
+                        <LinkOutlined style={{ fontSize: '12px', opacity: 0.7 }} />
                       </a>
                     </div>
                   )}
@@ -698,9 +723,17 @@ const ScheduledPostsTable: React.FC = () => {
                           e.preventDefault()
                           window.electronAPI.openExternal(row.resultUrl)
                         }}
-                        style={{ color: '#1890ff', fontSize: '12px', cursor: 'pointer' }}
+                        style={{
+                          color: '#1890ff',
+                          fontSize: '12px',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
                       >
-                        결과 보기 →
+                        등록된 포스팅 보기
+                        <LinkOutlined style={{ fontSize: '12px', opacity: 0.7 }} />
                       </a>
                     )}
                   </ResultCell>
