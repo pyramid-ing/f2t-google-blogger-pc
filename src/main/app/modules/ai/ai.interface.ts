@@ -1,4 +1,4 @@
-import { LinkResult, YoutubeResult } from '@main/app/modules/ai/perplexity.service'
+import { YoutubeResult } from '@main/app/modules/ai/perplexity.service'
 
 export interface ThumbnailData {
   mainText: string
@@ -74,4 +74,45 @@ export interface AIService {
    * API 키 유효성 검증
    */
   validateApiKey(apiKey: string): Promise<{ valid: boolean; error?: string; model?: string }>
+}
+
+export interface LinkResult {
+  name: string
+  link: string
+}
+
+export interface GeminiQuotaError {
+  error: {
+    code: number
+    message: string
+    status: string
+    details: Array<{
+      '@type': string
+      violations?: Array<{
+        quotaMetric: string
+        quotaId: string
+        quotaDimensions: {
+          location: string
+          model: string
+        }
+        quotaValue: string
+      }>
+      links?: Array<{
+        description: string
+        url: string
+      }>
+      retryDelay?: string
+    }>
+  }
+}
+
+export class AIQuotaExceededError extends Error {
+  constructor(
+    message: string,
+    public readonly retryAfterSeconds: number,
+    public readonly provider: string,
+  ) {
+    super(message)
+    this.name = 'AIQuotaExceededError'
+  }
 }

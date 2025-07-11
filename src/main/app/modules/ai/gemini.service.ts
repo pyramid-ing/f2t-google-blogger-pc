@@ -1,5 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { AIService, BlogOutline, BlogPost, ThumbnailData, Topic } from './ai.interface'
+import {
+  AIService,
+  BlogOutline,
+  BlogPost,
+  ThumbnailData,
+  Topic,
+  AIQuotaExceededError,
+  GeminiQuotaError,
+} from './ai.interface'
 import { SettingsService } from '../settings/settings.service'
 import { Type, GoogleGenAI, Modality } from '@google/genai'
 import * as fs from 'node:fs'
@@ -79,6 +87,46 @@ export class GeminiService implements AIService {
     }
   }
 
+  private isGeminiQuotaError(error: any): error is GeminiQuotaError {
+    return (
+      error?.error?.code === 429 &&
+      error?.error?.status === 'RESOURCE_EXHAUSTED' &&
+      Array.isArray(error?.error?.details)
+    )
+  }
+
+  private getRetryDelay(error: any): number {
+    if (this.isGeminiQuotaError(error)) {
+      const retryInfo = error.error.details.find(detail => detail['@type']?.includes('RetryInfo'))
+      if (retryInfo?.retryDelay) {
+        // retryDelay format is "51s", convert to seconds
+        return parseInt(retryInfo.retryDelay.replace('s', ''))
+      }
+    }
+    return 60 // 기본 60초
+  }
+
+  private handleGeminiError(error: any): never {
+    this.logger.error('Gemini API 호출 중 오류:', error)
+
+    if (this.isGeminiQuotaError(error)) {
+      const retryDelay = this.getRetryDelay(error)
+      throw new AIQuotaExceededError(
+        `Gemini API 할당량이 초과되었습니다. ${retryDelay}초 후에 다시 시도해주세요.`,
+        retryDelay,
+        'gemini',
+      )
+    }
+
+    if (error.message?.includes('not found')) {
+      throw new Error(
+        'Gemini API가 활성화되어 있지 않거나, API 버전이 올바르지 않습니다. Google Cloud Console에서 Gemini API를 활성화해주세요.',
+      )
+    }
+
+    throw new Error(`Gemini API 오류: ${error.message}`)
+  }
+
   async generateTopics(topic: string, limit: number): Promise<Topic[]> {
     this.logger.log(`Gemini로 주제 "${topic}"에 대해 ${limit}개의 제목을 생성합니다.`)
 
@@ -138,13 +186,7 @@ export class GeminiService implements AIService {
 
       return res.titles || []
     } catch (error) {
-      this.logger.error('Gemini API 호출 중 오류 발생:', error)
-      if (error.message?.includes('not found')) {
-        throw new Error(
-          'Gemini API가 활성화되어 있지 않거나, API 버전이 올바르지 않습니다. Google Cloud Console에서 Gemini API를 활성화해주세요.',
-        )
-      }
-      throw new Error(`Gemini API 오류: ${error.message}`)
+      this.handleGeminiError(error)
     }
   }
 
@@ -157,13 +199,13 @@ title: ${title}
 description: ${description}`
 
     try {
-      const ai = await this.getGemini() // GoogleGenAI 인스턴스
+      const ai = await this.getGemini()
 
       const resp = await ai.models.generateContent({
         model: 'gemini-2.5-pro',
         contents: prompt,
         config: {
-          responseMimeType: 'application/json', // JSON 출력 강제 :contentReference[oaicite:2]{index=2}
+          responseMimeType: 'application/json',
           maxOutputTokens: 60000,
           responseSchema: {
             type: Type.OBJECT,
@@ -188,11 +230,9 @@ description: ${description}`
         },
       })
 
-      const parsed = JSON.parse(resp.text) as BlogOutline
-      return parsed
+      return JSON.parse(resp.text) as BlogOutline
     } catch (error) {
-      this.logger.error('Gemini API 호출 중 오류 발생:', error)
-      throw new Error(`Gemini API 오류: ${error.message}`)
+      this.handleGeminiError(error)
     }
   }
 
@@ -233,40 +273,28 @@ ${JSON.stringify(blogOutline)}`
         },
       })
 
-      const result = JSON.parse(resp.text) as BlogPost
-      return result
-    } catch (error: any) {
-      this.logger.error('Gemini API 호출 오류:', error)
-      throw new Error(`Gemini API 오류: ${error.message}`)
+      return JSON.parse(resp.text) as BlogPost
+    } catch (error) {
+      this.handleGeminiError(error)
     }
   }
 
   async generatePixabayPrompt(html: string): Promise<string[]> {
     try {
-      const prompt = `다음 HTML 컨텐츠를 분석하여 이미지 검색에 사용할 키워드를 생성해주세요.
-컨텐츠: ${html}
+      const ai = await this.getGemini()
+      const prompt = `다음 HTML 콘텐츠를 분석하여 Pixabay 이미지에서 검색할 키워드 5개를 추천해주세요.
+콘텐츠의 주제와 내용을 잘 반영하는 키워드를 선택해주세요.
+키워드는 영어로 작성해주세요.
 
-규칙:
-1. 한글 키워드
-2. 명사 위주
-3. 5개의 키워드 생성
-4. 구체적이고 검색 가능한 단어 선택
-5. 가장 관련성 높은 순서대로 정렬
-6. 각 키워드는 2-3개의 단어로 구성
+[HTML 콘텐츠]
+${html}
 
 응답 형식:
 {
-  "keywords": [
-    "키워드1",
-    "키워드2",
-    "키워드3",
-    "키워드4",
-    "키워드5"
-  ]
+  "keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"]
 }`
 
-      const genAI = await this.getGemini()
-      const result = await genAI.models.generateContent({
+      const resp = await ai.models.generateContent({
         model: 'gemini-2.5-pro',
         contents: prompt,
         config: {
@@ -286,38 +314,47 @@ ${JSON.stringify(blogOutline)}`
         },
       })
 
-      const response = JSON.parse(result.text)
-      return response.keywords
+      const result = JSON.parse(resp.text)
+      return result.keywords
     } catch (error) {
-      this.logger.error('Pixabay 키워드 생성 중 오류:', error)
-      throw new Error(`Gemini API 오류: ${error.message}`)
+      this.handleGeminiError(error)
     }
   }
 
   async generateAiImagePrompt(html: string): Promise<string> {
     try {
-      const prompt = `다음 HTML 컨텐츠를 분석하여 이미지 생성을 위한 상세한 프롬프트를 작성해주세요.
-컨텐츠: ${html}
+      const ai = await this.getGemini()
+      const prompt = `다음 HTML 콘텐츠를 분석하여 이미지 생성 AI에 입력할 프롬프트를 작성해주세요.
+콘텐츠의 주제와 내용을 잘 반영하는 이미지를 생성할 수 있도록 프롬프트를 작성해주세요.
+프롬프트는 영어로 작성해주세요.
 
-규칙:
-1. 영어 프롬프트로 출력
-2. 하지만 독자는 한국인이므로 한국인이 이해가능한 이미지(절대 한글로 글자 적지마.(깨짐 문제))
-2. 상세하고 구체적인 설명
-3. 이미지 스타일, 구도, 분위기 포함
-4. 최대 100단어
+[HTML 콘텐츠]
+${html}
 
-프롬프트:`
+응답 형식:
+{
+  "prompt": "프롬프트"
+}`
 
-      const genAI = await this.getGemini()
-      const result = await genAI.models.generateContent({
+      const resp = await ai.models.generateContent({
         model: 'gemini-2.5-pro',
         contents: prompt,
-        config: {},
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              prompt: { type: Type.STRING },
+            },
+            required: ['prompt'],
+          },
+        },
       })
-      return result.text
+
+      const result = JSON.parse(resp.text)
+      return result.prompt
     } catch (error) {
-      this.logger.error('이미지 프롬프트 생성 중 오류:', error)
-      throw new Error(`Gemini API 오류: ${error.message}`)
+      this.handleGeminiError(error)
     }
   }
 
@@ -360,8 +397,7 @@ ${JSON.stringify(blogOutline)}`
 
       throw new Error('이미지 데이터를 받지 못했습니다.')
     } catch (error) {
-      this.logger.error('Gemini 이미지 생성 중 오류:', error)
-      throw error
+      this.handleGeminiError(error)
     }
   }
 
@@ -369,61 +405,40 @@ ${JSON.stringify(blogOutline)}`
     this.logger.log('Gemini로 썸네일 텍스트 데이터를 생성합니다.')
 
     try {
-      const prompt = `다음 컨텐츠를 분석하여 썸네일 이미지에 사용할 텍스트를 생성해주세요.
-컨텐츠: ${content}
+      const ai = await this.getGemini()
+      const prompt = `다음 콘텐츠를 분석하여 썸네일 이미지에 들어갈 텍스트를 추천해주세요.
+콘텐츠의 주제와 내용을 잘 반영하고, 클릭을 유도할 수 있는 텍스트를 작성해주세요.
 
-규칙:
-1. 메인 텍스트는 짧고 강력한 메시지 (최대 20자)
-2. 서브 텍스트는 부가 설명 (최대 30자, 선택사항)
-3. 키워드는 3-5개의 핵심 단어
-4. JSON 형식으로 응답
+[콘텐츠]
+${content}
 
-예시 응답:
+응답 형식:
 {
-  "mainText": "메인 텍스트",
-  "subText": "서브 텍스트",
-  "keywords": ["키워드1", "키워드2", "키워드3"]
+  "mainTitle": "메인 타이틀 (15자 이내)",
+  "subTitle": "서브 타이틀 (20자 이내)",
+  "description": "설명 (30자 이내)"
 }`
 
-      const genAI = await this.getGemini()
-      const result = await genAI.models.generateContent({
+      const resp = await ai.models.generateContent({
         model: 'gemini-2.5-pro',
         contents: prompt,
         config: {
-          responseMimeType: 'application/json', // JSON 출력 필수
+          responseMimeType: 'application/json',
           responseSchema: {
             type: Type.OBJECT,
             properties: {
-              mainText: { type: Type.STRING },
-              subText: { type: Type.STRING },
-              keywords: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING },
-              },
+              mainTitle: { type: Type.STRING },
+              subTitle: { type: Type.STRING },
+              description: { type: Type.STRING },
             },
-            required: ['mainText', 'subText', 'keywords'],
-            propertyOrdering: ['mainText', 'subText', 'keywords'],
+            required: ['mainTitle', 'subTitle', 'description'],
           },
         },
       })
-      try {
-        const data = JSON.parse(result.text)
-        return {
-          mainText: data.mainText || '',
-          subText: data.subText,
-          keywords: data.keywords || [],
-        }
-      } catch (parseError) {
-        this.logger.error('JSON 파싱 오류:', parseError)
-        // 파싱 실패 시 기본값 반환
-        return {
-          mainText: result.text.split('\n')[0] || '',
-          keywords: [],
-        }
-      }
+
+      return JSON.parse(resp.text) as ThumbnailData
     } catch (error) {
-      this.logger.error('썸네일 데이터 생성 중 오류:', error)
-      throw new Error(`Gemini API 오류: ${error.message}`)
+      this.handleGeminiError(error)
     }
   }
 }
