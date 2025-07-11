@@ -19,26 +19,50 @@ export class ImagePixabayService {
     return apiKey
   }
 
-  async searchImage(keyword: string): Promise<string> {
-    this.logger.log(`이미지 검색: ${keyword}`)
+  private async searchSingleKeyword(keyword: string, apiKey: string): Promise<string | null> {
+    try {
+      this.logger.log(`키워드로 이미지 검색 시도: ${keyword}`)
 
-    const pixabayApiKey = await this.getPixabayApiKey()
-    const response = await axios.get('https://pixabay.com/api/', {
-      params: {
-        key: pixabayApiKey,
-        q: keyword,
-        image_type: 'photo',
-        orientation: 'horizontal',
-        safesearch: true,
-        per_page: 3,
-      },
-    })
+      const response = await axios.get('https://pixabay.com/api/', {
+        params: {
+          key: apiKey,
+          q: keyword,
+          image_type: 'photo',
+          orientation: 'horizontal',
+          safesearch: true,
+          per_page: 3,
+        },
+      })
 
-    if (!response.data.hits?.length) {
-      throw new Error(`이미지를 찾을 수 없습니다: ${keyword}`)
+      if (!response.data.hits?.length) {
+        this.logger.warn(`키워드에 대한 이미지를 찾을 수 없습니다: ${keyword}`)
+        return null
+      }
+
+      return response.data.hits[0].largeImageURL
+    } catch (error) {
+      this.logger.warn(`키워드 검색 중 오류 발생: ${keyword}, 오류: ${error.message}`)
+      return null
+    }
+  }
+
+  async searchImage(keywords: string[]): Promise<string> {
+    if (!keywords?.length) {
+      throw new Error('검색할 키워드가 제공되지 않았습니다.')
     }
 
-    // 첫 번째 이미지의 URL 반환
-    return response.data.hits[0].largeImageURL
+    const pixabayApiKey = await this.getPixabayApiKey()
+
+    // 각 키워드를 순차적으로 시도
+    for (const keyword of keywords) {
+      const result = await this.searchSingleKeyword(keyword, pixabayApiKey)
+      if (result) {
+        this.logger.log(`이미지 검색 성공 - 키워드: ${keyword}`)
+        return result
+      }
+    }
+
+    // 모든 키워드가 실패한 경우
+    throw new Error(`모든 키워드에 대해 이미지를 찾을 수 없습니다: ${keywords.join(', ')}`)
   }
 }

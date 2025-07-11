@@ -140,7 +140,7 @@ export class OpenAiService implements AIService {
   /**
    * HTML 컨텐츠에서 Pixabay 이미지 검색용 키워드 생성
    */
-  async generatePixabayPrompt(html: string): Promise<string> {
+  async generatePixabayPrompt(html: string): Promise<string[]> {
     try {
       const openai = await this.getOpenAI()
       const completion = await openai.chat.completions.create({
@@ -156,18 +156,33 @@ export class OpenAiService implements AIService {
 컨텐츠: ${html}
 
 규칙:
-1. 영어로 작성
-2. 1-3개의 핵심 키워드만 추출
-3. 일반적이고 검색 가능한 단어 사용
-4. 쉼표로 구분
+1. 한글 키워드
+2. 명사 위주
+3. 5개의 키워드 생성
+4. 구체적이고 검색 가능한 단어 선택
+5. 가장 관련성 높은 순서대로 정렬
+6. 각 키워드는 2-3개의 단어로 구성
 
-키워드:`,
+응답 형식:
+{
+  "keywords": [
+    "키워드1",
+    "키워드2",
+    "키워드3",
+    "키워드4",
+    "키워드5"
+  ]
+}`,
           },
         ],
         temperature: 0.7,
+        response_format: {
+          type: 'json_object',
+        },
       })
 
-      return completion.choices[0].message.content?.trim() || ''
+      const response = JSON.parse(completion.choices[0].message.content || '{}')
+      return response.keywords || []
     } catch (error) {
       this.logger.error('Pixabay 키워드 생성 중 오류:', error)
       throw new Error(`OpenAI API 오류: ${error.message}`)

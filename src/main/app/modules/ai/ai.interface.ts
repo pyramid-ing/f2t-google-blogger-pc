@@ -56,8 +56,9 @@ export interface AIService {
 
   /**
    * Pixabay 검색을 위한 키워드 생성
+   * @returns 관련성 높은 순서대로 정렬된 5개의 키워드 배열
    */
-  generatePixabayPrompt(html: string): Promise<string>
+  generatePixabayPrompt(html: string): Promise<string[]>
 
   /**
    * AI를 사용한 이미지 생성

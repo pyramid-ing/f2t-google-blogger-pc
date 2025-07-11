@@ -241,7 +241,7 @@ ${JSON.stringify(blogOutline)}`
     }
   }
 
-  async generatePixabayPrompt(html: string): Promise<string> {
+  async generatePixabayPrompt(html: string): Promise<string[]> {
     try {
       const prompt = `다음 HTML 컨텐츠를 분석하여 이미지 검색에 사용할 키워드를 생성해주세요.
 컨텐츠: ${html}
@@ -249,19 +249,45 @@ ${JSON.stringify(blogOutline)}`
 규칙:
 1. 한글 키워드
 2. 명사 위주
-3. 2-3개의 단어로 구성
+3. 5개의 키워드 생성
 4. 구체적이고 검색 가능한 단어 선택
+5. 가장 관련성 높은 순서대로 정렬
+6. 각 키워드는 2-3개의 단어로 구성
 
-키워드:`
+응답 형식:
+{
+  "keywords": [
+    "키워드1",
+    "키워드2",
+    "키워드3",
+    "키워드4",
+    "키워드5"
+  ]
+}`
 
       const genAI = await this.getGemini()
       const result = await genAI.models.generateContent({
         model: 'gemini-2.5-pro',
         contents: prompt,
-        config: {},
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              keywords: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING },
+                minItems: 5,
+                maxItems: 5,
+              },
+            },
+            required: ['keywords'],
+          },
+        },
       })
 
-      return result.text
+      const response = JSON.parse(result.text)
+      return response.keywords
     } catch (error) {
       this.logger.error('Pixabay 키워드 생성 중 오류:', error)
       throw new Error(`Gemini API 오류: ${error.message}`)
