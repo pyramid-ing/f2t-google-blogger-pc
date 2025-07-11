@@ -743,14 +743,6 @@ const ScheduledPostsTable: React.FC = () => {
             sorter: true,
           },
           {
-            title: '로그인 ID',
-            dataIndex: 'loginId',
-            width: 120,
-            sorter: true,
-            align: 'center',
-            render: (text: string) => <span style={{ fontSize: '12px', fontFamily: 'monospace' }}>{text}</span>,
-          },
-          {
             title: '액션',
             dataIndex: 'action',
             width: 150,
