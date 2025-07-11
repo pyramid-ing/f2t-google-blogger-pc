@@ -18,5 +18,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.3.0]
 - 예약날짜 형싱 변경
-- 이미지 젖ㅇ형식변경
+- 이미지 저장 키 구조 변경(JOB ID/section)
 - 속성 한글화
