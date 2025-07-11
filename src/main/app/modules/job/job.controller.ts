@@ -30,6 +30,7 @@ export class JobController {
   @Get()
   async getJobs(
     @Query('status') status?: JobStatus,
+    @Query('type') type?: JobType,
     @Query('search') search?: string,
     @Query('orderBy') orderBy: string = 'updatedAt',
     @Query('order') order: 'asc' | 'desc' = 'desc',
@@ -40,6 +41,11 @@ export class JobController {
       // 상태 필터
       if (status) {
         where.status = status
+      }
+
+      // 타입 필터
+      if (type) {
+        where.type = type
       }
 
       // 검색 필터

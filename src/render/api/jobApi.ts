@@ -1,11 +1,12 @@
 import { api } from './apiClient'
-import type { ApiResponse, Job, JobLog, JobStatus } from '.'
+import type { ApiResponse, Job, JobLog, JobStatus, JobType } from '.'
 
 /**
  * 작업 목록을 조회합니다.
  */
 export async function getJobs(params?: {
   status?: JobStatus
+  type?: JobType
   search?: string
   orderBy?: string
   order?: 'asc' | 'desc'

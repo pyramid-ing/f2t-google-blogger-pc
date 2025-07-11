@@ -203,6 +203,12 @@ const jobTypeLabels: Record<JobType, string> = {
   [JOB_TYPE.GENERATE_TOPIC]: '주제 생성',
 }
 
+const jobTypeOptions = [
+  { value: '', label: '전체' },
+  { value: JOB_TYPE.POST, label: '포스팅' },
+  { value: JOB_TYPE.GENERATE_TOPIC, label: '주제 생성' },
+]
+
 // 상태별 기본 메시지
 function getDefaultMessage(status: JobStatus): string {
   switch (status) {
@@ -263,6 +269,7 @@ const ScheduledPostsTable: React.FC = () => {
   const [data, setData] = useState<Job[]>([])
   const [loading, setLoading] = useState(false)
   const [statusFilter, setStatusFilter] = useState<JobStatus | ''>('')
+  const [typeFilter, setTypeFilter] = useState<JobType | ''>('')
   const [searchText, setSearchText] = useState('')
   const [sortField, setSortField] = useState('updatedAt')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
@@ -284,7 +291,7 @@ const ScheduledPostsTable: React.FC = () => {
 
   useEffect(() => {
     fetchData()
-  }, [statusFilter, searchText, sortField, sortOrder])
+  }, [statusFilter, typeFilter, searchText, sortField, sortOrder])
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -292,7 +299,7 @@ const ScheduledPostsTable: React.FC = () => {
       fetchData()
     }, 5000)
     return () => clearInterval(timer)
-  }, [statusFilter, searchText, sortField, sortOrder])
+  }, [statusFilter, typeFilter, searchText, sortField, sortOrder])
 
   // 데이터가 변경될 때 선택 상태 업데이트
   useEffect(() => {
@@ -308,6 +315,7 @@ const ScheduledPostsTable: React.FC = () => {
     try {
       const json = await getJobs({
         status: statusFilter || undefined,
+        type: typeFilter || undefined,
         search: searchText || undefined,
         orderBy: sortField,
         order: sortOrder,
@@ -500,6 +508,10 @@ const ScheduledPostsTable: React.FC = () => {
             <Select value={statusFilter} onChange={setStatusFilter} options={statusOptions} style={{ width: 120 }} />
           </Space>
           <Space>
+            <span>타입 필터:</span>
+            <Select value={typeFilter} onChange={setTypeFilter} options={jobTypeOptions} style={{ width: 120 }} />
+          </Space>
+          <Space>
             <span>검색:</span>
             <Input.Search
               placeholder="제목, 내용, 결과 검색"
@@ -618,7 +630,13 @@ const ScheduledPostsTable: React.FC = () => {
             width: 100,
             align: 'center',
             render: (type: JobType) => (
-              <Tag color={type === JOB_TYPE.POST ? 'blue' : 'purple'}>{jobTypeLabels[type]}</Tag>
+              <Tag
+                color={type === JOB_TYPE.POST ? 'blue' : 'purple'}
+                style={{ cursor: 'pointer' }}
+                onClick={() => setTypeFilter(type)}
+              >
+                {jobTypeLabels[type]}
+              </Tag>
             ),
           },
           {
@@ -637,7 +655,11 @@ const ScheduledPostsTable: React.FC = () => {
             title: '상태',
             dataIndex: 'status',
             width: 100,
-            render: (v: JobStatus) => <Tag color={statusColor[v] || 'default'}>{statusLabels[v] || v}</Tag>,
+            render: (v: JobStatus) => (
+              <Tag color={statusColor[v] || 'default'} style={{ cursor: 'pointer' }} onClick={() => setStatusFilter(v)}>
+                {statusLabels[v] || v}
+              </Tag>
+            ),
             sorter: true,
             align: 'center',
           },
