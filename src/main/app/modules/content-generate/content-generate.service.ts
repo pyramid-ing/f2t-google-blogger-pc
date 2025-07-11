@@ -447,7 +447,7 @@ export class ContentGenerateService implements OnModuleInit {
       }
 
       this.logger.log(`섹션 ${sectionIndex}: 광고 스크립트 삽입 완료`)
-      return `$<div class="ad-section" style="margin: 20px 0; text-align: center;">\n${adScript}\n</div>`
+      return `<div class="ad-section" style="margin: 20px 0; text-align: center;">\n${adScript}\n</div>`
     } catch (error) {
       this.logger.warn(`섹션 ${sectionIndex} 광고 삽입 중 오류: ${error.message}`)
       return undefined
