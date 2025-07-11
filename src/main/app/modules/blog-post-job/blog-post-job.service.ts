@@ -72,10 +72,28 @@ export class BlogPostJobService implements JobProcessor {
       const content = row.내용 || ''
       const scheduledAtFormatStr = row.예약날짜 || ''
       let scheduledAt: Date
+
       if (scheduledAtFormatStr && typeof scheduledAtFormatStr === 'string' && scheduledAtFormatStr.trim() !== '') {
-        const parsed = parse(scheduledAtFormatStr.trim(), 'yyyy-MM-dd HH:mm', new Date())
-        scheduledAt = isValid(parsed) ? parsed : new Date()
+        try {
+          // 날짜 문자열에서 불필요한 공백 제거
+          const cleanDateStr = scheduledAtFormatStr.trim()
+
+          // date-fns의 parse 함수를 사용하여 날짜 파싱
+          const parsed = parse(cleanDateStr, 'yyyy-MM-dd HH:mm', new Date())
+
+          if (isValid(parsed)) {
+            scheduledAt = parsed
+            this.logger.log(`날짜 파싱 성공: ${cleanDateStr} → ${parsed.toISOString()}`)
+          } else {
+            this.logger.warn(`유효하지 않은 날짜 형식: ${cleanDateStr}, 현재 시간으로 설정됩니다.`)
+            scheduledAt = new Date()
+          }
+        } catch (error) {
+          this.logger.error(`날짜 파싱 오류: ${scheduledAtFormatStr}, ${error.message}`)
+          scheduledAt = new Date()
+        }
       } else {
+        this.logger.warn('예약날짜가 비어있어 현재 시간으로 설정됩니다.')
         scheduledAt = new Date()
       }
 

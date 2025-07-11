@@ -62,11 +62,20 @@ export class WorkflowController {
   async uploadAndQueue(@UploadedFile() file: any, @Res() res: Response): Promise<void> {
     if (!file) throw new Error('엑셀 파일은 필수입니다.')
 
-    const workbook = XLSX.read(file.buffer, { type: 'buffer' })
+    // 날짜 형식을 문자열로 유지하기 위한 옵션 설정
+    const workbook = XLSX.read(file.buffer, {
+      type: 'buffer',
+      cellDates: false,
+      dateNF: 'yyyy-mm-dd hh:mm',
+      raw: true,
+    })
     const sheetName = workbook.SheetNames[0]
     const worksheet = workbook.Sheets[sheetName]
     // 한글 헤더 기반으로 객체 파싱
-    const data = XLSX.utils.sheet_to_json(worksheet) as BlogPostExcelRow[]
+    const data = XLSX.utils.sheet_to_json(worksheet, {
+      raw: false,
+      dateNF: 'yyyy-mm-dd hh:mm',
+    }) as BlogPostExcelRow[]
 
     // BlogPostJobService로 위임
     const jobs = await this.blogPostJobService.createJobsFromExcelRows(data)
