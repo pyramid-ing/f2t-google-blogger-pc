@@ -5,7 +5,7 @@ import ScheduledPostsTable from '../features/work-management/ScheduledPostsTable
 
 const Dashboard: React.FC = () => {
   return (
-    <PageContainer title="대시보드">
+    <PageContainer title="대시보드" maxWidth="none">
       <DashboardTabs />
       <div style={{ marginTop: '24px' }}>
         <ScheduledPostsTable />

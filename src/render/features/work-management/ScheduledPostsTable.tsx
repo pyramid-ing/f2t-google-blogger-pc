@@ -500,7 +500,7 @@ const ScheduledPostsTable: React.FC = () => {
   }
 
   return (
-    <PageContainer title="작업 관리">
+    <PageContainer title="작업 관리" maxWidth="none">
       <div style={{ marginBottom: '20px' }}>
         <Space size="middle" wrap>
           <Space>
