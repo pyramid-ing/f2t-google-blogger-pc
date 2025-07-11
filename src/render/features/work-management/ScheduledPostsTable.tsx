@@ -618,13 +618,6 @@ const ScheduledPostsTable: React.FC = () => {
             ),
           },
           {
-            title: 'ID',
-            dataIndex: 'id',
-            width: 80,
-            sorter: true,
-            align: 'center',
-          },
-          {
             title: '타입',
             dataIndex: 'type',
             width: 100,
