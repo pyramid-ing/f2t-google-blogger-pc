@@ -154,7 +154,7 @@ export class ContentGenerateService implements OnModuleInit {
       const blogPostWithMeta: BlogPost = {
         thumbnailUrl,
         seo,
-        sections: processedSections.map(({ sectionIndex, adHtml, ...rest }) => rest),
+        sections: processedSections.map(({ sectionIndex, ...rest }) => rest),
       }
 
       // HTML 결합
