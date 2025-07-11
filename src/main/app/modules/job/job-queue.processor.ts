@@ -6,6 +6,7 @@ import { Cron, CronExpression } from '@nestjs/schedule'
 import { JobStatus, JobType } from './job.types'
 import { TopicJobService } from '@main/app/modules/topic/topic-job.service'
 import { Job } from '@prisma/client'
+import { JobLogsService } from '@main/app/modules/job-logs/job-logs.service'
 
 @Injectable()
 export class JobQueueProcessor implements OnModuleInit {
@@ -16,6 +17,7 @@ export class JobQueueProcessor implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly blogPostJobService: BlogPostJobService,
     private readonly topicJobService: TopicJobService,
+    private readonly jobLogsService: JobLogsService,
   ) {}
 
   async onModuleInit() {
@@ -41,6 +43,7 @@ export class JobQueueProcessor implements OnModuleInit {
             completedAt: new Date(),
           },
         })
+        await this.jobLogsService.createJobLog(job.id, '시스템 재시작으로 인한 작업 중단', 'error')
       }
       this.logger.log(`처리 중이던 ${processingJobs.length}개 작업을 실패 처리했습니다.`)
     } catch (error) {
