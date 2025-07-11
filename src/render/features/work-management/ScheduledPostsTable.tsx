@@ -645,19 +645,7 @@ const ScheduledPostsTable: React.FC = () => {
             ),
           },
           {
-            title: '상태',
-            dataIndex: 'status',
-            width: 100,
-            render: (v: JobStatus) => (
-              <Tag color={statusColor[v] || 'default'} style={{ cursor: 'pointer' }} onClick={() => setStatusFilter(v)}>
-                {statusLabels[v] || v}
-              </Tag>
-            ),
-            sorter: true,
-            align: 'center',
-          },
-          {
-            title: '결과',
+            title: '진행상황',
             dataIndex: 'resultMsg',
             width: 350,
             render: (v: string, row: Job) => {
@@ -722,19 +710,19 @@ const ScheduledPostsTable: React.FC = () => {
             sorter: true,
           },
           {
-            title: '내용',
-            dataIndex: 'desc',
-            width: 200,
-            sorter: true,
-            ellipsis: { showTitle: false },
-            render: (text: string) => (
-              <span title={text} style={{ cursor: 'default' }}>
-                {text}
-              </span>
+            title: '상태',
+            dataIndex: 'status',
+            width: 100,
+            render: (v: JobStatus) => (
+              <Tag color={statusColor[v] || 'default'} style={{ cursor: 'pointer' }} onClick={() => setStatusFilter(v)}>
+                {statusLabels[v] || v}
+              </Tag>
             ),
+            sorter: true,
+            align: 'center',
           },
           {
-            title: '예정시간',
+            title: '등록예정시간',
             dataIndex: 'scheduledAt',
             width: 160,
             render: (v: string) => (
