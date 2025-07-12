@@ -222,7 +222,6 @@ export const useImageSettings = () => {
     imageSettings: {
       imageType: settings.imageType,
       pixabayApiKey: settings.pixabayApiKey,
-      gcsProjectId: settings.gcsProjectId,
       gcsKeyContent: settings.gcsKeyContent,
       gcsBucketName: settings.gcsBucketName,
     },
