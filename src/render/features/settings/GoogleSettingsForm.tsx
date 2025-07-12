@@ -78,13 +78,22 @@ const GoogleSettingsForm: React.FC = () => {
     }
   }
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     const clientId = form.getFieldValue('oauth2ClientId')
-    if (!clientId) {
-      message.error('OAuth2 Client ID를 먼저 입력해주세요.')
+    const clientSecret = form.getFieldValue('oauth2ClientSecret')
+    if (!clientId || !clientSecret) {
+      message.error('OAuth2 Client ID와 Client Secret을 모두 입력하고 저장해주세요.')
       return
     }
-
+    // 저장 먼저 시도
+    try {
+      await handleSaveSettings(form.getFieldsValue())
+      message.success('설정이 저장되었습니다. 이제 Google OAuth 로그인을 진행합니다.')
+    } catch (error) {
+      message.error('설정 저장에 실패했습니다. 저장 후 다시 시도해주세요.')
+      return
+    }
+    // 저장 성공 후 로그인 시도
     startGoogleLogin(clientId)
     // 로그인 시도 후 상태 체크 인터벌 시작
     if (checkLoginInterval.current) {
