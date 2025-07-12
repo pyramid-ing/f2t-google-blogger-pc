@@ -166,4 +166,9 @@ export class GoogleOAuthController {
   async logout() {
     return this.oauthService.logout()
   }
+
+  @Post('validate-credentials')
+  async validateCredentials(@Body() body: { clientId: string; clientSecret: string }) {
+    return this.oauthService.validateClientCredentials(body.clientId, body.clientSecret)
+  }
 }

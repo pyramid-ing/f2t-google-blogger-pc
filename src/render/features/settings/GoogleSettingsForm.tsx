@@ -6,6 +6,7 @@ import {
   isGoogleLoggedIn,
   getBloggerBlogsFromServer,
   logoutGoogle,
+  validateGoogleClientCredentials,
 } from '@render/api'
 import { useGoogleSettings } from '@render/hooks/useSettings'
 import { UserOutlined } from '@ant-design/icons'
@@ -17,6 +18,7 @@ const GoogleSettingsForm: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [blogList, setBlogList] = useState<any[]>([])
   const checkLoginInterval = useRef<NodeJS.Timeout>()
+  const [isValidating, setIsValidating] = useState(false)
 
   // 초기 설정 로드 (한 번만 실행)
   useEffect(() => {
@@ -134,6 +136,29 @@ const GoogleSettingsForm: React.FC = () => {
     }
   }
 
+  // 클라이언트 ID/시크릿 검증 함수
+  const handleValidateCredentials = async () => {
+    const clientId = form.getFieldValue('oauth2ClientId')
+    const clientSecret = form.getFieldValue('oauth2ClientSecret')
+    if (!clientId || !clientSecret) {
+      message.error('OAuth2 Client ID와 Client Secret을 모두 입력해주세요.')
+      return
+    }
+    setIsValidating(true)
+    try {
+      const result = await validateGoogleClientCredentials(clientId, clientSecret)
+      if (result.valid) {
+        message.success('클라이언트 ID/시크릿이 정상입니다.')
+      } else {
+        message.error(result.error || '클라이언트 정보가 올바르지 않습니다.')
+      }
+    } catch (error) {
+      message.error('검증 중 오류가 발생했습니다.')
+    } finally {
+      setIsValidating(false)
+    }
+  }
+
   return (
     <div style={{ padding: '20px' }}>
       <h2>구글 설정</h2>
@@ -150,6 +175,11 @@ const GoogleSettingsForm: React.FC = () => {
         </Form.Item>
         <Form.Item name="oauth2ClientSecret" label="클라이언트 보안 비밀번호">
           <Input.Password placeholder="클라이언트 보안 비밀번호를 입력하세요" />
+        </Form.Item>
+        <Form.Item>
+          <Button type="default" onClick={handleValidateCredentials} loading={isValidating}>
+            클라이언트 정보 검증
+          </Button>
         </Form.Item>
         <Form.Item label="블로그스팟 블로그 선택" name="bloggerBlogId">
           <Select

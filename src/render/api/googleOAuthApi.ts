@@ -104,3 +104,8 @@ export async function getValidAccessToken(): Promise<string | null> {
     return null
   }
 }
+
+export async function validateGoogleClientCredentials(clientId: string, clientSecret: string) {
+  const res = await api.post('/google-oauth/validate-credentials', { clientId, clientSecret })
+  return res.data
+}

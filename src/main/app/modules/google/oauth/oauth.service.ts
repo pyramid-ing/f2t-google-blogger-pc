@@ -341,4 +341,41 @@ export class OauthService {
       throw new Error(`로그아웃 실패: ${error.message}`)
     }
   }
+
+  /**
+   * 클라이언트 ID/시크릿 유효성 검증
+   */
+  async validateClientCredentials(clientId: string, clientSecret: string) {
+    // 임의의 잘못된 code로 토큰 요청을 시도하여 clientId/clientSecret 유효성만 체크
+    const fakeCode = 'invalid_code_for_validation'
+    const requestBody = new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      code: fakeCode,
+      grant_type: 'authorization_code',
+      redirect_uri: 'http://localhost:3554/google-oauth/callback',
+    })
+    try {
+      const response = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: requestBody,
+      })
+      const data = await response.json()
+      // clientId/clientSecret이 잘못된 경우 error: 'unauthorized_client' 또는 'invalid_client' 등 반환
+      if (data.error === 'unauthorized_client' || data.error === 'invalid_client') {
+        return { valid: false, error: '클라이언트 ID 또는 시크릿이 잘못되었습니다.' }
+      }
+      // code가 잘못된 경우 error: 'invalid_grant' 등 반환 → 이 경우는 clientId/secret이 맞다는 의미
+      if (data.error === 'invalid_grant') {
+        return { valid: true }
+      }
+      // 기타 에러
+      return { valid: false, error: data.error_description || data.error || '알 수 없는 오류' }
+    } catch (error: any) {
+      return { valid: false, error: error.message || '네트워크 오류' }
+    }
+  }
 }
