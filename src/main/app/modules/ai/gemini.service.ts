@@ -58,7 +58,7 @@ export class GeminiService implements AIService {
       const response = result.text
 
       if (!response) {
-        throw new CustomHttpException(ErrorCode.GEMINI_API_ERROR, { reason: 'API 응답이 비어있음' })
+        throw new CustomHttpException(ErrorCode.AI_API_ERROR, { reason: 'API 응답이 비어있음' })
       }
 
       return {
@@ -78,18 +78,18 @@ export class GeminiService implements AIService {
           detail: error.message,
         })
       } else if (error.message?.includes('quota')) {
-        throw new CustomHttpException(ErrorCode.GEMINI_QUOTA_EXCEEDED, {
+        throw new CustomHttpException(ErrorCode.AI_QUOTA_EXCEEDED, {
           reason: 'API 할당량이 초과되었습니다. 나중에 다시 시도해주세요.',
         })
       } else if (error.message?.includes('permission')) {
-        throw new CustomHttpException(ErrorCode.GEMINI_NO_PERMISSION, { reason: 'API 키에 필요한 권한이 없습니다.' })
+        throw new CustomHttpException(ErrorCode.AI_NO_PERMISSION, { reason: 'API 키에 필요한 권한이 없습니다.' })
       } else if (error.message?.includes('not found')) {
-        throw new CustomHttpException(ErrorCode.GEMINI_API_ERROR, {
+        throw new CustomHttpException(ErrorCode.AI_API_ERROR, {
           reason: 'API 버전 또는 모델이 올바르지 않습니다. Gemini API가 활성화되어 있는지 확인해주세요.',
         })
       }
 
-      throw new CustomHttpException(ErrorCode.GEMINI_API_ERROR, { message: error.message })
+      throw new CustomHttpException(ErrorCode.AI_API_ERROR, { message: error.message })
     }
   }
 
@@ -117,14 +117,14 @@ export class GeminiService implements AIService {
 
     if (this.isGeminiQuotaError(error)) {
       const retryDelay = this.getRetryDelay(error)
-      throw new CustomHttpException(ErrorCode.GEMINI_QUOTA_EXCEEDED, { retryDelay, provider: 'gemini' })
+      throw new CustomHttpException(ErrorCode.AI_QUOTA_EXCEEDED, { retryDelay, provider: 'gemini' })
     }
 
     if (error.message?.includes('not found')) {
-      throw new CustomHttpException(ErrorCode.GEMINI_API_ERROR, { reason: 'API not found', provider: 'gemini' })
+      throw new CustomHttpException(ErrorCode.AI_API_ERROR, { reason: 'API not found', provider: 'gemini' })
     }
 
-    throw new CustomHttpException(ErrorCode.GEMINI_API_ERROR, { message: error.message, provider: 'gemini' })
+    throw new CustomHttpException(ErrorCode.AI_API_ERROR, { message: error.message, provider: 'gemini' })
   }
 
   async generateTopics(topic: string, limit: number): Promise<Topic[]> {
@@ -395,9 +395,7 @@ ${html}
         }
       }
 
-      throw new CustomHttpException(ErrorCode.GEMINI_IMAGE_DATA_NOT_FOUND, {
-        message: '이미지 데이터를 받지 못했습니다.',
-      })
+      throw new CustomHttpException(ErrorCode.AI_IMAGE_DATA_NOT_FOUND)
     } catch (error) {
       this.handleGeminiError(error)
     }

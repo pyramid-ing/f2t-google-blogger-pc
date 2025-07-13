@@ -77,17 +77,11 @@ export const ErrorCodeMap: Record<ErrorCode, ErrorCodeMeta> = {
 
   // Gemini API
   [ErrorCode.GEMINI_API_KEY_REQUIRED]: { status: 400, message: () => 'Gemini API 키가 입력되지 않았습니다.' },
-  [ErrorCode.GEMINI_IMAGE_DATA_NOT_FOUND]: {
-    status: 502,
-    message: () => 'Gemini API에서 이미지 데이터를 받지 못했습니다.',
-  },
-  [ErrorCode.GEMINI_QUOTA_EXCEEDED]: {
+  [ErrorCode.AI_QUOTA_EXCEEDED]: {
     status: 429,
     message: meta =>
-      `Gemini API 할당량이 초과되었습니다.${meta?.retryDelay ? ` ${meta.retryDelay}초 후에 다시 시도해주세요.` : ''}${meta?.provider ? ` (provider: ${meta.provider})` : ''}`,
+      `API 할당량이 초과되었습니다.${meta?.retryDelay ? ` ${meta.retryDelay}초 후에 다시 시도해주세요.` : ''}${meta?.provider ? ` (provider: ${meta.provider})` : ''}`,
   },
-  [ErrorCode.GEMINI_API_ERROR]: { status: 502, message: () => 'Gemini API 호출 중 오류가 발생했습니다.' },
-  [ErrorCode.GEMINI_NO_PERMISSION]: { status: 403, message: () => 'Gemini API 키에 필요한 권한이 없습니다.' },
 
   // 작업 관련
   [ErrorCode.JOB_NOT_FOUND]: { status: 404, message: () => '작업을 찾을 수 없습니다.' },
@@ -105,4 +99,5 @@ export const ErrorCodeMap: Record<ErrorCode, ErrorCodeMeta> = {
   [ErrorCode.TOPIC_JOB_NOT_FOUND]: { status: 404, message: () => '토픽 작업 데이터를 찾을 수 없습니다.' },
   [ErrorCode.WORKFLOW_TOPIC_REQUIRED]: { status: 400, message: () => '주제(topic) 파라미터는 필수입니다.' },
   [ErrorCode.WORKFLOW_EXCEL_FILE_REQUIRED]: { status: 400, message: () => '엑셀 파일은 필수입니다.' },
+  [ErrorCode.AI_IMAGE_DATA_NOT_FOUND]: { status: 502, message: () => 'AI에서 이미지 데이터를 받지 못했습니다.' },
 }
