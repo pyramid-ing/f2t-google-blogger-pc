@@ -1,39 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { SettingsService } from '../../settings/settings.service'
 import { AppSettings } from '@render/types/settings'
-
-// 에러 클래스 정의
-export class GoogleAuthError extends Error {
-  constructor(
-    message: string,
-    public operation: string,
-    public details?: any,
-  ) {
-    super(message)
-    this.name = 'GoogleAuthError'
-  }
-}
-export class GoogleTokenError extends Error {
-  constructor(
-    message: string,
-    public operation: string,
-    public isAuthError: boolean,
-    public details?: any,
-  ) {
-    super(message)
-    this.name = 'GoogleTokenError'
-  }
-}
-export class GoogleConfigError extends Error {
-  constructor(
-    message: string,
-    public operation: string,
-    public details?: any,
-  ) {
-    super(message)
-    this.name = 'GoogleConfigError'
-  }
-}
+import { CustomHttpException } from '@main/common/errors/custom-http.exception'
+import { ErrorCode } from '@main/common/errors/error-code.enum'
 
 @Injectable()
 export class OauthService {
@@ -50,7 +19,8 @@ export class OauthService {
       const { oauth2AccessToken, oauth2RefreshToken, oauth2TokenExpiry, oauth2ClientId, oauth2ClientSecret } = settings
 
       if (!oauth2AccessToken) {
-        throw new GoogleAuthError('Google OAuth 토큰이 없습니다. 먼저 로그인해주세요.', 'getAccessToken', {
+        throw new CustomHttpException(ErrorCode.AUTH_REQUIRED, {
+          message: 'Google OAuth 토큰이 없습니다. 먼저 로그인해주세요.',
           hasRefreshToken: !!oauth2RefreshToken,
         })
       }
@@ -72,22 +42,20 @@ export class OauthService {
           this.logger.log('Google 토큰이 자동으로 갱신되었습니다.')
           return newTokens.accessToken
         } catch (refreshError: any) {
-          throw new GoogleTokenError(
-            `Google 토큰 갱신 실패: ${refreshError.message}. 다시 로그인해주세요.`,
-            'refreshAccessToken',
-            true,
-            { originalError: refreshError.message },
-          )
+          throw new CustomHttpException(ErrorCode.EXTERNAL_API_FAIL, {
+            message: `Google 토큰 갱신 실패: ${refreshError.message}. 다시 로그인해주세요.`,
+            originalError: refreshError.message,
+          })
         }
       }
 
       return oauth2AccessToken
     } catch (error: any) {
-      if (error instanceof GoogleConfigError || error instanceof GoogleAuthError || error instanceof GoogleTokenError) {
+      if (error instanceof CustomHttpException) {
         throw error
       }
-      throw new GoogleAuthError(`Google 인증 토큰 가져오기 실패: ${error.message}`, 'getAccessToken', {
-        originalError: error.message,
+      throw new CustomHttpException(ErrorCode.EXTERNAL_API_FAIL, {
+        message: error.message || '네트워크 오류',
       })
     }
   }
@@ -112,7 +80,8 @@ export class OauthService {
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new GoogleTokenError(errorData.error_description || 'Token 갱신 실패', 'refreshAccessToken', false, {
+        throw new CustomHttpException(ErrorCode.EXTERNAL_API_FAIL, {
+          message: errorData.error_description || 'Token 갱신 실패',
           httpStatus: response.status,
           errorData,
         })
@@ -124,10 +93,11 @@ export class OauthService {
         expiresAt: Date.now() + data.expires_in * 1000,
       }
     } catch (error: any) {
-      if (error instanceof GoogleTokenError) {
+      if (error instanceof CustomHttpException) {
         throw error
       }
-      throw new GoogleTokenError(`토큰 갱신 중 네트워크 오류: ${error.message}`, 'refreshAccessToken', false, {
+      throw new CustomHttpException(ErrorCode.EXTERNAL_API_FAIL, {
+        message: `토큰 갱신 중 네트워크 오류: ${error.message}`,
         originalError: error.message,
       })
     }
@@ -140,18 +110,18 @@ export class OauthService {
     try {
       const settings = await this.settingsService.getSettings()
       if (!settings) {
-        throw new GoogleConfigError('Google 설정이 존재하지 않습니다.', 'processOAuthCallback', 'global_settings')
+        throw new CustomHttpException(ErrorCode.INVALID_INPUT, {
+          message: 'Google 설정이 존재하지 않습니다.',
+          configType: 'global_settings',
+        })
       }
       const { oauth2ClientId, oauth2ClientSecret } = settings
       if (!oauth2ClientId || !oauth2ClientSecret) {
-        throw new GoogleConfigError(
-          'OAuth2 Client ID 또는 Client Secret이 설정되지 않았습니다.',
-          'processOAuthCallback',
-          {
-            hasClientId: !!oauth2ClientId,
-            hasClientSecret: !!oauth2ClientSecret,
-          },
-        )
+        throw new CustomHttpException(ErrorCode.INVALID_INPUT, {
+          message: 'OAuth2 Client ID 또는 Client Secret이 설정되지 않았습니다.',
+          hasClientId: !!oauth2ClientId,
+          hasClientSecret: !!oauth2ClientSecret,
+        })
       }
       const tokens = await this.exchangeCodeForTokens(code, oauth2ClientId, oauth2ClientSecret)
       const userInfo = await this.getGoogleUserInfo(tokens.accessToken)
@@ -165,10 +135,11 @@ export class OauthService {
       this.logger.log('OAuth 토큰 저장 완료')
       return { tokens, userInfo }
     } catch (error: any) {
-      if (error instanceof GoogleAuthError || error instanceof GoogleConfigError || error instanceof GoogleTokenError) {
+      if (error instanceof CustomHttpException) {
         throw error
       }
-      throw new GoogleAuthError(`OAuth 콜백 처리 실패: ${error.message}`, 'processOAuthCallback', {
+      throw new CustomHttpException(ErrorCode.EXTERNAL_API_FAIL, {
+        message: `OAuth 콜백 처리 실패: ${error.message}`,
         hasCode: !!code,
         originalError: error.message,
       })
@@ -196,19 +167,16 @@ export class OauthService {
       })
       if (!response.ok) {
         const errorData = await response.json()
-        throw new GoogleTokenError(
-          `토큰 교환 실패: ${errorData.error_description || errorData.error}`,
-          'exchangeCodeForTokens',
-          false,
-          {
-            httpStatus: response.status,
-            errorData,
-          },
-        )
+        throw new CustomHttpException(ErrorCode.EXTERNAL_API_FAIL, {
+          message: `토큰 교환 실패: ${errorData.error_description || errorData.error}`,
+          httpStatus: response.status,
+          errorData,
+        })
       }
       const data = await response.json()
       if (!data.access_token) {
-        throw new GoogleTokenError('Google에서 유효한 액세스 토큰을 받지 못했습니다.', 'exchangeCodeForTokens', false, {
+        throw new CustomHttpException(ErrorCode.EXTERNAL_API_FAIL, {
+          message: 'Google에서 유효한 액세스 토큰을 받지 못했습니다.',
           responseData: data,
         })
       }
@@ -220,10 +188,11 @@ export class OauthService {
         scope: data.scope,
       }
     } catch (error: any) {
-      if (error instanceof GoogleTokenError) {
+      if (error instanceof CustomHttpException) {
         throw error
       }
-      throw new GoogleTokenError(`토큰 교환 중 네트워크 오류: ${error.message}`, 'exchangeCodeForTokens', false, {
+      throw new CustomHttpException(ErrorCode.EXTERNAL_API_FAIL, {
+        message: `토큰 교환 중 네트워크 오류: ${error.message}`,
         originalError: error.message,
       })
     }
@@ -239,7 +208,10 @@ export class OauthService {
       },
     })
     if (!response.ok) {
-      throw new Error('사용자 정보 조회 실패')
+      throw new CustomHttpException(ErrorCode.EXTERNAL_API_FAIL, {
+        message: '사용자 정보 조회 실패',
+        httpStatus: response.status,
+      })
     }
     return await response.json()
   }
@@ -252,7 +224,7 @@ export class OauthService {
       const appSettings = await this.settingsService.getSettings()
       const { oauth2ClientId, oauth2ClientSecret, oauth2RefreshToken } = appSettings
       if (!oauth2RefreshToken) {
-        throw new Error('Refresh token이 없습니다.')
+        throw new CustomHttpException(ErrorCode.AUTH_REQUIRED, { message: 'Refresh token이 없습니다.' })
       }
       const newTokens = await this.refreshAccessToken(oauth2RefreshToken, oauth2ClientId, oauth2ClientSecret)
       const updatedSettings: AppSettings = {
@@ -267,7 +239,10 @@ export class OauthService {
         accessToken: newTokens.accessToken,
       }
     } catch (error: any) {
-      throw new Error(`토큰 갱신 실패: ${error.message}`)
+      throw new CustomHttpException(ErrorCode.EXTERNAL_API_FAIL, {
+        message: `토큰 갱신 실패: ${error.message}`,
+        originalError: error.message,
+      })
     }
   }
 
@@ -338,7 +313,10 @@ export class OauthService {
         message: 'Google 계정 연동이 해제되었습니다.',
       }
     } catch (error: any) {
-      throw new Error(`로그아웃 실패: ${error.message}`)
+      throw new CustomHttpException(ErrorCode.EXTERNAL_API_FAIL, {
+        message: `로그아웃 실패: ${error.message}`,
+        originalError: error.message,
+      })
     }
   }
 
@@ -355,27 +333,30 @@ export class OauthService {
       grant_type: 'authorization_code',
       redirect_uri: 'http://localhost:3554/google-oauth/callback',
     })
-    try {
-      const response = await fetch('https://oauth2.googleapis.com/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: requestBody,
+
+    const response = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: requestBody,
+    })
+    const data = await response.json()
+    // clientId/clientSecret이 잘못된 경우 error: 'unauthorized_client' 또는 'invalid_client' 등 반환
+    if (data.error === 'unauthorized_client' || data.error === 'invalid_client') {
+      throw new CustomHttpException(ErrorCode.INVALID_CLIENT_CREDENTIALS, {
+        message: '클라이언트 ID 또는 시크릿이 잘못되었습니다.',
+        responseData: data,
       })
-      const data = await response.json()
-      // clientId/clientSecret이 잘못된 경우 error: 'unauthorized_client' 또는 'invalid_client' 등 반환
-      if (data.error === 'unauthorized_client' || data.error === 'invalid_client') {
-        return { valid: false, error: '클라이언트 ID 또는 시크릿이 잘못되었습니다.' }
-      }
-      // code가 잘못된 경우 error: 'invalid_grant' 등 반환 → 이 경우는 clientId/secret이 맞다는 의미
-      if (data.error === 'invalid_grant') {
-        return { valid: true }
-      }
-      // 기타 에러
-      return { valid: false, error: data.error_description || data.error || '알 수 없는 오류' }
-    } catch (error: any) {
-      return { valid: false, error: error.message || '네트워크 오류' }
     }
+    // code가 잘못된 경우 error: 'invalid_grant' 등 반환 → 이 경우는 clientId/secret이 맞다는 의미
+    if (data.error === 'invalid_grant') {
+      return { valid: true }
+    }
+    // 기타 에러
+    throw new CustomHttpException(ErrorCode.EXTERNAL_API_FAIL, {
+      message: data.error_description || data.error || '알 수 없는 오류',
+      responseData: data,
+    })
   }
 }

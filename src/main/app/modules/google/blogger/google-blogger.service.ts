@@ -1,10 +1,11 @@
-import { GoogleBloggerError } from '@main/filters/error.types'
 import { HttpService } from '@nestjs/axios'
 import { Injectable, Logger } from '@nestjs/common'
 import { firstValueFrom } from 'rxjs'
 import { OauthService } from '../oauth/oauth.service'
 import type * as BloggerTypes from './google-blogger.types'
 import { SettingsService } from '@main/app/modules/settings/settings.service'
+import { CustomHttpException } from '@main/common/errors/custom-http.exception'
+import { ErrorCode } from '@main/common/errors/error-code.enum'
 
 @Injectable()
 export class GoogleBloggerService {
@@ -34,39 +35,26 @@ export class GoogleBloggerService {
     } catch (error) {
       this.logger.error(`블로그 정보 조회 실패: ${blogUrl}`, error)
 
-      if (error instanceof GoogleBloggerError) {
-        throw error
-      }
-
       if (error.response?.status === 401) {
-        throw new GoogleBloggerError(
-          'Google API 인증이 실패했습니다. 토큰을 확인해주세요.',
-          'getBlogByUrl',
-          undefined,
-          undefined,
-          {
-            blogUrl,
-            responseStatus: 401,
-          },
-        )
+        throw new CustomHttpException(ErrorCode.AUTH_REQUIRED, {
+          message: 'Google API 인증이 실패했습니다. 토큰을 확인해주세요.',
+          blogUrl,
+          responseStatus: 401,
+        })
       } else if (error.response?.status === 404) {
-        throw new GoogleBloggerError(`블로그를 찾을 수 없습니다: ${blogUrl}`, 'getBlogByUrl', undefined, undefined, {
+        throw new CustomHttpException(ErrorCode.DATA_NOT_FOUND, {
+          message: `블로그를 찾을 수 없습니다: ${blogUrl}`,
           blogUrl,
           responseStatus: 404,
         })
       }
 
-      throw new GoogleBloggerError(
-        `블로그 정보 조회 실패: ${error.response?.data?.error?.message || error.message}`,
-        'getBlogByUrl',
-        undefined,
-        undefined,
-        {
-          blogUrl,
-          responseStatus: error.response?.status,
-          responseData: error.response?.data,
-        },
-      )
+      throw new CustomHttpException(ErrorCode.EXTERNAL_API_FAIL, {
+        message: `블로그 정보 조회 실패: ${error.response?.data?.error?.message || error.message}`,
+        blogUrl,
+        responseStatus: error.response?.status,
+        responseData: error.response?.data,
+      })
     }
   }
 
@@ -83,7 +71,8 @@ export class GoogleBloggerService {
         finalBlogId = blogInfo.id
       }
       if (!finalBlogId) {
-        throw new GoogleBloggerError('blogId 또는 blogUrl이 필요합니다.', 'getBlogPosts', undefined, undefined, {
+        throw new CustomHttpException(ErrorCode.DATA_NOT_FOUND, {
+          message: 'blogId 또는 blogUrl이 필요합니다.',
           providedOptions: options,
         })
       }
@@ -100,34 +89,33 @@ export class GoogleBloggerService {
     } catch (error) {
       this.logger.error(`블로그 게시물 조회 실패: ${blogId || blogUrl}`, error)
 
-      if (error instanceof GoogleBloggerError) {
+      if (error instanceof CustomHttpException) {
         throw error
       }
 
       if (error.response?.status === 401) {
-        throw new GoogleBloggerError('Google API 인증이 실패했습니다.', 'getBlogPosts', blogId, blogUrl)
-      } else if (error.response?.status === 404) {
-        throw new GoogleBloggerError(
-          `블로그를 찾을 수 없습니다: ${blogId || blogUrl}`,
-          'getBlogPosts',
+        throw new CustomHttpException(ErrorCode.AUTH_REQUIRED, {
+          message: 'Google API 인증이 실패했습니다.',
           blogId,
           blogUrl,
-          { blogUrl, responseStatus: 404 },
-        )
+        })
+      } else if (error.response?.status === 404) {
+        throw new CustomHttpException(ErrorCode.DATA_NOT_FOUND, {
+          message: `블로그를 찾을 수 없습니다: ${blogId || blogUrl}`,
+          blogId,
+          blogUrl,
+          responseStatus: 404,
+        })
       }
 
-      throw new GoogleBloggerError(
-        `블로그 게시물 조회 실패: ${error.response?.data?.error?.message || error.message}`,
-        'getBlogPosts',
+      throw new CustomHttpException(ErrorCode.EXTERNAL_API_FAIL, {
+        message: `블로그 게시물 조회 실패: ${error.response?.data?.error?.message || error.message}`,
         blogId,
         blogUrl,
-        {
-          blogUrl,
-          responseStatus: error.response?.status,
-          responseData: error.response?.data,
-          requestOptions: options,
-        },
-      )
+        responseStatus: error.response?.status,
+        responseData: error.response?.data,
+        requestOptions: options,
+      })
     }
   }
 
@@ -147,28 +135,32 @@ export class GoogleBloggerService {
     } catch (error) {
       this.logger.error(`게시물 조회 실패: ${blogId}/${postId}`, error)
 
-      if (error instanceof GoogleBloggerError) {
+      if (error instanceof CustomHttpException) {
         throw error
       }
 
       if (error.response?.status === 401) {
-        throw new GoogleBloggerError('Google API 인증이 실패했습니다.', 'getBlogPost', blogId, postId)
+        throw new CustomHttpException(ErrorCode.AUTH_REQUIRED, {
+          message: 'Google API 인증이 실패했습니다.',
+          blogId,
+          postId,
+        })
       } else if (error.response?.status === 404) {
-        throw new GoogleBloggerError(`게시물을 찾을 수 없습니다: ${postId}`, 'getBlogPost', blogId, postId, {
+        throw new CustomHttpException(ErrorCode.DATA_NOT_FOUND, {
+          message: `게시물을 찾을 수 없습니다: ${postId}`,
+          blogId,
+          postId,
           responseStatus: 404,
         })
       }
 
-      throw new GoogleBloggerError(
-        `게시물 조회 실패: ${error.response?.data?.error?.message || error.message}`,
-        'getBlogPost',
+      throw new CustomHttpException(ErrorCode.EXTERNAL_API_FAIL, {
+        message: `게시물 조회 실패: ${error.response?.data?.error?.message || error.message}`,
         blogId,
         postId,
-        {
-          responseStatus: error.response?.status,
-          responseData: error.response?.data,
-        },
-      )
+        responseStatus: error.response?.status,
+        responseData: error.response?.data,
+      })
     }
   }
 
@@ -185,7 +177,12 @@ export class GoogleBloggerService {
       )
       return response.data
     } catch (error) {
-      throw new Error(`블로그 정보 조회 실패: ${error.response?.data?.error?.message || error.message}`)
+      throw new CustomHttpException(ErrorCode.EXTERNAL_API_FAIL, {
+        message: `블로그 정보 조회 실패: ${error.response?.data?.error?.message || error.message}`,
+        blogId,
+        responseStatus: error.response?.status,
+        responseData: error.response?.data,
+      })
     }
   }
 
@@ -202,7 +199,11 @@ export class GoogleBloggerService {
       )
       return response.data
     } catch (error) {
-      throw new Error(`사용자 블로그 목록 조회 실패: ${error.response?.data?.error?.message || error.message}`)
+      throw new CustomHttpException(ErrorCode.EXTERNAL_API_FAIL, {
+        message: `사용자 블로그 목록 조회 실패: ${error.response?.data?.error?.message || error.message}`,
+        responseStatus: error.response?.status,
+        responseData: error.response?.data,
+      })
     }
   }
 
@@ -213,7 +214,10 @@ export class GoogleBloggerService {
     const { title, content, labels } = request
     const settings = await this.settingsService.getSettings()
     const blogId = settings.bloggerBlogId
-    if (!blogId) throw new Error('bloggerBlogId가 설정되어 있지 않습니다. 설정에서 블로그를 선택하세요.')
+    if (!blogId)
+      throw new CustomHttpException(ErrorCode.INVALID_INPUT, {
+        message: 'bloggerBlogId가 설정되어 있지 않습니다. 설정에서 블로그를 선택하세요.',
+      })
     try {
       const accessToken = await this.oauthService.getAccessToken()
       const response = await firstValueFrom(

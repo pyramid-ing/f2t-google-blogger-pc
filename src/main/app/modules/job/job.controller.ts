@@ -1,7 +1,9 @@
-import { Controller, Get, Post, Delete, Param, Query, HttpException, HttpStatus, Body } from '@nestjs/common'
+import { Body, Controller, Delete, Get, HttpException, HttpStatus, Param, Post, Query } from '@nestjs/common'
 import { PrismaService } from '../common/prisma/prisma.service'
 import { JobQueueProcessor } from './job-queue.processor'
 import { Prisma } from '@prisma/client'
+import { CustomHttpException } from '@main/common/errors/custom-http.exception'
+import { ErrorCode } from '@main/common/errors/error-code.enum'
 
 // 작업 타입 상수
 export const JOB_TYPE = {
@@ -175,7 +177,7 @@ export class JobController {
       })
 
       if (jobs.length === 0) {
-        throw new HttpException('작업을 찾을 수 없습니다.', HttpStatus.NOT_FOUND)
+        throw new CustomHttpException(ErrorCode.USER_NOT_FOUND, { jobIds })
       }
 
       // 처리 중인 작업 제외 및 삭제 가능한 작업 필터링
@@ -302,7 +304,7 @@ export class JobController {
       })
 
       if (!job) {
-        throw new HttpException('작업을 찾을 수 없습니다.', HttpStatus.NOT_FOUND)
+        throw new CustomHttpException(ErrorCode.USER_NOT_FOUND, { jobId })
       }
 
       if (job.status === JOB_STATUS.PROCESSING) {

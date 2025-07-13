@@ -3,6 +3,8 @@ import OpenAI from 'openai'
 import { SettingsService } from '../settings/settings.service'
 import { AIService, BlogOutline, BlogPost, ThumbnailData, Topic } from './ai.interface'
 import { postingContentsPrompt, tableOfContentsPrompt } from '@main/app/modules/ai/prompts'
+import { CustomHttpException } from '@main/common/errors/custom-http.exception'
+import { ErrorCode } from '@main/common/errors/error-code.enum'
 
 @Injectable()
 export class OpenAiService implements AIService {
@@ -133,7 +135,7 @@ export class OpenAiService implements AIService {
       return response.titles || []
     } catch (error) {
       this.logger.error('OpenAI API 호출 중 오류 발생:', error)
-      throw new Error(`OpenAI API 오류: ${error.message}`)
+      throw new CustomHttpException(ErrorCode.AI_API_ERROR, { message: error.message, provider: 'openai' })
     }
   }
 
@@ -185,7 +187,7 @@ export class OpenAiService implements AIService {
       return response.keywords || []
     } catch (error) {
       this.logger.error('Pixabay 키워드 생성 중 오류:', error)
-      throw new Error(`OpenAI API 오류: ${error.message}`)
+      throw new CustomHttpException(ErrorCode.AI_API_ERROR, { message: error.message, provider: 'openai' })
     }
   }
 
@@ -222,7 +224,7 @@ export class OpenAiService implements AIService {
       return completion.choices[0].message.content?.trim() || ''
     } catch (error) {
       this.logger.error('이미지 프롬프트 생성 중 오류:', error)
-      throw new Error(`OpenAI API 오류: ${error.message}`)
+      throw new CustomHttpException(ErrorCode.AI_API_ERROR, { message: error.message, provider: 'openai' })
     }
   }
 
@@ -250,7 +252,7 @@ export class OpenAiService implements AIService {
       return response.data[0].url
     } catch (error) {
       this.logger.error('OpenAI DALL-E 이미지 생성 중 오류:', error)
-      throw error
+      throw new CustomHttpException(ErrorCode.AI_API_ERROR, { message: error.message, provider: 'openai' })
     }
   }
   async generateBlogOutline(title: string, description: string): Promise<BlogOutline> {
@@ -311,7 +313,7 @@ export class OpenAiService implements AIService {
       return response
     } catch (error) {
       this.logger.error('OpenAI API 호출 중 오류 발생:', error)
-      throw new Error(`OpenAI API 오류: ${error.message}`)
+      throw new CustomHttpException(ErrorCode.AI_API_ERROR, { message: error.message, provider: 'openai' })
     }
   }
 
@@ -365,7 +367,7 @@ export class OpenAiService implements AIService {
       return response
     } catch (error) {
       this.logger.error('OpenAI API 호출 중 오류 발생:', error)
-      throw new Error(`OpenAI API 오류: ${error.message}`)
+      throw new CustomHttpException(ErrorCode.AI_API_ERROR, { message: error.message, provider: 'openai' })
     }
   }
   /**
@@ -414,7 +416,7 @@ export class OpenAiService implements AIService {
       }
     } catch (error) {
       this.logger.error('썸네일 데이터 생성 중 오류:', error)
-      throw new Error(`OpenAI API 오류: ${error.message}`)
+      throw new CustomHttpException(ErrorCode.AI_API_ERROR, { message: error.message, provider: 'openai' })
     }
   }
 }

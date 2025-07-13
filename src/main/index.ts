@@ -1,6 +1,6 @@
 import type { ValidationError } from '@nestjs/common'
 import { BadRequestException, ValidationPipe } from '@nestjs/common'
-import { HttpAdapterHost, NestFactory } from '@nestjs/core'
+import { NestFactory } from '@nestjs/core'
 import * as bodyParser from 'body-parser'
 import { app, ipcMain, shell, BrowserWindow } from 'electron'
 import { autoUpdater } from 'electron-updater'

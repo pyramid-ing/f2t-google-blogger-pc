@@ -1,19 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common'
-import {
-  AIService,
-  BlogOutline,
-  BlogPost,
-  ThumbnailData,
-  Topic,
-  AIQuotaExceededError,
-  GeminiQuotaError,
-} from './ai.interface'
+import { AIService, BlogOutline, BlogPost, ThumbnailData, Topic, GeminiQuotaError } from './ai.interface'
 import { SettingsService } from '../settings/settings.service'
 import { Type, GoogleGenAI, Modality } from '@google/genai'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { EnvConfig } from '@main/config/env.config'
 import { postingContentsPrompt, tableOfContentsPrompt } from '@main/app/modules/ai/prompts'
+import { CustomHttpException } from '@main/common/errors/custom-http.exception'
+import { ErrorCode } from '@main/common/errors/error-code.enum'
 
 @Injectable()
 export class GeminiService implements AIService {
@@ -57,7 +51,7 @@ export class GeminiService implements AIService {
       const response = result.text
 
       if (!response) {
-        throw new Error('API 응답이 비어있습니다.')
+        throw new CustomHttpException(ErrorCode.AI_API_ERROR, { reason: 'API 응답이 비어있음' })
       }
 
       return {
@@ -111,20 +105,14 @@ export class GeminiService implements AIService {
 
     if (this.isGeminiQuotaError(error)) {
       const retryDelay = this.getRetryDelay(error)
-      throw new AIQuotaExceededError(
-        `Gemini API 할당량이 초과되었습니다. ${retryDelay}초 후에 다시 시도해주세요.`,
-        retryDelay,
-        'gemini',
-      )
+      throw new CustomHttpException(ErrorCode.AI_QUOTA_EXCEEDED, { retryDelay, provider: 'gemini' })
     }
 
     if (error.message?.includes('not found')) {
-      throw new Error(
-        'Gemini API가 활성화되어 있지 않거나, API 버전이 올바르지 않습니다. Google Cloud Console에서 Gemini API를 활성화해주세요.',
-      )
+      throw new CustomHttpException(ErrorCode.AI_API_ERROR, { reason: 'API not found', provider: 'gemini' })
     }
 
-    throw new Error(`Gemini API 오류: ${error.message}`)
+    throw new CustomHttpException(ErrorCode.AI_API_ERROR, { message: error.message, provider: 'gemini' })
   }
 
   async generateTopics(topic: string, limit: number): Promise<Topic[]> {

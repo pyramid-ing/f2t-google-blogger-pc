@@ -1,4 +1,3 @@
-import { GoogleAuthError, GoogleConfigError, GoogleTokenError } from '@main/filters/error.types'
 import { Body, Controller, Get, Logger, Post, Query, Res } from '@nestjs/common'
 import { Response } from 'express'
 import { OauthService } from './oauth.service'
@@ -120,10 +119,10 @@ export class GoogleOAuthController {
     } catch (error) {
       this.logger.error('OAuth 콜백 처리 오류:', error)
 
-      const errorMessage =
-        error instanceof GoogleAuthError || error instanceof GoogleConfigError || error instanceof GoogleTokenError
-          ? `${error.service} ${error.operation}: ${error.message}`
-          : error.message
+      let errorMessage = error.message
+      if (error.metadata && error.metadata.message) {
+        errorMessage = error.metadata.message
+      }
 
       return res.send(`
         <!DOCTYPE html>

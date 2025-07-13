@@ -1,7 +1,7 @@
 import { ErrorCodeMap } from '@main/common/errors/error-code.map'
 import { ErrorCode } from '@main/common/errors/error-code.enum'
 import { ArgumentsHost, Catch, ExceptionFilter } from '@nestjs/common'
-import { CustomCodeException } from '@main/common/errors/custom-code.exception'
+import { CustomHttpException } from '@main/common/errors/custom-http.exception'
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
@@ -14,14 +14,14 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     let message = '서버 오류가 발생했습니다.'
     let metadata = {}
 
-    if (exception instanceof CustomCodeException) {
+    if (exception instanceof CustomHttpException) {
       errorCode = exception.errorCode
       metadata = exception.metadata || {}
 
       const mapped = ErrorCodeMap[errorCode]
       if (mapped) {
         status = mapped.status
-        message = mapped.message
+        message = mapped.message(metadata)
       }
     }
 

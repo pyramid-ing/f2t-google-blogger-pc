@@ -4,12 +4,13 @@ import {
   startGoogleLogin,
   getGoogleUserInfo,
   isGoogleLoggedIn,
-  getBloggerBlogsFromServer,
+  getBloggerBlogs,
   logoutGoogle,
   validateGoogleClientCredentials,
 } from '@render/api'
 import { useGoogleSettings } from '@render/hooks/useSettings'
 import { UserOutlined } from '@ant-design/icons'
+import { NormalizedError } from '@render/api/error.type'
 
 const GoogleSettingsForm: React.FC = () => {
   const [form] = Form.useForm()
@@ -41,7 +42,7 @@ const GoogleSettingsForm: React.FC = () => {
         const user = await getGoogleUserInfo()
         setUserInfo(user)
         setIsLoggedIn(true)
-        const blogs = await getBloggerBlogsFromServer()
+        const blogs = await getBloggerBlogs()
         setBlogList(blogs)
       } else {
         setUserInfo(null)
@@ -153,7 +154,13 @@ const GoogleSettingsForm: React.FC = () => {
         message.error(result.error || '클라이언트 정보가 올바르지 않습니다.')
       }
     } catch (error) {
-      message.error('검증 중 오류가 발생했습니다.')
+      // errorNormalizer로 정규화된 에러 사용
+      const err = error as NormalizedError
+      if (err.errorCode === 4106) {
+        message.error(err.message || '클라이언트 ID 또는 시크릿이 잘못되었습니다.')
+      } else {
+        message.error(err.message || '검증 중 오류가 발생했습니다.')
+      }
     } finally {
       setIsValidating(false)
     }
