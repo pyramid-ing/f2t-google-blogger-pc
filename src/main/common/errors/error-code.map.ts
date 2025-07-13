@@ -28,7 +28,18 @@ export const ErrorCodeMap: Record<ErrorCode, ErrorCodeMeta> = {
 
   // AI 관련
   [ErrorCode.AI_KEY_REQUIRED]: { status: 400, message: () => 'AI 키가 입력되지 않았습니다.' },
-  [ErrorCode.AI_KEY_INVALID]: { status: 401, message: () => 'AI 키가 유효하지 않습니다.' },
+  [ErrorCode.AI_KEY_INVALID]: {
+    status: 401,
+    message: meta => {
+      let msg = 'AI 키가 유효하지 않습니다.'
+      if (meta?.reason) msg += ` (${meta.reason}`
+      if (meta?.length !== undefined) msg += `, 입력 길이: ${meta.length}`
+      if (meta?.detail) msg += `, 상세: ${meta.detail}`
+      if (msg.endsWith('(')) msg = msg.slice(0, -1)
+      else if (msg.includes('(')) msg += ')'
+      return msg
+    },
+  },
   [ErrorCode.AI_QUOTA_EXCEEDED]: {
     status: 429,
     message: meta =>

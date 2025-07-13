@@ -3,6 +3,7 @@ import { validateAIKey } from '@render/api/settingsApi'
 import { Button, Form, Input, Radio, Divider } from 'antd'
 import { useAISettings } from '@render/hooks/useSettings'
 import { CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
+import type { NormalizedError } from '@render/api/error.type'
 
 type ValidationResult = {
   isValid: boolean
@@ -101,9 +102,13 @@ export const AISettingsForm: React.FC = () => {
         }))
       }
     } catch (error) {
+      const normalized = error as NormalizedError
       setValidationResults(prev => ({
         ...prev,
-        [provider]: { isValid: false, message: 'API 키 검증 중 오류가 발생했습니다.' },
+        [provider]: {
+          isValid: false,
+          message: normalized.message,
+        },
       }))
     } finally {
       setValidating(prev => ({ ...prev, [provider]: false }))
