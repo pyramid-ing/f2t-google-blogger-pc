@@ -1,4 +1,4 @@
-import { Button, Form, Input, message, Radio, Card, Divider } from 'antd'
+import { Button, Form, Input, message, Radio, Upload, Space } from 'antd'
 import React, { useEffect, useState } from 'react'
 import { useImageSettings } from '@render/hooks/useSettings'
 import { testGoogleStorgeConnection } from '@render/api/googleStorageApi'
@@ -9,6 +9,8 @@ const ImageSettingsForm: React.FC = () => {
   const [form] = Form.useForm()
   const { imageSettings, updateImageSettings, isLoading, isSaving } = useImageSettings()
   const [testingGCS, setTestingGCS] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [gcsValidation, setGcsValidation] = useState<null | { valid: boolean; message: string }>(null)
 
   useEffect(() => {
     form.setFieldsValue({
@@ -48,6 +50,39 @@ const ImageSettingsForm: React.FC = () => {
     }
   }
 
+  // 파일 업로드 핸들러
+  const handleGCSKeyUpload = async (file: File) => {
+    setUploading(true)
+    try {
+      const text = await file.text()
+      let json
+      try {
+        json = JSON.parse(text)
+      } catch (e) {
+        message.error('유효한 JSON 파일이 아닙니다.')
+        setGcsValidation({ valid: false, message: '유효한 JSON 파일이 아닙니다.' })
+        return false
+      }
+      // gcsKeyContent 저장
+      await updateImageSettings({ gcsKeyContent: text })
+      message.success('서비스 계정 키가 정상적으로 업로드되었습니다.')
+      // 업로드 후 자동 연결 테스트
+      setTestingGCS(true)
+      const result = await testGoogleStorgeConnection()
+      if (result.status === 'success') {
+        setGcsValidation({ valid: true, message: 'GCS 연결 테스트 성공!' })
+        message.success('GCS 연결 테스트 성공!')
+      } else {
+        setGcsValidation({ valid: false, message: `GCS 연결 실패: ${result.error || result.message}` })
+        message.error(`GCS 연결 실패: ${result.error || result.message}`)
+      }
+      setTestingGCS(false)
+      return false // 업로드 창 닫기
+    } finally {
+      setUploading(false)
+    }
+  }
+
   return (
     <div style={{ padding: '20px' }}>
       <h2>이미지 설정</h2>
@@ -82,27 +117,65 @@ const ImageSettingsForm: React.FC = () => {
         </Form.Item>
 
         <Form.Item
-          name="gcsKeyContent"
-          label="서비스 계정 키 파일"
-          tooltip="Google Cloud Storage 서비스 계정 키 파일 내용을 입력하세요."
+          label="서비스 계정 키 파일 업로드"
+          tooltip="Google Cloud Storage 서비스 계정 키 파일(.json)을 업로드하세요. 파일 내용만 저장되며, 파일 자체는 저장되지 않습니다."
         >
-          <TextArea rows={4} placeholder="서비스 계정 키 파일 입력" disabled={isLoading} />
+          <Upload
+            accept="application/json"
+            showUploadList={false}
+            beforeUpload={handleGCSKeyUpload}
+            disabled={isLoading || uploading}
+          >
+            <Button loading={uploading} disabled={isLoading || uploading}>
+              서비스 계정 키 파일 업로드
+            </Button>
+          </Upload>
+        </Form.Item>
+        <Form.Item
+          name="gcsKeyContent"
+          label="서비스 계정 키 파일 내용"
+          tooltip="업로드된 서비스 계정 키 파일의 내용을 확인할 수 있습니다. (읽기 전용)"
+        >
+          <TextArea
+            rows={4}
+            placeholder="서비스 계정 키 파일 내용이 여기에 표시됩니다."
+            value={imageSettings.gcsKeyContent || ''}
+            readOnly
+            style={{ background: '#f5f5f5' }}
+          />
         </Form.Item>
 
         <Form.Item>
-          <Button type="primary" htmlType="submit" loading={isSaving}>
-            저장
-          </Button>
+          <Space>
+            <Button type="primary" htmlType="submit" loading={isSaving}>
+              저장
+            </Button>
+            <Button
+              type="default"
+              onClick={async () => {
+                setTestingGCS(true)
+                const result = await testGoogleStorgeConnection()
+                if (result.status === 'success') {
+                  setGcsValidation({ valid: true, message: 'GCS 연결 테스트 성공!' })
+                  message.success('GCS 연결 테스트 성공!')
+                } else {
+                  setGcsValidation({ valid: false, message: `GCS 연결 실패: ${result.error || result.message}` })
+                  message.error(`GCS 연결 실패: ${result.error || result.message}`)
+                }
+                setTestingGCS(false)
+              }}
+              loading={testingGCS}
+            >
+              연결 테스트
+            </Button>
+          </Space>
+          {gcsValidation && (
+            <div style={{ marginTop: 8, color: gcsValidation.valid ? '#52c41a' : '#ff4d4f' }}>
+              {gcsValidation.message}
+            </div>
+          )}
         </Form.Item>
       </Form>
-
-      <Divider />
-
-      <Card title="GCS 연결 테스트">
-        <Button type="primary" onClick={testGCSConnection} loading={testingGCS}>
-          연결 테스트
-        </Button>
-      </Card>
     </div>
   )
 }
