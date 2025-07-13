@@ -24,7 +24,6 @@ export class SettingsService {
     // 현재 설정을 가져옵니다
     const currentSettings = await this.getSettings()
 
-    // 새로운 설정과 현재 설정을 병합합니다
     const mergedSettings = {
       ...currentSettings,
       ...newSettings,

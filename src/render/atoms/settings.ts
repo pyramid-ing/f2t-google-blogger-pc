@@ -81,7 +81,6 @@ export const imageSettingsSelector = selector({
       imageType: settings.imageType,
       pixabayApiKey: settings.pixabayApiKey,
       gcsKeyContent: settings.gcsKeyContent,
-      gcsBucketName: settings.gcsBucketName,
     }
   },
 })

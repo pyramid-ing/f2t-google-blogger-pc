@@ -22,4 +22,21 @@ export class StorageController {
       }
     }
   }
+
+  @Get('ensure-bucket')
+  async ensureBucket() {
+    try {
+      await this.storageService.ensureBucketExists()
+      return {
+        status: 'success',
+        message: '버킷이 정상적으로 존재하거나 생성되었습니다.',
+      }
+    } catch (e) {
+      return {
+        status: 'error',
+        message: '버킷 생성/확인 중 오류 발생',
+        error: e?.message,
+      }
+    }
+  }
 }

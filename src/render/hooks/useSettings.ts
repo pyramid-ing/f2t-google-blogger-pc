@@ -211,7 +211,6 @@ export const useImageSettings = () => {
       pixabayApiKey?: string
       gcsProjectId?: string
       gcsKeyContent?: string
-      gcsBucketName?: string
     }) => {
       return await updatePartialSettings(imageSettings)
     },
@@ -223,7 +222,6 @@ export const useImageSettings = () => {
       imageType: settings.imageType,
       pixabayApiKey: settings.pixabayApiKey,
       gcsKeyContent: settings.gcsKeyContent,
-      gcsBucketName: settings.gcsBucketName,
     },
     updateImageSettings,
     isLoading,

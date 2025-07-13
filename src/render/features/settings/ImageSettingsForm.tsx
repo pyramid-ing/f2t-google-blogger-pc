@@ -14,7 +14,6 @@ const ImageSettingsForm: React.FC = () => {
     form.setFieldsValue({
       imageType: imageSettings.imageType || 'pixabay',
       pixabayApiKey: imageSettings.pixabayApiKey || '',
-      gcsBucketName: imageSettings.gcsBucketName || '',
       gcsKeyContent: imageSettings.gcsKeyContent || '',
     })
   }, [imageSettings, form])
@@ -24,7 +23,6 @@ const ImageSettingsForm: React.FC = () => {
       await updateImageSettings({
         imageType: values.imageType,
         pixabayApiKey: values.pixabayApiKey,
-        gcsBucketName: values.gcsBucketName,
         gcsKeyContent: values.gcsKeyContent,
       })
     } catch (error) {
@@ -60,7 +58,6 @@ const ImageSettingsForm: React.FC = () => {
         initialValues={{
           imageType: 'pixabay',
           pixabayApiKey: '',
-          gcsBucketName: '',
           gcsKeyContent: '',
         }}
       >
@@ -82,14 +79,6 @@ const ImageSettingsForm: React.FC = () => {
           tooltip="픽사베이에서 이미지를 검색하기 위한 API 키를 입력하세요."
         >
           <Input type="password" placeholder="픽사베이 API키 입력" disabled={isLoading} />
-        </Form.Item>
-
-        <Form.Item
-          name="gcsBucketName"
-          label="스토리지 버킷 이름"
-          tooltip="Google Cloud Storage 버킷 이름을 입력하세요."
-        >
-          <Input placeholder="스토리지 버킷 이름 입력" disabled={isLoading} />
         </Form.Item>
 
         <Form.Item
