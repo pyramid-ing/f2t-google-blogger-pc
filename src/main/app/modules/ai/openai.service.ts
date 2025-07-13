@@ -13,6 +13,13 @@ export class OpenAiService implements AIService {
 
   constructor(private readonly settingsService: SettingsService) {}
 
+  generateLinkSearchPrompt(html: string): Promise<string> {
+    throw new Error('Method not implemented.')
+  }
+  generateYoutubeSearchPrompt(html: string): Promise<string> {
+    throw new Error('Method not implemented.')
+  }
+
   async initialize(): Promise<void> {
     const settings = await this.settingsService.getSettings()
     const apiKey = settings.openaiApiKey

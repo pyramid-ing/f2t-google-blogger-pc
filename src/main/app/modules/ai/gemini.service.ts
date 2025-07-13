@@ -441,4 +441,60 @@ ${content}
       this.handleGeminiError(error)
     }
   }
+
+  /**
+   * 본문에서 링크 검색용 검색어를 추출
+   */
+  async generateLinkSearchPrompt(html: string): Promise<string> {
+    try {
+      const ai = await this.getGemini()
+      const prompt = `다음 HTML 콘텐츠를 분석하여 구글 등에서 검색할 때 가장 적합한 한글 검색어 1개를 추천해주세요.\n\n[HTML 콘텐츠]\n${html}\n\n응답 형식:\n{\n  \"keyword\": \"검색어\"\n}`
+      const resp = await ai.models.generateContent({
+        model: 'gemini-2.5-pro',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              keyword: { type: Type.STRING },
+            },
+            required: ['keyword'],
+          },
+        },
+      })
+      const result = JSON.parse(resp.text)
+      return result.keyword
+    } catch (error) {
+      this.handleGeminiError(error)
+    }
+  }
+
+  /**
+   * 본문에서 유튜브 검색용 검색어를 추출
+   */
+  async generateYoutubeSearchPrompt(html: string): Promise<string> {
+    try {
+      const ai = await this.getGemini()
+      const prompt = `다음 HTML 콘텐츠를 분석하여 유튜브에서 검색할 때 가장 적합한 한글 검색어 1개를 추천해주세요.\n\n[HTML 콘텐츠]\n${html}\n\n응답 형식:\n{\n  \"keyword\": \"검색어\"\n}`
+      const resp = await ai.models.generateContent({
+        model: 'gemini-2.5-pro',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              keyword: { type: Type.STRING },
+            },
+            required: ['keyword'],
+          },
+        },
+      })
+      const result = JSON.parse(resp.text)
+      return result.keyword
+    } catch (error) {
+      this.handleGeminiError(error)
+    }
+  }
 }

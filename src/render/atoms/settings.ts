@@ -48,7 +48,6 @@ export const aiSettingsSelector = selector({
       aiProvider: settings.aiProvider,
       openaiApiKey: settings.openaiApiKey,
       geminiApiKey: settings.geminiApiKey,
-      perplexityApiKey: settings.perplexityApiKey,
     }
   },
 })

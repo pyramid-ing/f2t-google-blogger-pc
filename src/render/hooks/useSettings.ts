@@ -138,12 +138,7 @@ export const useAISettings = () => {
   const { settings, updatePartialSettings, isLoading, isSaving, error } = useSettings()
 
   const updateAISettings = useCallback(
-    async (aiSettings: {
-      aiProvider?: AppSettings['aiProvider']
-      openaiApiKey?: string
-      geminiApiKey?: string
-      perplexityApiKey?: string
-    }) => {
+    async (aiSettings: { aiProvider?: AppSettings['aiProvider']; openaiApiKey?: string; geminiApiKey?: string }) => {
       return await updatePartialSettings(aiSettings)
     },
     [updatePartialSettings],
@@ -154,7 +149,6 @@ export const useAISettings = () => {
       aiProvider: settings.aiProvider,
       openaiApiKey: settings.openaiApiKey,
       geminiApiKey: settings.geminiApiKey,
-      perplexityApiKey: settings.perplexityApiKey,
     },
     updateAISettings,
     isLoading,

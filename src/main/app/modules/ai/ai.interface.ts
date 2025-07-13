@@ -1,5 +1,3 @@
-import { YoutubeResult } from '@main/app/modules/ai/perplexity.service'
-
 export interface ThumbnailData {
   mainText: string
   subText?: string
@@ -74,11 +72,21 @@ export interface AIService {
    * API 키 유효성 검증
    */
   validateApiKey(apiKey: string): Promise<{ valid: boolean; error?: string; model?: string }>
+
+  generateLinkSearchPrompt(html: string): Promise<string>
+
+  generateYoutubeSearchPrompt(html: string): Promise<string>
 }
 
 export interface LinkResult {
   name: string
   link: string
+}
+
+export interface YoutubeResult {
+  title: string
+  videoId: string
+  url: string
 }
 
 export interface GeminiQuotaError {

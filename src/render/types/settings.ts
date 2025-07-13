@@ -13,7 +13,6 @@ export interface AppSettings {
   aiProvider: AIProvider
   openaiApiKey?: string
   geminiApiKey?: string
-  perplexityApiKey?: string
 
   // 이미지 설정
   imageType?: 'ai' | 'pixabay' | 'none' // 이미지 생성 방식 (none: 사용안함)

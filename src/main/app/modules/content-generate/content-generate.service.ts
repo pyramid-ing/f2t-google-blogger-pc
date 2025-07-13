@@ -1,5 +1,4 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
-import { LinkResult, PerplexityService, YoutubeResult } from '../ai/perplexity.service'
 import { ImagePixabayService } from '../media/image-pixabay.service'
 import { SettingsService } from '../settings/settings.service'
 import { JobLogsService } from '../job-logs/job-logs.service'
@@ -8,12 +7,13 @@ import sharp from 'sharp'
 import { StorageService } from '@main/app/modules/google/storage/storage.service'
 import Bottleneck from 'bottleneck'
 import { sleep } from '@main/app/utils/sleep'
-import { AIService, BlogOutline, BlogPost } from '@main/app/modules/ai/ai.interface'
+import { AIService, BlogOutline, BlogPost, LinkResult, YoutubeResult } from '@main/app/modules/ai/ai.interface'
 import { AIFactory } from '@main/app/modules/ai/ai.factory'
 import * as fs from 'fs'
 import * as path from 'path'
 import { EnvConfig } from '@main/config/env.config'
 import { UtilService } from '../util/util.service'
+import { SearxngService, SearchResultItem } from '../search/searxng.service'
 
 export interface SectionContent {
   html: string
@@ -34,12 +34,12 @@ export class ContentGenerateService implements OnModuleInit {
 
   constructor(
     private readonly aiFactory: AIFactory,
-    private readonly perplexityService: PerplexityService,
     private readonly imagePixabayService: ImagePixabayService,
     private readonly storageService: StorageService,
     private readonly settingsService: SettingsService,
     private readonly jobLogsService: JobLogsService,
     private readonly utilService: UtilService,
+    private readonly searxngService: SearxngService,
   ) {
     this.imageGenerationLimiter = new Bottleneck({
       maxConcurrent: 3,
@@ -179,27 +179,27 @@ export class ContentGenerateService implements OnModuleInit {
   private async generateLinks(html: string, sectionIndex: number, jobId?: string): Promise<LinkResult[]> {
     try {
       const settings = await this.settingsService.getSettings()
+      if (!settings.linkEnabled) return []
+      if (jobId) await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 관련 링크 생성 시작`)
 
-      // 링크 생성이 비활성화되어 있으면 빈 배열 반환
-      if (!settings.linkEnabled) {
-        return []
-      }
+      // 1. Gemini로 검색어 추출
+      const aiService = await this.getAIService()
+      const keyword = await aiService.generateLinkSearchPrompt(html)
+      if (!keyword) return []
 
-      if (jobId) {
-        await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 관련 링크 생성 시작`)
-      }
+      // 2. searxng로 검색 (구글 엔진)
+      const searchRes = await this.searxngService.search(keyword, 'google', 10)
+      if (!searchRes.results.length) return []
 
-      // 설정된 링크 수만큼만 생성
-      const links = await this.perplexityService.generateRelevantLinks(html)
+      // 3. Gemini로 최적 링크 1개 선정
+      const bestLink = await this.pickBestLinkByAI(html, searchRes.results, aiService)
+      if (!bestLink) return []
 
-      if (jobId) {
-        await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 관련 링크 ${links.length}개 생성 완료`)
-      }
-      return links
+      if (jobId) await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 관련 링크 1개 선정 완료`)
+      return [{ name: bestLink.title, link: bestLink.url }]
     } catch (error) {
-      if (jobId) {
+      if (jobId)
         await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 링크 생성 실패: ${error.message}`, 'error')
-      }
       return []
     }
   }
@@ -210,36 +210,111 @@ export class ContentGenerateService implements OnModuleInit {
   private async generateYoutubeLinks(html: string, sectionIndex: number, jobId?: string): Promise<YoutubeResult[]> {
     try {
       const settings = await this.settingsService.getSettings()
+      if (!settings.youtubeEnabled) return []
+      if (jobId) await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 관련 유튜브 링크 생성 시작`)
 
-      // 유튜브 링크 생성이 비활성화되어 있으면 빈 배열 반환
-      if (!settings.youtubeEnabled) {
-        return []
-      }
+      // 1. Gemini로 검색어 추출
+      const aiService = await this.getAIService()
+      const keyword = await aiService.generateYoutubeSearchPrompt(html)
+      if (!keyword) return []
 
-      if (jobId) {
-        await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 관련 유튜브 링크 생성 시작`)
-      }
+      // 2. searxng로 검색 (유튜브 엔진)
+      const searchRes = await this.searxngService.search(keyword, 'youtube', 10)
+      if (!searchRes.results.length) return []
 
-      // 유튜브 링크 생성
-      const youtubeLinks = await this.perplexityService.generateYoutubeLinks(html)
+      // 3. Gemini로 최적 유튜브 링크 1개 선정
+      const bestLink = await this.pickBestYoutubeByAI(html, searchRes.results, aiService)
+      if (!bestLink) return []
 
-      if (jobId) {
-        await this.jobLogsService.createJobLog(
-          jobId,
-          `섹션 ${sectionIndex} 관련 유튜브 링크 ${youtubeLinks.length}개 생성 완료`,
-        )
-      }
-      return youtubeLinks
+      if (jobId) await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 관련 유튜브 링크 1개 선정 완료`)
+      return [{ title: bestLink.title, videoId: this.extractYoutubeId(bestLink.url), url: bestLink.url }]
     } catch (error) {
-      if (jobId) {
+      if (jobId)
         await this.jobLogsService.createJobLog(
           jobId,
           `섹션 ${sectionIndex} 유튜브 링크 생성 실패: ${error.message}`,
           'error',
         )
-      }
       return []
     }
+  }
+
+  // AI로 최적의 링크 1개 선정 (구현 필요)
+  private async pickBestLinkByAI(
+    html: string,
+    candidates: SearchResultItem[],
+    aiService: AIService,
+  ): Promise<SearchResultItem | null> {
+    if (!candidates.length) return null
+    // Gemini 프롬프트 설계
+    const prompt = `아래는 본문 HTML과, 본문과 관련된 링크 후보 리스트입니다. 본문 내용에 가장 적합한 링크 1개를 골라주세요.\n\n[본문 HTML]\n${html}\n\n[링크 후보]\n${candidates
+      .map((c, i) => `${i + 1}. ${c.title} - ${c.url}\n${c.content}`)
+      .join('\n\n')}\n\n응답 형식:\n{\n  \"index\": 후보 번호 (1부터 시작)\n}`
+    try {
+      // Gemini 호출 (임시: generateLinkSearchPrompt 재활용, 실제로는 별도 함수로 분리 권장)
+      const ai = aiService as any
+      const resp = await ai.getGemini().then((gemini: any) =>
+        gemini.models.generateContent({
+          model: 'gemini-2.5-pro',
+          contents: prompt,
+          config: {
+            responseMimeType: 'application/json',
+            responseSchema: {
+              type: 'object',
+              properties: { index: { type: 'integer' } },
+              required: ['index'],
+            },
+          },
+        }),
+      )
+      const result = JSON.parse(resp.text)
+      const idx = result.index - 1
+      return candidates[idx] || candidates[0]
+    } catch (e) {
+      return candidates[0]
+    }
+  }
+
+  // AI로 최적의 유튜브 링크 1개 선정 (구현 필요)
+  private async pickBestYoutubeByAI(
+    html: string,
+    candidates: SearchResultItem[],
+    aiService: AIService,
+  ): Promise<SearchResultItem | null> {
+    if (!candidates.length) return null
+    // Gemini 프롬프트 설계
+    const prompt = `아래는 본문 HTML과, 본문과 관련된 유튜브 링크 후보 리스트입니다. 본문 내용에 가장 적합한 유튜브 동영상 1개를 골라주세요.\n\n[본문 HTML]\n${html}\n\n[유튜브 후보]\n${candidates
+      .map((c, i) => `${i + 1}. ${c.title} - ${c.url}\n${c.content}`)
+      .join('\n\n')}\n\n응답 형식:\n{\n  \"index\": 후보 번호 (1부터 시작)\n}`
+    try {
+      // Gemini 호출 (임시: generateYoutubeSearchPrompt 재활용, 실제로는 별도 함수로 분리 권장)
+      const ai = aiService as any
+      const resp = await ai.getGemini().then((gemini: any) =>
+        gemini.models.generateContent({
+          model: 'gemini-2.5-pro',
+          contents: prompt,
+          config: {
+            responseMimeType: 'application/json',
+            responseSchema: {
+              type: 'object',
+              properties: { index: { type: 'integer' } },
+              required: ['index'],
+            },
+          },
+        }),
+      )
+      const result = JSON.parse(resp.text)
+      const idx = result.index - 1
+      return candidates[idx] || candidates[0]
+    } catch (e) {
+      return candidates[0]
+    }
+  }
+
+  // 유튜브 URL에서 videoId 추출
+  private extractYoutubeId(url: string): string {
+    const match = url.match(/[?&]v=([^&#]+)/) || url.match(/youtu\.be\/([^?&#]+)/)
+    return match ? match[1] : ''
   }
 
   /**
