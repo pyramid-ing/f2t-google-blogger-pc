@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common'
-import { OpenAiService } from './openai.service'
 import { GeminiService } from './gemini.service'
 import { SettingsService } from '../settings/settings.service'
 import { AIService } from './ai.interface'
@@ -7,7 +6,6 @@ import { AIService } from './ai.interface'
 @Injectable()
 export class AIFactory {
   constructor(
-    private readonly openAiService: OpenAiService,
     private readonly geminiService: GeminiService,
     private readonly settingsService: SettingsService,
   ) {}
@@ -18,10 +16,8 @@ export class AIFactory {
 
     switch (provider) {
       case 'gemini':
-        return this.geminiService
-      case 'openai':
       default:
-        return this.openAiService
+        return this.geminiService
     }
   }
 }

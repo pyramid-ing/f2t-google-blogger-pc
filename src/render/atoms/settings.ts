@@ -3,7 +3,7 @@ import { AppSettings } from '@render/types/settings'
 
 // 기본 설정값
 const defaultSettings: AppSettings = {
-  aiProvider: 'openai',
+  aiProvider: 'gemini',
   adEnabled: false,
   thumbnailEnabled: false,
   linkEnabled: false,
@@ -46,8 +46,6 @@ export const aiSettingsSelector = selector({
     const settings = get(settingsState)
     return {
       aiProvider: settings.aiProvider,
-      openaiApiKey: settings.openaiApiKey,
-      geminiApiKey: settings.geminiApiKey,
     }
   },
 })

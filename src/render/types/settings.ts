@@ -1,4 +1,4 @@
-export type AIProvider = 'openai' | 'gemini'
+export type AIProvider = 'gemini'
 
 export interface AppSettings {
   // Google OAuth 관련 설정
@@ -11,7 +11,6 @@ export interface AppSettings {
 
   // AI 설정
   aiProvider: AIProvider
-  openaiApiKey?: string
   geminiApiKey?: string
 
   // 이미지 설정
@@ -47,7 +46,6 @@ export interface AppSettings {
 }
 
 export interface AISettings {
-  openaiApiKey?: string
   geminiApiKey?: string
   aiProvider: AIProvider
 }
