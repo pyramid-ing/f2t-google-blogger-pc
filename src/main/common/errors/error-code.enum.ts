@@ -68,4 +68,7 @@ export enum ErrorCode {
   // ✅ 워크플로 관련 (4600번대)
   WORKFLOW_TOPIC_REQUIRED = 4601,
   WORKFLOW_EXCEL_FILE_REQUIRED = 4602,
+
+  // ✅ Searxng 관련 (5300번대)
+  SEARXNG_SEARCH_FAILED = 5301,
 }

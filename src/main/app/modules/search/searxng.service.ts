@@ -1,5 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common'
 import axios from 'axios'
+import { CustomHttpException } from '@main/common/errors/custom-http.exception'
+import { ErrorCode } from '@main/common/errors/error-code.enum'
 
 export interface SearchResultItem {
   url: string
@@ -30,7 +32,7 @@ export class SearxngService {
       return resp.data
     } catch (error) {
       this.logger.error('Searxng 검색 실패:', error)
-      throw error
+      throw new CustomHttpException(ErrorCode.SEARXNG_SEARCH_FAILED)
     }
   }
 }

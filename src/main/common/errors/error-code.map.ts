@@ -100,4 +100,5 @@ export const ErrorCodeMap: Record<ErrorCode, ErrorCodeMeta> = {
   [ErrorCode.WORKFLOW_TOPIC_REQUIRED]: { status: 400, message: () => '주제(topic) 파라미터는 필수입니다.' },
   [ErrorCode.WORKFLOW_EXCEL_FILE_REQUIRED]: { status: 400, message: () => '엑셀 파일은 필수입니다.' },
   [ErrorCode.AI_IMAGE_DATA_NOT_FOUND]: { status: 502, message: () => 'AI에서 이미지 데이터를 받지 못했습니다.' },
+  [ErrorCode.SEARXNG_SEARCH_FAILED]: { status: 502, message: () => 'Searxng 검색에 실패했습니다.' },
 }
