@@ -1,5 +1,7 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common'
 import { GoogleBloggerService } from 'src/main/app/modules/google/blogger/google-blogger.service'
+import { CustomHttpException } from '@main/common/errors/custom-http.exception'
+import { ErrorCode } from '@main/common/errors/error-code.enum'
 
 @Controller('google-blogger')
 export class GoogleBloggerController {
@@ -40,7 +42,7 @@ export class GoogleBloggerController {
     const { blogUrl } = body
 
     if (!blogUrl) {
-      throw new Error('blogUrl이 필요합니다.')
+      throw new CustomHttpException(ErrorCode.BLOGGER_BLOG_URL_REQUIRED, { message: 'blogUrl이 필요합니다.' })
     }
 
     const blog = await this.bloggerService.getBlogByUrl(blogUrl)

@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { Storage } from '@google-cloud/storage'
 import { SettingsService } from '../../settings/settings.service'
+import { CustomHttpException } from '@main/common/errors/custom-http.exception'
+import { ErrorCode } from '@main/common/errors/error-code.enum'
 
 const GCS_BUCKET_NAME = 'winsoft-blog'
 
@@ -20,7 +22,7 @@ export class StorageService {
     const settings = await this.settingsService.getSettings()
 
     if (!settings.gcsKeyContent) {
-      throw new Error('GCS 설정이 완료되지 않았습니다. 서비스 계정 키 JSON을 확인해주세요.')
+      throw new CustomHttpException(ErrorCode.GCS_CONFIG_REQUIRED)
     }
 
     try {
@@ -34,9 +36,9 @@ export class StorageService {
     } catch (error) {
       this.logger.error('GCS 초기화 실패:', error)
       if (error instanceof SyntaxError) {
-        throw new Error('GCS 서비스 계정 키 JSON 형식이 올바르지 않습니다. JSON 형식을 확인해주세요.')
+        throw new CustomHttpException(ErrorCode.GCS_JSON_PARSE_ERROR)
       }
-      throw new Error(`GCS 초기화 실패: ${error.message}`)
+      throw new CustomHttpException(ErrorCode.INTERNAL_ERROR, { message: `GCS 초기화 실패: ${error.message}` })
     }
   }
 
@@ -67,7 +69,9 @@ export class StorageService {
       return new Promise((resolve, reject) => {
         stream.on('error', error => {
           this.logger.error('GCS 업로드 실패:', error)
-          reject(new Error(`이미지 업로드 실패: ${error.message}`))
+          reject(
+            new CustomHttpException(ErrorCode.GCS_UPLOAD_FAIL, { message: `이미지 업로드 실패: ${error.message}` }),
+          )
         })
 
         stream.on('finish', async () => {
@@ -91,7 +95,11 @@ export class StorageService {
             })
           } catch (error) {
             this.logger.error('공개 URL 생성 실패:', error)
-            reject(new Error(`공개 URL 생성 실패: ${error.message}`))
+            reject(
+              new CustomHttpException(ErrorCode.GCS_PUBLIC_URL_FAIL, {
+                message: `공개 URL 생성 실패: ${error.message}`,
+              }),
+            )
           }
         })
 
@@ -102,33 +110,6 @@ export class StorageService {
       this.logger.error('GCS 업로드 중 오류:', error)
       throw error
     }
-  }
-
-  async deleteImage(fileName: string): Promise<void> {
-    try {
-      const storage = await this.initializeStorage()
-      const settings = await this.settingsService.getSettings()
-      const bucket = storage.bucket(GCS_BUCKET_NAME)
-      const file = bucket.file(fileName)
-
-      await file.delete()
-      this.logger.log(`이미지 삭제 성공: ${fileName}`)
-    } catch (error) {
-      this.logger.error('GCS 이미지 삭제 실패:', error)
-      throw new Error(`이미지 삭제 실패: ${error.message}`)
-    }
-  }
-
-  private getExtensionFromContentType(contentType: string): string {
-    const typeMap: Record<string, string> = {
-      'image/png': 'png',
-      'image/jpeg': 'jpg',
-      'image/jpg': 'jpg',
-      'image/gif': 'gif',
-      'image/webp': 'webp',
-    }
-
-    return typeMap[contentType.toLowerCase()] || 'png'
   }
 
   async testConnection(): Promise<{ success: boolean; error?: string }> {
@@ -190,7 +171,9 @@ export class StorageService {
       this.logger.log(`버킷 '${BUCKET_NAME}'에 공개 권한 부여 완료`)
     } catch (error) {
       this.logger.error('버킷 생성/권한 부여 중 오류:', error)
-      throw new Error(`버킷 생성/권한 부여 실패: ${error.message}`)
+      throw new CustomHttpException(ErrorCode.GCS_BUCKET_CREATE_FAIL, {
+        message: `버킷 생성/권한 부여 실패: ${error.message}`,
+      })
     }
   }
 }

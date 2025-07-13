@@ -14,6 +14,8 @@ import * as path from 'path'
 import { EnvConfig } from '@main/config/env.config'
 import { UtilService } from '../util/util.service'
 import { SearxngService, SearchResultItem } from '../search/searxng.service'
+import { CustomHttpException } from '@main/common/errors/custom-http.exception'
+import { ErrorCode } from '@main/common/errors/error-code.enum'
 
 export interface SectionContent {
   html: string
@@ -333,12 +335,7 @@ export class ContentGenerateService implements OnModuleInit {
    * 썸네일 이미지를 생성하는 함수
    */
   async generateThumbnailImage(title: string, subtitle?: string): Promise<string | undefined> {
-    try {
-      return undefined
-    } catch (error) {
-      this.logger.error('썸네일 생성 실패:', error)
-      return undefined
-    }
+    return undefined
   }
 
   /**
@@ -426,7 +423,7 @@ export class ContentGenerateService implements OnModuleInit {
                 throw lastError
               }
             }
-            throw lastError || new Error('최대 재시도 횟수 초과')
+            throw lastError || new CustomHttpException(ErrorCode.INTERNAL_ERROR, { message: '최대 재시도 횟수 초과' })
           }
 
           imageUrl = await generateWithRetry()
@@ -443,7 +440,7 @@ export class ContentGenerateService implements OnModuleInit {
             )
           }
           this.logger.error(`섹션 ${sectionIndex} AI 이미지 생성 실패:`, error)
-          return undefined
+          throw error
         }
       } else {
         this.logger.log(`섹션 ${sectionIndex}: 이미지 사용 안함 설정`)
@@ -491,7 +488,7 @@ export class ContentGenerateService implements OnModuleInit {
               'error',
             )
           }
-          return imageUrl
+          return undefined
         }
       }
       return undefined
@@ -511,22 +508,17 @@ export class ContentGenerateService implements OnModuleInit {
    * 설정에 따라 광고 스크립트를 삽입하는 함수
    */
   private async generateAdScript(sectionIndex: number): Promise<string | undefined> {
-    try {
-      const settings = await this.settingsService.getSettings()
-      const adEnabled = settings.adEnabled || false
-      const adScript = settings.adScript
+    const settings = await this.settingsService.getSettings()
+    const adEnabled = settings.adEnabled || false
+    const adScript = settings.adScript
 
-      if (!adEnabled || !adScript || adScript.trim() === '') {
-        this.logger.log(`섹션 ${sectionIndex}: 광고 삽입 안함 (활성화: ${adEnabled}, 스크립트 존재: ${!!adScript})`)
-        return undefined
-      }
-
-      this.logger.log(`섹션 ${sectionIndex}: 광고 스크립트 삽입 완료`)
-      return `<div class="ad-section" style="margin: 20px 0; text-align: center;">\n${adScript}\n</div>`
-    } catch (error) {
-      this.logger.warn(`섹션 ${sectionIndex} 광고 삽입 중 오류: ${error.message}`)
+    if (!adEnabled || !adScript || adScript.trim() === '') {
+      this.logger.log(`섹션 ${sectionIndex}: 광고 삽입 안함 (활성화: ${adEnabled}, 스크립트 존재: ${!!adScript})`)
       return undefined
     }
+
+    this.logger.log(`섹션 ${sectionIndex}: 광고 스크립트 삽입 완료`)
+    return `<div class="ad-section" style="margin: 20px 0; text-align: center;">\n${adScript}\n</div>`
   }
 
   /**
@@ -537,27 +529,17 @@ export class ContentGenerateService implements OnModuleInit {
 
     const currentAiService = aiService || (await this.getAIService())
 
-    try {
-      const blogOutline = await currentAiService.generateBlogOutline(title, description)
+    const blogOutline = await currentAiService.generateBlogOutline(title, description)
 
-      return blogOutline
-    } catch (error) {
-      this.logger.error('AI API 호출 중 오류 발생:', error)
-      throw new Error(`AI API 오류: ${error.message}`)
-    }
+    return blogOutline
   }
 
   async generateBlogPost(blogOutline: BlogOutline, aiService?: AIService): Promise<BlogPost> {
     const currentAiService = aiService || (await this.getAIService())
 
-    try {
-      const blogPost = await currentAiService.generateBlogPost(blogOutline)
+    const blogPost = await currentAiService.generateBlogPost(blogOutline)
 
-      return blogPost
-    } catch (error) {
-      this.logger.error('AI API 호출 중 오류 발생:', error)
-      throw new Error(`AI API 오류: ${error.message}`)
-    }
+    return blogPost
   }
 
   /**

@@ -14,10 +14,10 @@ export class OpenAiService implements AIService {
   constructor(private readonly settingsService: SettingsService) {}
 
   generateLinkSearchPrompt(html: string): Promise<string> {
-    throw new Error('Method not implemented.')
+    throw new CustomHttpException(ErrorCode.INTERNAL_ERROR, { message: 'Method not implemented.' })
   }
   generateYoutubeSearchPrompt(html: string): Promise<string> {
-    throw new Error('Method not implemented.')
+    throw new CustomHttpException(ErrorCode.INTERNAL_ERROR, { message: 'Method not implemented.' })
   }
 
   async initialize(): Promise<void> {
@@ -25,7 +25,7 @@ export class OpenAiService implements AIService {
     const apiKey = settings.openaiApiKey
 
     if (!apiKey) {
-      throw new Error('OpenAI API 키가 설정되지 않았습니다. 설정에서 API 키를 입력해주세요.')
+      throw new CustomHttpException(ErrorCode.AI_KEY_REQUIRED)
     }
 
     this.openai = new OpenAI({ apiKey: apiKey.trim() })
@@ -253,7 +253,7 @@ export class OpenAiService implements AIService {
       })
 
       if (!response.data[0]?.url) {
-        throw new Error('이미지 URL을 받지 못했습니다.')
+        throw new CustomHttpException(ErrorCode.AI_API_ERROR, { message: '이미지 URL을 받지 못했습니다.' })
       }
 
       return response.data[0].url

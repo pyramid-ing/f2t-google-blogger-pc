@@ -5,6 +5,8 @@ import { JobStatus, JobType } from '@main/app/modules/job/job.types'
 import { TopicService } from './topic.service'
 import { saveTopicsResultAsXlsx } from './topic-job.util'
 import { JobLogsService } from '../job-logs/job-logs.service'
+import { CustomHttpException } from '@main/common/errors/custom-http.exception'
+import { ErrorCode } from '@main/common/errors/error-code.enum'
 
 @Injectable()
 export class TopicJobService implements JobProcessor {
@@ -29,7 +31,7 @@ export class TopicJobService implements JobProcessor {
     })
 
     if (!job.topicJob) {
-      throw new Error('Topic job data not found')
+      throw new CustomHttpException(ErrorCode.TOPIC_JOB_NOT_FOUND, { message: 'Topic job data not found' })
     }
 
     await this.createJobLog(jobId, 'info', '토픽 생성 작업 시작')

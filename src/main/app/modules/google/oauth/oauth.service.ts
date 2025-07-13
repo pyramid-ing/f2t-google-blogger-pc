@@ -353,10 +353,5 @@ export class OauthService {
     if (data.error === 'invalid_grant') {
       return { valid: true }
     }
-    // 기타 에러
-    throw new CustomHttpException(ErrorCode.EXTERNAL_API_FAIL, {
-      message: data.error_description || data.error || '알 수 없는 오류',
-      responseData: data,
-    })
   }
 }

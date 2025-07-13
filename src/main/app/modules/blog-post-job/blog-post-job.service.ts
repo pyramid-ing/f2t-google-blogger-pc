@@ -7,6 +7,8 @@ import { ContentGenerateService } from '@main/app/modules/content-generate/conte
 import { JobLogsService } from '../job-logs/job-logs.service'
 import { isValid, parse } from 'date-fns'
 import { BlogPostExcelRow } from './blog-post-job.types'
+import { CustomHttpException } from '@main/common/errors/custom-http.exception'
+import { ErrorCode } from '@main/common/errors/error-code.enum'
 
 @Injectable()
 export class BlogPostJobService implements JobProcessor {
@@ -32,7 +34,7 @@ export class BlogPostJobService implements JobProcessor {
     })
 
     if (!job.blogJob) {
-      throw new Error('Blog post job data not found')
+      throw new CustomHttpException(ErrorCode.BLOG_POST_JOB_NOT_FOUND, { message: 'Blog post job data not found' })
     }
 
     await this.createJobLog(jobId, 'info', '블로그 포스팅 작업 시작')

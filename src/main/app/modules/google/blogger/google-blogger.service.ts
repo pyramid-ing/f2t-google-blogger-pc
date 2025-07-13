@@ -71,7 +71,7 @@ export class GoogleBloggerService {
         finalBlogId = blogInfo.id
       }
       if (!finalBlogId) {
-        throw new CustomHttpException(ErrorCode.DATA_NOT_FOUND, {
+        throw new CustomHttpException(ErrorCode.BLOGGER_BLOG_URL_REQUIRED, {
           message: 'blogId 또는 blogUrl이 필요합니다.',
           providedOptions: options,
         })

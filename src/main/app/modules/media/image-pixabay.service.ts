@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common'
 import axios from 'axios'
 import { SettingsService } from '../settings/settings.service'
+import { CustomHttpException } from '@main/common/errors/custom-http.exception'
+import { ErrorCode } from '@main/common/errors/error-code.enum'
 
 @Injectable()
 export class ImagePixabayService {
@@ -13,7 +15,7 @@ export class ImagePixabayService {
     const apiKey = settings.pixabayApiKey
 
     if (!apiKey) {
-      throw new Error('Pixabay API 키가 설정되지 않았습니다. 설정에서 API 키를 입력해주세요.')
+      throw new CustomHttpException(ErrorCode.PIXABAY_API_KEY_REQUIRED)
     }
 
     return apiKey
@@ -48,7 +50,7 @@ export class ImagePixabayService {
 
   async searchImage(keywords: string[]): Promise<string> {
     if (!keywords?.length) {
-      throw new Error('검색할 키워드가 제공되지 않았습니다.')
+      throw new CustomHttpException(ErrorCode.INVALID_INPUT, { message: '검색할 키워드가 제공되지 않았습니다.' })
     }
 
     const pixabayApiKey = await this.getPixabayApiKey()
@@ -63,6 +65,8 @@ export class ImagePixabayService {
     }
 
     // 모든 키워드가 실패한 경우
-    throw new Error(`모든 키워드에 대해 이미지를 찾을 수 없습니다: ${keywords.join(', ')}`)
+    throw new CustomHttpException(ErrorCode.PIXABAY_IMAGE_NOT_FOUND, {
+      message: `모든 키워드에 대해 이미지를 찾을 수 없습니다: ${keywords.join(', ')}`,
+    })
   }
 }

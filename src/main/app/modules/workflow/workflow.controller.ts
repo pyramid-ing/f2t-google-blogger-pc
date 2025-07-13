@@ -16,6 +16,8 @@ import * as XLSX from 'xlsx'
 import { TopicJobService } from '../topic/topic-job.service'
 import { BlogPostJobService } from '../blog-post-job/blog-post-job.service'
 import { BlogPostExcelRow } from '@main/app/modules/blog-post-job/blog-post-job.types'
+import { CustomHttpException } from '@main/common/errors/custom-http.exception'
+import { ErrorCode } from '@main/common/errors/error-code.enum'
 
 @Controller('workflow')
 export class WorkflowController {
@@ -39,7 +41,9 @@ export class WorkflowController {
     this.logger.log(`주제 찾기(비동기 job 등록): topic=${topic}, limit=${limit}`)
 
     if (!topic) {
-      throw new Error('주제(topic) 파라미터는 필수입니다.')
+      throw new CustomHttpException(ErrorCode.WORKFLOW_TOPIC_REQUIRED, {
+        message: '주제(topic) 파라미터는 필수입니다.',
+      })
     }
 
     // 1. 토픽 생성 job 등록
@@ -60,7 +64,8 @@ export class WorkflowController {
   @Post('post')
   @UseInterceptors(FileInterceptor('file'))
   async uploadAndQueue(@UploadedFile() file: any, @Res() res: Response): Promise<void> {
-    if (!file) throw new Error('엑셀 파일은 필수입니다.')
+    if (!file)
+      throw new CustomHttpException(ErrorCode.WORKFLOW_EXCEL_FILE_REQUIRED, { message: '엑셀 파일은 필수입니다.' })
 
     // 날짜 형식을 문자열로 유지하기 위한 옵션 설정
     const workbook = XLSX.read(file.buffer, {

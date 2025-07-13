@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpException, HttpStatus, Param, Post, Query } from '@nestjs/common'
+import { Body, Controller, Delete, Get, Param, Post, Query } from '@nestjs/common'
 import { PrismaService } from '../common/prisma/prisma.service'
 import { JobQueueProcessor } from './job-queue.processor'
 import { Prisma } from '@prisma/client'
@@ -78,7 +78,7 @@ export class JobController {
 
       return jobs
     } catch (error) {
-      throw new HttpException('작업 목록을 가져오는데 실패했습니다.', HttpStatus.INTERNAL_SERVER_ERROR)
+      throw new CustomHttpException(ErrorCode.JOB_FETCH_FAILED)
     }
   }
 
@@ -88,7 +88,7 @@ export class JobController {
       const { jobIds } = body
 
       if (!jobIds || jobIds.length === 0) {
-        throw new HttpException('작업 ID가 제공되지 않았습니다.', HttpStatus.BAD_REQUEST)
+        throw new CustomHttpException(ErrorCode.JOB_ID_REQUIRED)
       }
 
       const jobs = await this.prisma.job.findMany({
@@ -98,7 +98,7 @@ export class JobController {
       })
 
       if (jobs.length === 0) {
-        throw new HttpException('작업을 찾을 수 없습니다.', HttpStatus.NOT_FOUND)
+        throw new CustomHttpException(ErrorCode.JOB_NOT_FOUND)
       }
 
       // 실패한 작업만 필터링
@@ -154,10 +154,10 @@ export class JobController {
         },
       }
     } catch (error) {
-      if (error instanceof HttpException) {
+      if (error instanceof CustomHttpException) {
         throw error
       }
-      throw new HttpException('벌크 재시도에 실패했습니다.', HttpStatus.INTERNAL_SERVER_ERROR)
+      throw new CustomHttpException(ErrorCode.JOB_BULK_RETRY_FAILED)
     }
   }
 
@@ -167,7 +167,7 @@ export class JobController {
       const { jobIds } = body
 
       if (!jobIds || jobIds.length === 0) {
-        throw new HttpException('작업 ID가 제공되지 않았습니다.', HttpStatus.BAD_REQUEST)
+        throw new CustomHttpException(ErrorCode.JOB_ID_REQUIRED)
       }
 
       const jobs = await this.prisma.job.findMany({
@@ -177,7 +177,7 @@ export class JobController {
       })
 
       if (jobs.length === 0) {
-        throw new CustomHttpException(ErrorCode.USER_NOT_FOUND, { jobIds })
+        throw new CustomHttpException(ErrorCode.JOB_NOT_FOUND, { jobIds })
       }
 
       // 처리 중인 작업 제외 및 삭제 가능한 작업 필터링
@@ -216,10 +216,10 @@ export class JobController {
         },
       }
     } catch (error) {
-      if (error instanceof HttpException) {
+      if (error instanceof CustomHttpException) {
         throw error
       }
-      throw new HttpException('벌크 삭제에 실패했습니다.', HttpStatus.INTERNAL_SERVER_ERROR)
+      throw new CustomHttpException(ErrorCode.JOB_BULK_DELETE_FAILED)
     }
   }
 
@@ -233,7 +233,7 @@ export class JobController {
 
       return logs
     } catch (error) {
-      throw new HttpException('작업 로그를 가져오는데 실패했습니다.', HttpStatus.INTERNAL_SERVER_ERROR)
+      throw new CustomHttpException(ErrorCode.JOB_LOG_FETCH_FAILED)
     }
   }
 
@@ -247,7 +247,7 @@ export class JobController {
 
       return log
     } catch (error) {
-      throw new HttpException('최신 로그를 가져오는데 실패했습니다.', HttpStatus.INTERNAL_SERVER_ERROR)
+      throw new CustomHttpException(ErrorCode.JOB_LOG_FETCH_FAILED)
     }
   }
 
@@ -259,7 +259,7 @@ export class JobController {
       })
 
       if (!job) {
-        throw new HttpException('작업을 찾을 수 없습니다.', HttpStatus.NOT_FOUND)
+        throw new CustomHttpException(ErrorCode.JOB_NOT_FOUND, { jobId })
       }
 
       // 작업 상태를 pending으로 변경
@@ -289,10 +289,10 @@ export class JobController {
         message: '작업이 재시도됩니다.',
       }
     } catch (error) {
-      if (error instanceof HttpException) {
+      if (error instanceof CustomHttpException) {
         throw error
       }
-      throw new HttpException('작업 재시도에 실패했습니다.', HttpStatus.INTERNAL_SERVER_ERROR)
+      throw new CustomHttpException(ErrorCode.JOB_RETRY_FAILED)
     }
   }
 
@@ -304,11 +304,11 @@ export class JobController {
       })
 
       if (!job) {
-        throw new CustomHttpException(ErrorCode.USER_NOT_FOUND, { jobId })
+        throw new CustomHttpException(ErrorCode.JOB_NOT_FOUND, { jobId })
       }
 
       if (job.status === JOB_STATUS.PROCESSING) {
-        throw new HttpException('처리 중인 작업은 삭제할 수 없습니다.', HttpStatus.BAD_REQUEST)
+        throw new CustomHttpException(ErrorCode.JOB_DELETE_PROCESSING)
       }
 
       // 작업과 관련된 로그 삭제는 Prisma의 onDelete: Cascade로 자동 처리됨
@@ -321,10 +321,10 @@ export class JobController {
         message: '작업이 삭제되었습니다.',
       }
     } catch (error) {
-      if (error instanceof HttpException) {
+      if (error instanceof CustomHttpException) {
         throw error
       }
-      throw new HttpException('작업 삭제에 실패했습니다.', HttpStatus.INTERNAL_SERVER_ERROR)
+      throw new CustomHttpException(ErrorCode.JOB_DELETE_FAILED)
     }
   }
 }
