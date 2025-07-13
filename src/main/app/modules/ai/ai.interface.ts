@@ -1,3 +1,5 @@
+import { SearchResultItem } from '../search/searxng.service'
+
 export interface ThumbnailData {
   mainText: string
   subText?: string
@@ -75,7 +77,22 @@ export interface AIService {
 
   generateLinkSearchPrompt(html: string): Promise<string>
 
+  /**
+   * (섹션 제목 포함) 본문+제목 기반 관련 링크 검색어 생성
+   */
+  generateLinkSearchPromptWithTitle(html: string, title: string): Promise<string>
+
   generateYoutubeSearchPrompt(html: string): Promise<string>
+
+  /**
+   * 링크 제목을 AI로 요약/가공
+   */
+  generateLinkTitle(title: string, content: string): Promise<string>
+
+  /**
+   * 여러 후보 링크 중 본문에 가장 적합한 링크 1개를 AI로 선정
+   */
+  pickBestLinkByAI(html: string, candidates: SearchResultItem[]): Promise<SearchResultItem | null>
 }
 
 export interface LinkResult {

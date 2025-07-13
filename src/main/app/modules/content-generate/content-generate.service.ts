@@ -104,7 +104,7 @@ export class ContentGenerateService implements OnModuleInit {
           try {
             const [imageUrl, links, youtubeLinks, adHtml] = await Promise.all([
               this.generateAndUploadImage(section.html, sectionIndex, jobId, aiService),
-              this.generateLinks(section.html, sectionIndex, jobId),
+              this.generateLinks(section.html, sectionIndex, jobId, title),
               this.generateYoutubeLinks(section.html, sectionIndex, jobId),
               this.generateAdScript(sectionIndex),
             ])
@@ -178,27 +178,35 @@ export class ContentGenerateService implements OnModuleInit {
   /**
    * 링크 생성을 처리하는 메서드
    */
-  private async generateLinks(html: string, sectionIndex: number, jobId?: string): Promise<LinkResult[]> {
+  private async generateLinks(
+    html: string,
+    sectionIndex: number,
+    jobId?: string,
+    title?: string,
+  ): Promise<LinkResult[]> {
     try {
       const settings = await this.settingsService.getSettings()
       if (!settings.linkEnabled) return []
       if (jobId) await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 관련 링크 생성 시작`)
 
-      // 1. Gemini로 검색어 추출
+      // 1. Gemini로 검색어 추출 (섹션 제목도 함께 전달)
       const aiService = await this.getAIService()
-      const keyword = await aiService.generateLinkSearchPrompt(html)
+      const keyword = await aiService.generateLinkSearchPromptWithTitle(html, title)
       if (!keyword) return []
 
       // 2. searxng로 검색 (구글 엔진)
-      const searchRes = await this.searxngService.search(keyword, 'google', 10)
+      const searchRes = await this.searxngService.search(`${keyword} -site:youtube.com -site:youtu.be`, 'google', 10)
       if (!searchRes.results.length) return []
 
       // 3. Gemini로 최적 링크 1개 선정
-      const bestLink = await this.pickBestLinkByAI(html, searchRes.results, aiService)
+      const bestLink = await aiService.pickBestLinkByAI(html, searchRes.results)
       if (!bestLink) return []
 
+      // AI로 링크 제목 가공
+      const linkTitle = await aiService.generateLinkTitle(bestLink.title, bestLink.content)
+
       if (jobId) await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 관련 링크 1개 선정 완료`)
-      return [{ name: bestLink.title, link: bestLink.url }]
+      return [{ name: linkTitle, link: bestLink.url }]
     } catch (error) {
       if (jobId)
         await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 링크 생성 실패: ${error.message}`, 'error')
@@ -238,42 +246,6 @@ export class ContentGenerateService implements OnModuleInit {
           'error',
         )
       return []
-    }
-  }
-
-  // AI로 최적의 링크 1개 선정 (구현 필요)
-  private async pickBestLinkByAI(
-    html: string,
-    candidates: SearchResultItem[],
-    aiService: AIService,
-  ): Promise<SearchResultItem | null> {
-    if (!candidates.length) return null
-    // Gemini 프롬프트 설계
-    const prompt = `아래는 본문 HTML과, 본문과 관련된 링크 후보 리스트입니다. 본문 내용에 가장 적합한 링크 1개를 골라주세요.\n\n[본문 HTML]\n${html}\n\n[링크 후보]\n${candidates
-      .map((c, i) => `${i + 1}. ${c.title} - ${c.url}\n${c.content}`)
-      .join('\n\n')}\n\n응답 형식:\n{\n  \"index\": 후보 번호 (1부터 시작)\n}`
-    try {
-      // Gemini 호출 (임시: generateLinkSearchPrompt 재활용, 실제로는 별도 함수로 분리 권장)
-      const ai = aiService as any
-      const resp = await ai.getGemini().then((gemini: any) =>
-        gemini.models.generateContent({
-          model: 'gemini-2.5-pro',
-          contents: prompt,
-          config: {
-            responseMimeType: 'application/json',
-            responseSchema: {
-              type: 'object',
-              properties: { index: { type: 'integer' } },
-              required: ['index'],
-            },
-          },
-        }),
-      )
-      const result = JSON.parse(resp.text)
-      const idx = result.index - 1
-      return candidates[idx] || candidates[0]
-    } catch (e) {
-      return candidates[0]
     }
   }
 

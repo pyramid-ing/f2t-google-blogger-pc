@@ -8,6 +8,7 @@ import { EnvConfig } from '@main/config/env.config'
 import { postingContentsPrompt, tableOfContentsPrompt } from '@main/app/modules/ai/prompts'
 import { CustomHttpException } from '@main/common/errors/custom-http.exception'
 import { ErrorCode } from '@main/common/errors/error-code.enum'
+import { SearchResultItem } from '../search/searxng.service'
 
 @Injectable()
 export class GeminiService implements AIService {
@@ -63,7 +64,7 @@ export class GeminiService implements AIService {
 
       return {
         valid: true,
-        model: 'gemini-2.5-pro',
+        model: 'gemini-2.5-flash',
       }
     } catch (error) {
       this.logger.error('Gemini API 키 검증 실패:', error)
@@ -157,7 +158,7 @@ export class GeminiService implements AIService {
 
       const genAI = await this.getGemini()
       const result = await genAI.models.generateContent({
-        model: 'gemini-2.5-pro',
+        model: 'gemini-2.5-flash',
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
@@ -202,7 +203,7 @@ description: ${description}`
       const ai = await this.getGemini()
 
       const resp = await ai.models.generateContent({
-        model: 'gemini-2.5-pro',
+        model: 'gemini-2.5-flash',
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
@@ -247,7 +248,7 @@ ${JSON.stringify(blogOutline)}`
       const ai = await this.getGemini()
 
       const resp = await ai.models.generateContent({
-        model: 'gemini-2.5-pro',
+        model: 'gemini-2.5-flash',
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
@@ -295,7 +296,7 @@ ${html}
 }`
 
       const resp = await ai.models.generateContent({
-        model: 'gemini-2.5-pro',
+        model: 'gemini-2.5-flash',
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
@@ -337,7 +338,7 @@ ${html}
 }`
 
       const resp = await ai.models.generateContent({
-        model: 'gemini-2.5-pro',
+        model: 'gemini-2.5-flash',
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
@@ -420,7 +421,7 @@ ${content}
 }`
 
       const resp = await ai.models.generateContent({
-        model: 'gemini-2.5-pro',
+        model: 'gemini-2.5-flash',
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
@@ -450,7 +451,7 @@ ${content}
       const ai = await this.getGemini()
       const prompt = `다음 HTML 콘텐츠를 분석하여 구글 등에서 검색할 때 가장 적합한 한글 검색어 1개를 추천해주세요.\n\n[HTML 콘텐츠]\n${html}\n\n응답 형식:\n{\n  \"keyword\": \"검색어\"\n}`
       const resp = await ai.models.generateContent({
-        model: 'gemini-2.5-pro',
+        model: 'gemini-2.5-flash',
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
@@ -478,7 +479,7 @@ ${content}
       const ai = await this.getGemini()
       const prompt = `다음 HTML 콘텐츠를 분석하여 유튜브에서 검색할 때 가장 적합한 한글 검색어 1개를 추천해주세요.\n\n[HTML 콘텐츠]\n${html}\n\n응답 형식:\n{\n  \"keyword\": \"검색어\"\n}`
       const resp = await ai.models.generateContent({
-        model: 'gemini-2.5-pro',
+        model: 'gemini-2.5-flash',
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
@@ -495,6 +496,85 @@ ${content}
       return result.keyword
     } catch (error) {
       this.handleGeminiError(error)
+    }
+  }
+
+  async generateLinkTitle(title: string, content: string): Promise<string> {
+    try {
+      const ai = await this.getGemini()
+      const prompt = `다음은 웹페이지의 원래 제목과 본문 내용 일부입니다. 이 정보를 참고하여 사용자가 보기 편하고, 핵심을 잘 전달하는 링크 제목을 30자 이내로 한글로 만들어주세요. 너무 길거나 불필요한 정보는 생략하고, 클릭을 유도할 수 있게 간결하게 요약/가공해주세요.\n\n[원래 제목]\n${title}\n\n[본문 내용]\n${content}\n\n응답 형식:\n{\n  \"linkTitle\": \"가공된 제목\"\n}`
+      const resp = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: 'object',
+            properties: {
+              linkTitle: { type: 'string' },
+            },
+            required: ['linkTitle'],
+          },
+        },
+      })
+      const result = JSON.parse(resp.text)
+      return result.linkTitle
+    } catch (error) {
+      this.logger.error('링크 제목 가공 중 오류:', error)
+      return title
+    }
+  }
+
+  async pickBestLinkByAI(html: string, candidates: SearchResultItem[]): Promise<SearchResultItem | null> {
+    if (!candidates.length) return null
+    const prompt = `아래는 본문 HTML과, 본문과 관련된 링크 후보 리스트입니다. 본문 내용에 가장 적합한 링크 1개를 골라주세요.\n\n[본문 HTML]\n${html}\n\n[링크 후보]\n${candidates
+      .map((c, i) => `${i + 1}. ${c.title} - ${c.url}\n${c.content}`)
+      .join('\n\n')}\n\n응답 형식:\n{\n  \"index\": 후보 번호 (1부터 시작)\n}`
+    try {
+      const ai = await this.getGemini()
+      const resp = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: 'object',
+            properties: { index: { type: 'integer' } },
+            required: ['index'],
+          },
+        },
+      })
+      const result = JSON.parse(resp.text)
+      const idx = result.index - 1
+      return candidates[idx] || candidates[0]
+    } catch (e) {
+      return candidates[0]
+    }
+  }
+
+  async generateLinkSearchPromptWithTitle(html: string, title: string): Promise<string> {
+    try {
+      const ai = await this.getGemini()
+      const prompt = `다음은 블로그 섹션의 제목과 HTML 콘텐츠입니다. 이 두 정보를 모두 참고하여 구글 등에서 검색할 때 가장 적합한 한글 검색어 1개를 추천해주세요.\n\n[섹션 제목]\n${title}\n\n[HTML 콘텐츠]\n${html}\n\n응답 형식:\n{\n  \"keyword\": \"검색어\"\n}`
+      const resp = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: 'object',
+            properties: {
+              keyword: { type: 'string' },
+            },
+            required: ['keyword'],
+          },
+        },
+      })
+      const result = JSON.parse(resp.text)
+      return result.keyword
+    } catch (error) {
+      this.logger.error('링크 검색어(제목 포함) 생성 중 오류:', error)
+      return ''
     }
   }
 }
