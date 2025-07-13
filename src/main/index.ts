@@ -280,8 +280,6 @@ async function bootstrap() {
       }),
     )
 
-    app.useGlobalFilters(new GlobalExceptionFilter())
-
     // Support 10mb csv/json files for importing activities
     app.use(bodyParser.json({ limit: '10mb' }))
 
