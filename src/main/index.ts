@@ -13,7 +13,6 @@ import { AppModule } from './app/app.module'
 import { EnvConfig } from './config/env.config'
 import { LoggerConfig } from './config/logger.config'
 import { environment } from './environments/environment'
-import { GlobalExceptionFilter } from './filters/global-exception.filter'
 
 EnvConfig.initialize()
 LoggerConfig.info(process.env.NODE_ENV)
