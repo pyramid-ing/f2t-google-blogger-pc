@@ -537,8 +537,10 @@ const ScheduledPostsTable: React.FC = () => {
   }
 
   const handleApplyInterval = async () => {
-    if (selectedJobIds.length < 2) {
-      message.warning('2개 이상 선택해야 합니다.')
+    // 등록대기(PENDING) 상태인 작업만 필터링
+    const pendingJobs = data.filter(job => selectedJobIds.includes(job.id) && job.status === JOB_STATUS.PENDING)
+    if (pendingJobs.length < 2) {
+      message.warning('등록대기 상태의 작업을 2개 이상 선택해야 합니다.')
       return
     }
     if (intervalStart > intervalEnd) {
@@ -547,16 +549,10 @@ const ScheduledPostsTable: React.FC = () => {
     }
     setIntervalApplyLoading(true)
     try {
-      // 선택된 Job들만 추출, scheduledAt 기준 오름차순 정렬
-      const selectedJobs = data
-        .filter(job => selectedJobIds.includes(job.id))
-        .sort((a, b) => {
-          if (!a.scheduledAt) return -1
-          if (!b.scheduledAt) return 1
-          return new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
-        })
-      // 기준 시간: 첫 Job의 scheduledAt(없으면 현재)
-      let base = selectedJobs[0].scheduledAt ? new Date(selectedJobs[0].scheduledAt) : new Date()
+      // id 기준 오름차순 정렬(순서 고정)
+      const selectedJobs = pendingJobs.sort((a, b) => a.id.localeCompare(b.id))
+      // 기준 시간: 항상 현재 시간
+      let base = new Date()
       for (let i = 0; i < selectedJobs.length; i++) {
         const job = selectedJobs[i]
         if (i === 0) {
