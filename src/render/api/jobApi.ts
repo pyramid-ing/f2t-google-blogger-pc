@@ -70,3 +70,19 @@ export async function deleteJobs(jobIds: string[]): Promise<ApiResponse> {
   const response = await api.post('/api/jobs/bulk/delete', { jobIds })
   return response.data
 }
+
+/**
+ * 등록요청(request) 상태를 등록대기(pending)로 변경
+ */
+export async function requestToPending(jobId: string): Promise<ApiResponse> {
+  const response = await api.post(`/api/jobs/${jobId}/request-to-pending`)
+  return response.data
+}
+
+/**
+ * 등록대기(pending) 상태를 등록요청(request)으로 변경
+ */
+export async function pendingToRequest(jobId: string): Promise<ApiResponse> {
+  const response = await api.post(`/api/jobs/${jobId}/pending-to-request`)
+  return response.data
+}

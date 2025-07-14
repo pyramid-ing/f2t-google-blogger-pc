@@ -5,6 +5,7 @@ export enum JobType {
 
 export enum JobStatus {
   PENDING = 'pending',
+  REQUEST = 'request',
   PROCESSING = 'processing',
   COMPLETED = 'completed',
   FAILED = 'failed',

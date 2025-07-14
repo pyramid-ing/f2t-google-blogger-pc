@@ -14,11 +14,20 @@ export const JOB_TYPE = {
 } as const
 
 export const JOB_STATUS = {
+  REQUEST: 'request',
   PENDING: 'pending',
   PROCESSING: 'processing',
   COMPLETED: 'completed',
   FAILED: 'failed',
 } as const
+
+export const JOB_STATUS_LABEL: Record<JobStatus, string> = {
+  request: '등록요청',
+  pending: '등록대기',
+  processing: '처리중',
+  completed: '완료',
+  failed: '실패',
+}
 
 export type JobType = (typeof JOB_TYPE)[keyof typeof JOB_TYPE]
 export type JobStatus = (typeof JOB_STATUS)[keyof typeof JOB_STATUS]

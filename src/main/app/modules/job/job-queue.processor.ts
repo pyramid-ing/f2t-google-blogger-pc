@@ -56,10 +56,8 @@ export class JobQueueProcessor implements OnModuleInit {
     try {
       const pendingJobs = await this.prisma.job.findMany({
         where: {
-          status: JobStatus.PENDING,
-          scheduledAt: {
-            lte: new Date(),
-          },
+          status: JobStatus.REQUEST,
+          scheduledAt: { lte: new Date() },
         },
         orderBy: [{ priority: 'desc' }, { scheduledAt: 'asc' }],
       })
@@ -81,11 +79,10 @@ export class JobQueueProcessor implements OnModuleInit {
     }
 
     try {
-      // 조건부 업데이트: PENDING 상태일 때만 PROCESSING으로 변경
       const updateResult = await this.prisma.job.updateMany({
         where: {
           id: job.id,
-          status: JobStatus.PENDING, // 이 조건이 중복 처리를 방지합니다
+          status: JobStatus.REQUEST, // 이 조건이 중복 처리를 방지합니다
         },
         data: {
           status: JobStatus.PROCESSING,

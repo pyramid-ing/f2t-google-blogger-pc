@@ -1,4 +1,19 @@
-import { Button, Input, message, Modal, Popconfirm, Popover, Select, Space, Table, Tag, Checkbox } from 'antd'
+import {
+  Button,
+  Input,
+  message,
+  Modal,
+  Popconfirm,
+  Popover,
+  Select,
+  Space,
+  Table,
+  Tag,
+  Checkbox,
+  DatePicker,
+  InputNumber,
+  Divider,
+} from 'antd'
 import { LinkOutlined } from '@ant-design/icons'
 import React, { useEffect, useState } from 'react'
 import styled from 'styled-components'
@@ -15,9 +30,15 @@ import {
   retryJob,
   retryJobs,
   deleteJobs,
+  requestToPending,
+  pendingToRequest,
 } from '../../api'
-import { getJobs, JOB_STATUS, JOB_TYPE } from '../../api'
+import { getJobs, JOB_STATUS, JOB_TYPE, JOB_STATUS_LABEL } from '../../api'
 import PageContainer from '../../components/shared/PageContainer'
+import dayjs from 'dayjs'
+import 'dayjs/locale/ko'
+import locale from 'antd/es/date-picker/locale/ko_KR'
+import { api } from '../../api'
 
 const ResultCell = styled.div`
   max-width: 100%;
@@ -178,22 +199,19 @@ const StyledTable = styled(Table)`
 `
 
 const statusColor: Record<JobStatus, string> = {
+  [JOB_STATUS.REQUEST]: 'purple',
   [JOB_STATUS.PENDING]: 'blue',
   [JOB_STATUS.PROCESSING]: 'orange',
   [JOB_STATUS.COMPLETED]: 'green',
   [JOB_STATUS.FAILED]: 'red',
 }
 
-const statusLabels: Record<JobStatus, string> = {
-  [JOB_STATUS.PENDING]: '대기중',
-  [JOB_STATUS.PROCESSING]: '처리중',
-  [JOB_STATUS.COMPLETED]: '완료',
-  [JOB_STATUS.FAILED]: '실패',
-}
+const statusLabels: Record<JobStatus, string> = JOB_STATUS_LABEL
 
 const statusOptions = [
   { value: '', label: '전체' },
-  { value: JOB_STATUS.PENDING, label: '대기중' },
+  { value: JOB_STATUS.REQUEST, label: '등록요청' },
+  { value: JOB_STATUS.PENDING, label: '등록대기' },
   { value: JOB_STATUS.PROCESSING, label: '처리중' },
   { value: JOB_STATUS.COMPLETED, label: '완료' },
   { value: JOB_STATUS.FAILED, label: '실패' },
@@ -289,6 +307,12 @@ const ScheduledPostsTable: React.FC = () => {
   const [isAllSelected, setIsAllSelected] = useState(false)
   const [bulkRetryLoading, setBulkRetryLoading] = useState(false)
   const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false)
+
+  const [intervalStart, setIntervalStart] = useState<number>(60)
+  const [intervalEnd, setIntervalEnd] = useState<number>(90)
+  const [intervalApplyLoading, setIntervalApplyLoading] = useState(false)
+
+  const [editingStatusJobId, setEditingStatusJobId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchData()
@@ -500,9 +524,109 @@ const ScheduledPostsTable: React.FC = () => {
     setBulkDeleteLoading(false)
   }
 
+  const handleScheduledAtChange = async (jobId: string, date: dayjs.Dayjs | null) => {
+    try {
+      // 예약시간을 null로 설정하면 즉시발행
+      const scheduledAt = date ? date.toISOString() : null
+      await api.patch(`/api/jobs/${jobId}`, { scheduledAt })
+      message.success('예약시간이 변경되었습니다')
+      fetchData()
+    } catch {
+      message.error('예약시간 변경 실패')
+    }
+  }
+
+  const handleApplyInterval = async () => {
+    if (selectedJobIds.length < 2) {
+      message.warning('2개 이상 선택해야 합니다.')
+      return
+    }
+    if (intervalStart > intervalEnd) {
+      message.warning('시작 분이 끝 분보다 클 수 없습니다.')
+      return
+    }
+    setIntervalApplyLoading(true)
+    try {
+      // 선택된 Job들만 추출, scheduledAt 기준 오름차순 정렬
+      const selectedJobs = data
+        .filter(job => selectedJobIds.includes(job.id))
+        .sort((a, b) => {
+          if (!a.scheduledAt) return -1
+          if (!b.scheduledAt) return 1
+          return new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
+        })
+      // 기준 시간: 첫 Job의 scheduledAt(없으면 현재)
+      let base = selectedJobs[0].scheduledAt ? new Date(selectedJobs[0].scheduledAt) : new Date()
+      for (let i = 0; i < selectedJobs.length; i++) {
+        const job = selectedJobs[i]
+        if (i === 0) {
+          // 첫 Job은 기준 시간 그대로
+          await api.patch(`/api/jobs/${job.id}`, { scheduledAt: base.toISOString() })
+        } else {
+          // 랜덤 간격(분) 추가
+          const interval = Math.floor(Math.random() * (intervalEnd - intervalStart + 1)) + intervalStart
+          base = new Date(base.getTime() + interval * 60000)
+          await api.patch(`/api/jobs/${job.id}`, { scheduledAt: base.toISOString() })
+        }
+      }
+      message.success('간격이 적용되었습니다.')
+      fetchData()
+    } catch {
+      message.error('간격 적용 실패')
+    }
+    setIntervalApplyLoading(false)
+  }
+
+  const handleBulkPendingToRequest = async () => {
+    const pendingIds = data
+      .filter(job => selectedJobIds.includes(job.id) && job.status === JOB_STATUS.PENDING)
+      .map(job => job.id)
+    if (pendingIds.length === 0) {
+      message.info('등록대기 상태인 작업만 일괄 전환됩니다.')
+      return
+    }
+    try {
+      await Promise.all(pendingIds.map(id => pendingToRequest(id)))
+      message.success('등록대기 상태가 등록요청으로 일괄 전환되었습니다.')
+      fetchData()
+    } catch {
+      message.error('상태 일괄변경 실패')
+    }
+  }
+
+  const handleRequestToPending = async (id: string) => {
+    try {
+      const json = await requestToPending(id)
+      if (json.success) {
+        message.success('등록대기로 전환되었습니다')
+        fetchData()
+      } else {
+        message.error(json.message || '상태 변경 실패')
+      }
+    } catch {
+      message.error('상태 변경 실패')
+    }
+  }
+
+  const handleStatusChange = async (job: Job, value: JobStatus) => {
+    if (value === job.status) return
+    if (job.status === JOB_STATUS.PENDING && value === JOB_STATUS.REQUEST) {
+      await pendingToRequest(job.id)
+    } else if (job.status === JOB_STATUS.REQUEST && value === JOB_STATUS.PENDING) {
+      await requestToPending(job.id)
+    }
+    setEditingStatusJobId(null)
+    fetchData()
+  }
+
+  const pendingSelectedCount = data.filter(
+    job => selectedJobIds.includes(job.id) && job.status === JOB_STATUS.PENDING,
+  ).length
+
   return (
     <PageContainer title="작업 관리" maxWidth="none">
-      <div style={{ marginBottom: '20px' }}>
+      {/* 필터 영역 (상태/타입/검색 등) */}
+      <div style={{ marginBottom: 12 }}>
         <Space size="middle" wrap>
           <Space>
             <span>상태 필터:</span>
@@ -525,64 +649,46 @@ const ScheduledPostsTable: React.FC = () => {
           </Space>
         </Space>
       </div>
-
-      {/* 벌크 작업 UI */}
+      {/* 선택 툴바: 선택된 작업이 있을 때만, 필터 아래에 배경색/라운드/패딩 적용 */}
       {selectedJobIds.length > 0 && (
-        <div style={{ marginBottom: '20px', padding: '16px', background: '#f9f9f9', borderRadius: '8px' }}>
-          <Space size="middle" wrap>
-            <span>{selectedJobIds.length}개 작업이 선택되었습니다.</span>
-            {(() => {
-              const failedCount = selectedJobIds.filter(jobId => {
-                const job = data.find(j => j.id === jobId)
-                return job && job.status === JOB_STATUS.FAILED
-              }).length
-
-              const processingCount = selectedJobIds.filter(jobId => {
-                const job = data.find(j => j.id === jobId)
-                return job && job.status === JOB_STATUS.PROCESSING
-              }).length
-
-              return (
-                <>
-                  <Popconfirm
-                    title={`선택된 실패한 작업 ${failedCount}개를 재시도하시겠습니까?`}
-                    onConfirm={handleBulkRetry}
-                    okText="재시도"
-                    cancelText="취소"
-                  >
-                    <Button type="primary" loading={bulkRetryLoading} disabled={bulkDeleteLoading || failedCount === 0}>
-                      실패한 작업 재시도 ({failedCount}개)
-                    </Button>
-                  </Popconfirm>
-                  <Popconfirm
-                    title={`선택된 작업 ${selectedJobIds.length - processingCount}개를 삭제하시겠습니까?${processingCount > 0 ? ` (처리 중인 ${processingCount}개 작업은 제외됩니다)` : ''}`}
-                    onConfirm={handleBulkDelete}
-                    okText="삭제"
-                    cancelText="취소"
-                  >
-                    <Button
-                      danger
-                      loading={bulkDeleteLoading}
-                      disabled={bulkRetryLoading || selectedJobIds.length === processingCount}
-                    >
-                      선택된 작업 삭제 ({selectedJobIds.length - processingCount}개)
-                    </Button>
-                  </Popconfirm>
-                </>
-              )
-            })()}
-            <Button
-              onClick={() => {
-                setSelectedJobIds([])
-                setIsAllSelected(false)
-              }}
-            >
-              선택 해제
-            </Button>
-          </Space>
+        <div
+          style={{
+            background: '#f9f9f9',
+            borderRadius: 8,
+            padding: '14px 20px',
+            marginBottom: 16,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 16,
+            flexWrap: 'wrap',
+          }}
+        >
+          <span style={{ fontWeight: 500 }}>{selectedJobIds.length}개 작업이 선택되었습니다.</span>
+          <Button type="primary" onClick={handleBulkRetry}>
+            실패한 작업 재시도 (
+            {data.filter(job => selectedJobIds.includes(job.id) && job.status === JOB_STATUS.FAILED).length}개)
+          </Button>
+          <Button danger onClick={handleBulkDelete}>
+            선택된 작업 삭제 ({selectedJobIds.length}개)
+          </Button>
+          <Divider />
+          <span>등록 간격(분):</span>
+          <InputNumber min={1} max={1440} value={intervalStart} onChange={v => setIntervalStart(Number(v))} />
+          <span>~</span>
+          <InputNumber min={1} max={1440} value={intervalEnd} onChange={v => setIntervalEnd(Number(v))} />
+          <Button
+            type="primary"
+            loading={intervalApplyLoading}
+            onClick={handleApplyInterval}
+            disabled={pendingSelectedCount === 0}
+          >
+            간격 적용 ({pendingSelectedCount}개)
+          </Button>
+          <Button onClick={handleBulkPendingToRequest} disabled={pendingSelectedCount === 0}>
+            등록요청 일괄변경 ({pendingSelectedCount}개)
+          </Button>
         </div>
       )}
-
       <StyledTable
         rowKey="id"
         dataSource={data}
@@ -745,21 +851,56 @@ const ScheduledPostsTable: React.FC = () => {
           {
             title: '상태',
             dataIndex: 'status',
-            width: 100,
-            render: (v: JobStatus) => (
-              <Tag color={statusColor[v] || 'default'} style={{ cursor: 'pointer' }} onClick={() => setStatusFilter(v)}>
-                {statusLabels[v] || v}
-              </Tag>
-            ),
-            sorter: true,
-            align: 'center',
+            key: 'status',
+            render: (value: JobStatus, record: Job) =>
+              editingStatusJobId === record.id ? (
+                <Select
+                  size="small"
+                  value={value}
+                  style={{ minWidth: 100 }}
+                  onChange={val => handleStatusChange(record, val)}
+                  onBlur={() => setEditingStatusJobId(null)}
+                  options={[
+                    ...(record.status === JOB_STATUS.PENDING
+                      ? [
+                          { value: JOB_STATUS.PENDING, label: statusLabels[JOB_STATUS.PENDING] },
+                          { value: JOB_STATUS.REQUEST, label: statusLabels[JOB_STATUS.REQUEST] },
+                        ]
+                      : []),
+                    ...(record.status === JOB_STATUS.REQUEST
+                      ? [
+                          { value: JOB_STATUS.REQUEST, label: statusLabels[JOB_STATUS.REQUEST] },
+                          { value: JOB_STATUS.PENDING, label: statusLabels[JOB_STATUS.PENDING] },
+                        ]
+                      : []),
+                  ]}
+                  autoFocus
+                />
+              ) : (
+                <Tag
+                  color={statusColor[value]}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => setEditingStatusJobId(record.id)}
+                >
+                  {statusLabels[value]}
+                </Tag>
+              ),
           },
           {
-            title: '등록예정시간',
+            title: '예약시간',
             dataIndex: 'scheduledAt',
-            width: 160,
-            render: (v: string) => (
-              <span style={{ fontSize: '12px', color: '#666' }}>{new Date(v).toLocaleString('ko-KR')}</span>
+            key: 'scheduledAt',
+            render: (value: string, record: Job) => (
+              <DatePicker
+                locale={locale}
+                showTime
+                value={value ? dayjs(value) : null}
+                onChange={date => handleScheduledAtChange(record.id, date)}
+                allowClear
+                format="YYYY-MM-DD ddd HH:mm"
+                style={{ minWidth: 150 }}
+                getPopupContainer={trigger => trigger.parentNode as HTMLElement}
+              />
             ),
             sorter: true,
           },

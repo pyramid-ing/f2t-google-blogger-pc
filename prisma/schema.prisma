@@ -31,7 +31,7 @@ model Job {
   type         String // JobType: 'post' | 'generate_topic'
   subject      String // 작업 제목
   desc         String // 작업 설명
-  status       String    @default("pending") // JobStatus: 'pending' | 'processing' | 'completed' | 'failed'
+  status       String    @default("pending") // JobStatus: 'request' | 'pending' | 'processing' | 'completed' | 'failed'
   priority     Int       @default(1)
   scheduledAt  DateTime
   startedAt    DateTime?

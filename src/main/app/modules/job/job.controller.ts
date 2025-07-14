@@ -1,9 +1,10 @@
-import { Body, Controller, Delete, Get, Param, Post, Query } from '@nestjs/common'
+import { Body, Controller, Delete, Get, Param, Post, Query, Patch } from '@nestjs/common'
 import { PrismaService } from '../common/prisma/prisma.service'
 import { JobQueueProcessor } from './job-queue.processor'
 import { Prisma } from '@prisma/client'
 import { CustomHttpException } from '@main/common/errors/custom-http.exception'
 import { ErrorCode } from '@main/common/errors/error-code.enum'
+import { JobStatus } from './job.types'
 
 // 작업 타입 상수
 export const JOB_TYPE = {
@@ -11,16 +12,7 @@ export const JOB_TYPE = {
   GENERATE_TOPIC: 'generate_topic',
 } as const
 
-// 작업 상태 상수
-export const JOB_STATUS = {
-  PENDING: 'pending',
-  PROCESSING: 'processing',
-  COMPLETED: 'completed',
-  FAILED: 'failed',
-} as const
-
 export type JobType = (typeof JOB_TYPE)[keyof typeof JOB_TYPE]
-export type JobStatus = (typeof JOB_STATUS)[keyof typeof JOB_STATUS]
 
 @Controller('api/jobs')
 export class JobController {
@@ -102,8 +94,8 @@ export class JobController {
       }
 
       // 실패한 작업만 필터링
-      const failedJobs = jobs.filter(job => job.status === JOB_STATUS.FAILED)
-      const nonFailedJobs = jobs.filter(job => job.status !== JOB_STATUS.FAILED)
+      const failedJobs = jobs.filter(job => job.status === JobStatus.FAILED)
+      const nonFailedJobs = jobs.filter(job => job.status !== JobStatus.FAILED)
 
       let successCount = 0
       let failedCount = 0
@@ -111,11 +103,10 @@ export class JobController {
 
       for (const job of failedJobs) {
         try {
-          // 작업 상태를 pending으로 변경
           await this.prisma.job.update({
             where: { id: job.id },
             data: {
-              status: JOB_STATUS.PENDING,
+              status: JobStatus.REQUEST,
               resultMsg: null,
               resultUrl: null,
               errorMessage: null,
@@ -181,8 +172,8 @@ export class JobController {
       }
 
       // 처리 중인 작업 제외 및 삭제 가능한 작업 필터링
-      const processingJobs = jobs.filter(job => job.status === JOB_STATUS.PROCESSING)
-      const deletableJobs = jobs.filter(job => job.status !== JOB_STATUS.PROCESSING)
+      const processingJobs = jobs.filter(job => job.status === JobStatus.PROCESSING)
+      const deletableJobs = jobs.filter(job => job.status !== JobStatus.PROCESSING)
 
       let successCount = 0
       let failedCount = 0
@@ -262,11 +253,10 @@ export class JobController {
         throw new CustomHttpException(ErrorCode.JOB_NOT_FOUND, { jobId })
       }
 
-      // 작업 상태를 pending으로 변경
       await this.prisma.job.update({
         where: { id: jobId },
         data: {
-          status: JOB_STATUS.PENDING,
+          status: JobStatus.REQUEST,
           resultMsg: null,
           resultUrl: null,
           errorMessage: null,
@@ -307,7 +297,7 @@ export class JobController {
         throw new CustomHttpException(ErrorCode.JOB_NOT_FOUND, { jobId })
       }
 
-      if (job.status === JOB_STATUS.PROCESSING) {
+      if (job.status === JobStatus.PROCESSING) {
         throw new CustomHttpException(ErrorCode.JOB_DELETE_PROCESSING)
       }
 
@@ -325,6 +315,93 @@ export class JobController {
         throw error
       }
       throw new CustomHttpException(ErrorCode.JOB_DELETE_FAILED)
+    }
+  }
+
+  @Post(':id/request-to-pending')
+  async requestToPending(@Param('id') jobId: string) {
+    try {
+      const job = await this.prisma.job.findUnique({ where: { id: jobId } })
+      if (!job) {
+        throw new CustomHttpException(ErrorCode.JOB_NOT_FOUND, { jobId })
+      }
+      if (job.status !== JobStatus.REQUEST) {
+        throw new CustomHttpException(ErrorCode.JOB_STATUS_INVALID, { jobId, status: job.status })
+      }
+      await this.prisma.job.update({
+        where: { id: jobId },
+        data: { status: JobStatus.PENDING },
+      })
+      return { success: true, message: '상태가 등록대기(pending)로 변경되었습니다.' }
+    } catch (error) {
+      if (error instanceof CustomHttpException) throw error
+      throw new CustomHttpException(ErrorCode.JOB_STATUS_CHANGE_FAILED)
+    }
+  }
+
+  @Post(':id/pending-to-request')
+  async pendingToRequest(@Param('id') jobId: string) {
+    try {
+      const job = await this.prisma.job.findUnique({ where: { id: jobId } })
+      if (!job) {
+        throw new CustomHttpException(ErrorCode.JOB_NOT_FOUND, { jobId })
+      }
+      if (job.status !== JobStatus.PENDING) {
+        throw new CustomHttpException(ErrorCode.JOB_STATUS_INVALID, { jobId, status: job.status })
+      }
+      await this.prisma.job.update({
+        where: { id: jobId },
+        data: { status: JobStatus.REQUEST },
+      })
+      return { success: true, message: '상태가 등록요청(request)로 변경되었습니다.' }
+    } catch (error) {
+      if (error instanceof CustomHttpException) throw error
+      throw new CustomHttpException(ErrorCode.JOB_STATUS_CHANGE_FAILED)
+    }
+  }
+
+  @Get('scheduled')
+  async getScheduledJobs() {
+    try {
+      const jobs = await this.prisma.job.findMany({
+        where: {
+          scheduledAt: { not: null },
+        },
+        orderBy: {
+          scheduledAt: 'asc',
+        },
+        include: {
+          logs: {
+            orderBy: {
+              createdAt: 'desc',
+            },
+            take: 1,
+          },
+          blogJob: true,
+          topicJob: true,
+        },
+      })
+      return jobs
+    } catch (error) {
+      throw new CustomHttpException(ErrorCode.JOB_FETCH_FAILED)
+    }
+  }
+
+  @Patch(':id')
+  async updateJob(@Param('id') jobId: string, @Body() body: { scheduledAt?: string }) {
+    try {
+      const updateData: any = {}
+      if ('scheduledAt' in body) {
+        updateData.scheduledAt = body.scheduledAt ? new Date(body.scheduledAt) : null
+      }
+      // 필요시 다른 필드도 추가 가능
+      await this.prisma.job.update({
+        where: { id: jobId },
+        data: updateData,
+      })
+      return { success: true }
+    } catch (error) {
+      throw new CustomHttpException(ErrorCode.JOB_FETCH_FAILED)
     }
   }
 }

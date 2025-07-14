@@ -101,4 +101,9 @@ export const ErrorCodeMap: Record<ErrorCode, ErrorCodeMeta> = {
   [ErrorCode.WORKFLOW_EXCEL_FILE_REQUIRED]: { status: 400, message: () => '엑셀 파일은 필수입니다.' },
   [ErrorCode.AI_IMAGE_DATA_NOT_FOUND]: { status: 502, message: () => 'AI에서 이미지 데이터를 받지 못했습니다.' },
   [ErrorCode.SEARXNG_SEARCH_FAILED]: { status: 502, message: () => 'Searxng 검색에 실패했습니다.' },
+  [ErrorCode.JOB_STATUS_INVALID]: {
+    status: 400,
+    message: meta => `현재 상태에서는 허용되지 않은 작업입니다.${meta?.status ? ` (현재 상태: ${meta.status})` : ''}`,
+  },
+  [ErrorCode.JOB_STATUS_CHANGE_FAILED]: { status: 500, message: () => '작업 상태 변경에 실패했습니다.' },
 }
