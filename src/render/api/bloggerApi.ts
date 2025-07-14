@@ -1,7 +1,7 @@
 import { api } from './apiClient'
 
 export async function getBloggerBlogs() {
-  const res = await api.get('/google/blogger/blogs')
+  const res = await api.get('/google-blogger/user/blogs')
   return res.data
 }
 

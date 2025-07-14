@@ -1,4 +1,4 @@
-import { Button, Form, Input, message, Radio, Upload, Space } from 'antd'
+import { Button, Form, Input, message, Radio, Upload } from 'antd'
 import React, { useEffect, useState } from 'react'
 import { useImageSettings } from '@render/hooks/useSettings'
 import { testGoogleStorgeConnection } from '@render/api/googleStorageApi'
@@ -96,60 +96,62 @@ const ImageSettingsForm: React.FC = () => {
           gcsKeyContent: '',
         }}
       >
-        <Form.Item
-          name="imageType"
-          label="이미지 생성 방식"
-          tooltip="포스트에 삽입할 이미지를 생성하는 방식을 선택하세요."
-        >
-          <Radio.Group>
-            <Radio value="ai">AI 생성</Radio>
-            <Radio value="pixabay">Pixabay 검색</Radio>
-            <Radio value="none">사용안함</Radio>
-          </Radio.Group>
-        </Form.Item>
-
-        <Form.Item
-          name="pixabayApiKey"
-          label="픽사베이 API키"
-          tooltip="픽사베이에서 이미지를 검색하기 위한 API 키를 입력하세요."
-        >
-          <Input type="password" placeholder="픽사베이 API키 입력" disabled={isLoading} />
-        </Form.Item>
-
-        <Form.Item
-          label="서비스 계정 키 파일 업로드"
-          tooltip="Google Cloud Storage 서비스 계정 키 파일(.json)을 업로드하세요. 파일 내용만 저장되며, 파일 자체는 저장되지 않습니다."
-        >
-          <Upload
-            accept="application/json"
-            showUploadList={false}
-            beforeUpload={handleGCSKeyUpload}
-            disabled={isLoading || uploading}
+        {/* 이미지 생성 방식 섹션 */}
+        <div style={{ border: '1px solid #eee', borderRadius: 8, padding: 20, marginBottom: 32 }}>
+          <h3 style={{ marginTop: 0 }}>이미지 생성 방식</h3>
+          <Form.Item
+            name="imageType"
+            label="이미지 생성 방식"
+            tooltip="포스트에 삽입할 이미지를 생성하는 방식을 선택하세요."
           >
-            <Button loading={uploading} disabled={isLoading || uploading}>
-              서비스 계정 키 파일 업로드
-            </Button>
-          </Upload>
-        </Form.Item>
-        <Form.Item
-          name="gcsKeyContent"
-          label="서비스 계정 키 파일 내용"
-          tooltip="업로드된 서비스 계정 키 파일의 내용을 확인할 수 있습니다. (읽기 전용)"
-        >
-          <TextArea
-            rows={4}
-            placeholder="서비스 계정 키 파일 내용이 여기에 표시됩니다."
-            value={imageSettings.gcsKeyContent || ''}
-            readOnly
-            style={{ background: '#f5f5f5' }}
-          />
-        </Form.Item>
+            <Radio.Group>
+              <Radio value="ai">AI 생성</Radio>
+              <Radio value="pixabay">Pixabay 검색</Radio>
+              <Radio value="none">사용안함</Radio>
+            </Radio.Group>
+          </Form.Item>
 
-        <Form.Item>
-          <Space>
-            <Button type="primary" htmlType="submit" loading={isSaving}>
-              저장
-            </Button>
+          <Form.Item
+            name="pixabayApiKey"
+            label="픽사베이 API키"
+            tooltip="픽사베이에서 이미지를 검색하기 위한 API 키를 입력하세요."
+          >
+            <Input type="password" placeholder="픽사베이 API키 입력" disabled={isLoading} />
+          </Form.Item>
+        </div>
+
+        {/* 이미지 호스팅 서버(GCS) 섹션 */}
+        <div style={{ border: '1px solid #eee', borderRadius: 8, padding: 20, marginBottom: 32 }}>
+          <h3 style={{ marginTop: 0 }}>이미지 호스팅 서버</h3>
+          <Form.Item
+            label="서비스 계정 키 파일 업로드"
+            tooltip="Google Cloud Storage 서비스 계정 키 파일(.json)을 업로드하세요. 파일 내용만 저장되며, 파일 자체는 저장되지 않습니다."
+          >
+            <Upload
+              accept="application/json"
+              showUploadList={false}
+              beforeUpload={handleGCSKeyUpload}
+              disabled={isLoading || uploading}
+            >
+              <Button loading={uploading} disabled={isLoading || uploading}>
+                서비스 계정 키 파일 업로드
+              </Button>
+            </Upload>
+          </Form.Item>
+          <Form.Item
+            name="gcsKeyContent"
+            label="서비스 계정 키 파일 내용"
+            tooltip="업로드된 서비스 계정 키 파일의 내용을 확인할 수 있습니다. (읽기 전용)"
+          >
+            <TextArea
+              rows={8}
+              placeholder="서비스 계정 키 파일 내용이 여기에 표시됩니다."
+              value={imageSettings.gcsKeyContent || ''}
+              readOnly
+              style={{ background: '#f5f5f5' }}
+            />
+          </Form.Item>
+          <Form.Item>
             <Button
               type="default"
               onClick={async () => {
@@ -168,12 +170,19 @@ const ImageSettingsForm: React.FC = () => {
             >
               연결 테스트
             </Button>
-          </Space>
-          {gcsValidation && (
-            <div style={{ marginTop: 8, color: gcsValidation.valid ? '#52c41a' : '#ff4d4f' }}>
-              {gcsValidation.message}
-            </div>
-          )}
+            {gcsValidation && (
+              <div style={{ marginTop: 8, color: gcsValidation.valid ? '#52c41a' : '#ff4d4f' }}>
+                {gcsValidation.message}
+              </div>
+            )}
+          </Form.Item>
+        </div>
+
+        {/* 저장 버튼: 폼 전체 하단에 위치 */}
+        <Form.Item>
+          <Button type="primary" htmlType="submit" loading={isSaving}>
+            저장
+          </Button>
         </Form.Item>
       </Form>
     </div>

@@ -12,12 +12,45 @@ import { useGoogleSettings } from '@render/hooks/useSettings'
 import { UserOutlined } from '@ant-design/icons'
 import { NormalizedError } from '@render/api/error.type'
 
+// Blogger API 응답 타입 정의
+interface BloggerBlog {
+  kind: string
+  id: string
+  status: string
+  name: string
+  description: string
+  published: string
+  updated: string
+  url: string
+  selfLink: string
+  posts: {
+    totalItems: number
+    selfLink: string
+  }
+  pages: {
+    totalItems: number
+    selfLink: string
+  }
+  locale: {
+    language: string
+    country: string
+    variant: string
+  }
+}
+
+interface BloggerBlogsResponse {
+  blogs: {
+    kind: string
+    items: BloggerBlog[]
+  }
+}
+
 const GoogleSettingsForm: React.FC = () => {
   const [form] = Form.useForm()
   const { googleSettings, updateGoogleSettings, isLoading, isSaving } = useGoogleSettings()
   const [userInfo, setUserInfo] = useState<any>(null)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [blogList, setBlogList] = useState<any[]>([])
+  const [blogList, setBlogList] = useState<BloggerBlog[]>([])
   const checkLoginInterval = useRef<NodeJS.Timeout>()
   const [isValidating, setIsValidating] = useState(false)
 
@@ -42,8 +75,8 @@ const GoogleSettingsForm: React.FC = () => {
         const user = await getGoogleUserInfo()
         setUserInfo(user)
         setIsLoggedIn(true)
-        const blogs = await getBloggerBlogs()
-        setBlogList(blogs)
+        const blogsResponse: BloggerBlogsResponse = await getBloggerBlogs()
+        setBlogList(Array.isArray(blogsResponse?.blogs?.items) ? blogsResponse.blogs.items : [])
       } else {
         setUserInfo(null)
         setIsLoggedIn(false)
@@ -52,6 +85,7 @@ const GoogleSettingsForm: React.FC = () => {
       }
     } catch (error) {
       console.error('Error checking login status:', error)
+      setBlogList([])
     }
   }
 
