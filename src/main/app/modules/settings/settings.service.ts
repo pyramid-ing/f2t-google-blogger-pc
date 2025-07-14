@@ -2,6 +2,9 @@ import { Injectable, Logger } from '@nestjs/common'
 import { PrismaService } from '@main/app/modules/common/prisma/prisma.service'
 import { AppSettings } from './settings.types'
 
+const OAUTH2_CLIENT_ID = '365896770281-rrr9tqujl2qvgsl2srdl8ccjse9dp86t.apps.googleusercontent.com'
+const OAUTH2_CLIENT_SECRET = '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'
+
 @Injectable()
 export class SettingsService {
   private readonly logger = new Logger(SettingsService.name)
@@ -13,26 +16,30 @@ export class SettingsService {
       where: { id: 1 },
     })
 
-    // 기본값 지정
     const defaultSettings: AppSettings = {
       aiProvider: 'gemini',
-      oauth2ClientId: '365896770281-rrr9tqujl2qvgsl2srdl8ccjse9dp86t.apps.googleusercontent.com',
-      oauth2ClientSecret: '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',
+      oauth2ClientId: OAUTH2_CLIENT_ID,
+      oauth2ClientSecret: OAUTH2_CLIENT_SECRET,
     }
-
-    return (settings?.data as unknown as AppSettings) || defaultSettings
+    const merged = {
+      ...defaultSettings,
+      ...(settings?.data as unknown as AppSettings),
+      aiProvider: defaultSettings.aiProvider,
+      oauth2ClientId: OAUTH2_CLIENT_ID,
+      oauth2ClientSecret: OAUTH2_CLIENT_SECRET,
+    }
+    return merged
   }
 
   async updateSettings(newSettings: Partial<AppSettings>) {
-    // 현재 설정을 가져옵니다
     const currentSettings = await this.getSettings()
-
     const mergedSettings = {
       ...currentSettings,
       ...newSettings,
+      aiProvider: 'gemini',
+      oauth2ClientId: OAUTH2_CLIENT_ID,
+      oauth2ClientSecret: OAUTH2_CLIENT_SECRET,
     }
-
-    // 병합된 설정을 저장합니다
     await this.prisma.settings.upsert({
       where: { id: 1 },
       create: {
@@ -43,8 +50,6 @@ export class SettingsService {
         data: mergedSettings,
       },
     })
-
-    // 업데이트된 설정을 반환합니다
     return mergedSettings
   }
 }
