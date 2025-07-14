@@ -1,7 +1,7 @@
 import { HttpService } from '@nestjs/axios'
 import { Injectable, Logger } from '@nestjs/common'
 import { firstValueFrom } from 'rxjs'
-import { OauthService } from '../oauth/oauth.service'
+import { GoogleOauthService } from 'src/main/app/modules/google/oauth/google-oauth.service'
 import type * as BloggerTypes from './google-blogger.types'
 import { SettingsService } from '@main/app/modules/settings/settings.service'
 import { CustomHttpException } from '@main/common/errors/custom-http.exception'
@@ -14,7 +14,7 @@ export class GoogleBloggerService {
 
   constructor(
     private readonly httpService: HttpService,
-    private readonly oauthService: OauthService,
+    private readonly oauthService: GoogleOauthService,
     private readonly settingsService: SettingsService,
   ) {}
 

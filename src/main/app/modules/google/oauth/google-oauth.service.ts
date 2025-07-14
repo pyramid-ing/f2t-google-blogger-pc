@@ -5,8 +5,8 @@ import { CustomHttpException } from '@main/common/errors/custom-http.exception'
 import { ErrorCode } from '@main/common/errors/error-code.enum'
 
 @Injectable()
-export class OauthService {
-  private readonly logger = new Logger(OauthService.name)
+export class GoogleOauthService {
+  private readonly logger = new Logger(GoogleOauthService.name)
 
   constructor(private readonly settingsService: SettingsService) {}
 

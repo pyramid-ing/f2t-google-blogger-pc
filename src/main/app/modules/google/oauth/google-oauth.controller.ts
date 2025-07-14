@@ -1,12 +1,12 @@
 import { Body, Controller, Get, Logger, Post, Query, Res } from '@nestjs/common'
 import { Response } from 'express'
-import { OauthService } from './oauth.service'
+import { GoogleOauthService } from 'src/main/app/modules/google/oauth/google-oauth.service'
 
 @Controller('google-oauth')
 export class GoogleOAuthController {
   private readonly logger = new Logger(GoogleOAuthController.name)
 
-  constructor(private readonly oauthService: OauthService) {}
+  constructor(private readonly oauthService: GoogleOauthService) {}
 
   @Get('callback')
   async handleCallback(@Query('code') code: string, @Query('error') error: string, @Res() res: Response) {
