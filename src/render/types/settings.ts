@@ -25,6 +25,7 @@ export interface AppSettings {
 
   // GCS 설정
   gcsKeyContent?: string // GCS 서비스 계정 키 JSON 내용
+  gcsBucketName?: string // GCS 버킷명
 
   // 광고 설정
   adEnabled?: boolean // 광고 활성화 여부

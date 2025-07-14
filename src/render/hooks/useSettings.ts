@@ -194,8 +194,14 @@ export const useImageSettings = () => {
       pixabayApiKey?: string
       gcsProjectId?: string
       gcsKeyContent?: string
+      gcsBucketName?: string
     }) => {
-      return await updatePartialSettings(imageSettings)
+      const { gcsBucketName, ...rest } = imageSettings as any
+      // gcsBucketName이 명시적으로 들어오면 함께 저장
+      if (typeof gcsBucketName !== 'undefined') {
+        return await updatePartialSettings({ ...rest, gcsBucketName })
+      }
+      return await updatePartialSettings(rest)
     },
     [updatePartialSettings],
   )
@@ -205,6 +211,7 @@ export const useImageSettings = () => {
       imageType: settings.imageType,
       pixabayApiKey: settings.pixabayApiKey,
       gcsKeyContent: settings.gcsKeyContent,
+      gcsBucketName: settings.gcsBucketName,
     },
     updateImageSettings,
     isLoading,

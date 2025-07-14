@@ -4,8 +4,6 @@ import { SettingsService } from '../../settings/settings.service'
 import { CustomHttpException } from '@main/common/errors/custom-http.exception'
 import { ErrorCode } from '@main/common/errors/error-code.enum'
 
-const GCS_BUCKET_NAME = 'winsoft-blog'
-
 export interface StorageUploadOptions {
   fileName?: string
   contentType?: string
@@ -51,7 +49,7 @@ export class StorageService {
     try {
       const storage = await this.initializeStorage()
       const settings = await this.settingsService.getSettings()
-      const bucket = storage.bucket(GCS_BUCKET_NAME)
+      const bucket = storage.bucket(settings.gcsBucketName)
 
       // 파일명 생성 (제공되지 않은 경우 자동 생성)
       const finalFileName = fileName
@@ -77,7 +75,7 @@ export class StorageService {
         stream.on('finish', async () => {
           try {
             // 항상 공개 URL 사용 (블로그 이미지용)
-            const publicUrl = `https://storage.googleapis.com/${GCS_BUCKET_NAME}/${finalFileName}`
+            const publicUrl = `https://storage.googleapis.com/${settings.gcsBucketName}/${finalFileName}`
 
             // 파일을 공개로 설정
             try {
@@ -116,7 +114,7 @@ export class StorageService {
     try {
       const storage = await this.initializeStorage()
       const settings = await this.settingsService.getSettings()
-      const bucket = storage.bucket(GCS_BUCKET_NAME)
+      const bucket = storage.bucket(settings.gcsBucketName)
 
       // 버킷 존재 여부 확인
       const [exists] = await bucket.exists()
@@ -124,7 +122,7 @@ export class StorageService {
       if (!exists) {
         return {
           success: false,
-          error: `버킷 '${GCS_BUCKET_NAME}'이 존재하지 않습니다.`,
+          error: `버킷 '${settings.gcsBucketName}'이 존재하지 않습니다.`,
         }
       }
 
@@ -139,28 +137,19 @@ export class StorageService {
   }
 
   /**
-   * 버킷이 존재하지 않으면 생성하고, 이미 있으면 아무 작업도 하지 않음
+   * 버킷을 생성하고 settings.gcsBucketName에 저장
    */
-  async ensureBucketExists(): Promise<void> {
-    const BUCKET_NAME = GCS_BUCKET_NAME
-    const LOCATION = 'asia-northeast3'
-    const STORAGE_CLASS = 'STANDARD'
-    try {
-      const storage = await this.initializeStorage()
-      const [bucketExists] = await storage.bucket(BUCKET_NAME).exists()
-      if (bucketExists) {
-        this.logger.log(`버킷 '${BUCKET_NAME}' 이미 존재합니다.`)
-        return
-      }
-      // 버킷 생성
-      await storage.createBucket(BUCKET_NAME, {
-        location: LOCATION,
-        storageClass: STORAGE_CLASS,
+  async createAndSetBucket(bucketName: string): Promise<void> {
+    const settings = await this.settingsService.getSettings()
+    const storage = await this.initializeStorage()
+    const [bucketExists] = await storage.bucket(bucketName).exists()
+    if (!bucketExists) {
+      await storage.createBucket(bucketName, {
+        location: 'asia-northeast3',
+        storageClass: 'STANDARD',
         uniformBucketLevelAccess: true,
       })
-      this.logger.log(`버킷 '${BUCKET_NAME}' 생성 완료`)
-      // 공개 권한 부여
-      await storage.bucket(BUCKET_NAME).iam.setPolicy({
+      await storage.bucket(bucketName).iam.setPolicy({
         bindings: [
           {
             role: 'roles/storage.objectViewer',
@@ -168,12 +157,8 @@ export class StorageService {
           },
         ],
       })
-      this.logger.log(`버킷 '${BUCKET_NAME}'에 공개 권한 부여 완료`)
-    } catch (error) {
-      this.logger.error('버킷 생성/권한 부여 중 오류:', error)
-      throw new CustomHttpException(ErrorCode.GCS_BUCKET_CREATE_FAIL, {
-        message: `버킷 생성/권한 부여 실패: ${error.message}`,
-      })
     }
+    // settings에 버킷명 저장
+    await this.settingsService.updateSettings({ ...settings, gcsBucketName: bucketName })
   }
 }

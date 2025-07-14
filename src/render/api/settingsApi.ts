@@ -13,23 +13,11 @@ export async function validatePerplexityApiKey(apiKey: string): Promise<{
 
 export const getSettings = async (): Promise<AppSettings> => {
   const response = await api.get('/settings')
-  // GCS 버킷 ensure 호출 (에러는 무시)
-  try {
-    await api.get('/storage/ensure-bucket')
-  } catch (e) {
-    console.warn('GCS 버킷 ensure 실패:', (e as any)?.message)
-  }
   return response.data
 }
 
 export const updateSettings = async (settings: Partial<AppSettings>): Promise<AppSettings> => {
   const response = await api.post('/settings', settings)
-  // GCS 버킷 ensure 호출 (에러는 무시)
-  try {
-    await api.get('/storage/ensure-bucket')
-  } catch (e) {
-    console.warn('GCS 버킷 ensure 실패:', (e as any)?.message)
-  }
   return response.data
 }
 

@@ -1,52 +1,32 @@
 import { Button, Form, Input, message, Radio, Upload } from 'antd'
 import React, { useEffect, useState } from 'react'
 import { useImageSettings } from '@render/hooks/useSettings'
-import { testGoogleStorgeConnection } from '@render/api/googleStorageApi'
+import { createGcsBucket } from '@render/api/googleStorageApi'
+import { CloseCircleOutlined } from '@ant-design/icons'
 
 const { TextArea } = Input
 
 const ImageSettingsForm: React.FC = () => {
   const [form] = Form.useForm()
   const { imageSettings, updateImageSettings, isLoading, isSaving } = useImageSettings()
-  const [testingGCS, setTestingGCS] = useState(false)
   const [uploading, setUploading] = useState(false)
-  const [gcsValidation, setGcsValidation] = useState<null | { valid: boolean; message: string }>(null)
 
   useEffect(() => {
     form.setFieldsValue({
       imageType: imageSettings.imageType || 'pixabay',
       pixabayApiKey: imageSettings.pixabayApiKey || '',
       gcsKeyContent: imageSettings.gcsKeyContent || '',
+      gcsBucketName: imageSettings.gcsBucketName || '',
     })
   }, [imageSettings, form])
 
   const handleSaveSettings = async (values: any) => {
     try {
-      await updateImageSettings({
-        imageType: values.imageType,
-        pixabayApiKey: values.pixabayApiKey,
-        gcsKeyContent: values.gcsKeyContent,
-      })
+      // gcsBucketName은 저장 대상에서 제외
+      const { gcsBucketName, ...rest } = values
+      await updateImageSettings(rest)
     } catch (error) {
       // 에러는 훅에서 처리됨
-    }
-  }
-
-  const testGCSConnection = async () => {
-    try {
-      setTestingGCS(true)
-      const result = await testGoogleStorgeConnection()
-
-      if (result.status === 'success') {
-        message.success('GCS 연결 테스트 성공!')
-      } else {
-        message.error(`GCS 연결 실패: ${result.error || result.message}`)
-      }
-    } catch (error) {
-      console.error('GCS 연결 테스트 실패:', error)
-      message.error('GCS 연결 테스트 중 오류가 발생했습니다.')
-    } finally {
-      setTestingGCS(false)
     }
   }
 
@@ -60,27 +40,36 @@ const ImageSettingsForm: React.FC = () => {
         json = JSON.parse(text)
       } catch (e) {
         message.error('유효한 JSON 파일이 아닙니다.')
-        setGcsValidation({ valid: false, message: '유효한 JSON 파일이 아닙니다.' })
         return false
       }
       // gcsKeyContent 저장
       await updateImageSettings({ gcsKeyContent: text })
       message.success('서비스 계정 키가 정상적으로 업로드되었습니다.')
-      // 업로드 후 자동 연결 테스트
-      setTestingGCS(true)
-      const result = await testGoogleStorgeConnection()
-      if (result.status === 'success') {
-        setGcsValidation({ valid: true, message: 'GCS 연결 테스트 성공!' })
-        message.success('GCS 연결 테스트 성공!')
-      } else {
-        setGcsValidation({ valid: false, message: `GCS 연결 실패: ${result.error || result.message}` })
-        message.error(`GCS 연결 실패: ${result.error || result.message}`)
-      }
-      setTestingGCS(false)
       return false // 업로드 창 닫기
     } finally {
       setUploading(false)
     }
+  }
+
+  const handleCreateBucket = async () => {
+    const timestamp = Date.now()
+    const bucketName = `winsoft_blog_${timestamp}`
+    try {
+      const result = await createGcsBucket(bucketName)
+      if (result.status === 'success') {
+        message.success('버킷이 성공적으로 생성되었습니다.')
+        // settings 갱신
+        await updateImageSettings({})
+      } else {
+        message.error(result.error || '버킷 생성에 실패했습니다.')
+      }
+    } catch (e: any) {
+      message.error(e?.message || '버킷 생성 중 오류가 발생했습니다.')
+    }
+  }
+
+  const handleDeleteBucketName = async () => {
+    await updateImageSettings({ gcsBucketName: '' })
   }
 
   return (
@@ -151,30 +140,24 @@ const ImageSettingsForm: React.FC = () => {
               style={{ background: '#f5f5f5' }}
             />
           </Form.Item>
-          <Form.Item>
-            <Button
-              type="default"
-              onClick={async () => {
-                setTestingGCS(true)
-                const result = await testGoogleStorgeConnection()
-                if (result.status === 'success') {
-                  setGcsValidation({ valid: true, message: 'GCS 연결 테스트 성공!' })
-                  message.success('GCS 연결 테스트 성공!')
-                } else {
-                  setGcsValidation({ valid: false, message: `GCS 연결 실패: ${result.error || result.message}` })
-                  message.error(`GCS 연결 실패: ${result.error || result.message}`)
-                }
-                setTestingGCS(false)
-              }}
-              loading={testingGCS}
-            >
-              연결 테스트
-            </Button>
-            {gcsValidation && (
-              <div style={{ marginTop: 8, color: gcsValidation.valid ? '#52c41a' : '#ff4d4f' }}>
-                {gcsValidation.message}
-              </div>
-            )}
+          <Form.Item
+            name="gcsBucketName"
+            label="GCS 버킷명"
+            tooltip="생성된 GCS 버킷명을 확인할 수 있습니다. (읽기 전용)"
+          >
+            <Input
+              value={imageSettings.gcsBucketName || ''}
+              readOnly
+              style={{ background: '#f5f5f5' }}
+              suffix={
+                imageSettings.gcsBucketName ? (
+                  <CloseCircleOutlined
+                    style={{ color: '#ff4d4f', cursor: 'pointer' }}
+                    onClick={handleDeleteBucketName}
+                  />
+                ) : null
+              }
+            />
           </Form.Item>
         </div>
 
@@ -182,6 +165,12 @@ const ImageSettingsForm: React.FC = () => {
         <Form.Item>
           <Button type="primary" htmlType="submit" loading={isSaving}>
             저장
+          </Button>
+        </Form.Item>
+
+        <Form.Item>
+          <Button type="primary" onClick={handleCreateBucket} disabled={!!imageSettings.gcsBucketName}>
+            버킷 생성
           </Button>
         </Form.Item>
       </Form>
