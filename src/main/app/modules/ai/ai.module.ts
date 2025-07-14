@@ -5,9 +5,10 @@ import { AIFactory } from './ai.factory'
 import { SettingsModule } from '../settings/settings.module'
 import { AIController } from './ai.controller'
 import { StorageModule } from '../google/storage/storage.module'
+import { UtilModule } from '@main/app/modules/util/util.module'
 
 @Module({
-  imports: [CommonModule, SettingsModule, StorageModule],
+  imports: [CommonModule, UtilModule, SettingsModule, StorageModule],
   providers: [GeminiService, AIFactory],
   exports: [GeminiService, AIFactory],
   controllers: [AIController],

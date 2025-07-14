@@ -12,4 +12,15 @@ export class UtilService {
   isLocalPath(path: string): boolean {
     return path.startsWith('/') || path.startsWith('.') || /^[a-zA-Z]:\\/.test(path)
   }
+
+  /**
+   * HTML 문자열에서 텍스트만 추출합니다.
+   */
+  extractTextContent(html: string): string {
+    if (!html) return ''
+    // cheerio는 이미 dependencies에 포함되어 있음
+    const cheerio = require('cheerio')
+    const $ = cheerio.load(html)
+    return $.text().replace(/\s+/g, ' ').trim()
+  }
 }

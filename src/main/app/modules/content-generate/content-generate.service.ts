@@ -7,7 +7,7 @@ import sharp from 'sharp'
 import { StorageService } from '@main/app/modules/google/storage/storage.service'
 import Bottleneck from 'bottleneck'
 import { sleep } from '@main/app/utils/sleep'
-import { AIService, BlogOutline, BlogPost, LinkResult, YoutubeResult } from '@main/app/modules/ai/ai.interface'
+import { AIService, BlogPost, LinkResult, YoutubeResult } from '@main/app/modules/ai/ai.interface'
 import { AIFactory } from '@main/app/modules/ai/ai.factory'
 import * as fs from 'fs'
 import * as path from 'path'
@@ -80,7 +80,7 @@ export class ContentGenerateService implements OnModuleInit {
       if (jobId) {
         await this.jobLogsService.createJobLog(jobId, '블로그 목차 생성 시작')
       }
-      const blogOutline = await this.generateBlogOutline(title, desc, aiService)
+      const blogOutline = await aiService.generateBlogOutline(title, desc)
       if (jobId) {
         await this.jobLogsService.createJobLog(jobId, '블로그 목차 생성 완료')
       }
@@ -89,7 +89,7 @@ export class ContentGenerateService implements OnModuleInit {
       if (jobId) {
         await this.jobLogsService.createJobLog(jobId, '블로그 포스트 생성 시작')
       }
-      const blogPost = await this.generateBlogPost(blogOutline, aiService)
+      const blogPost = await aiService.generateBlogPost(blogOutline)
       if (jobId) {
         await this.jobLogsService.createJobLog(jobId, '블로그 포스트 생성 완료')
       }
@@ -449,18 +449,18 @@ export class ContentGenerateService implements OnModuleInit {
           })
 
           if (jobId) {
-            await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 이미지 업로드 완료`)
+            await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 이미지 최적화 및 업로드 완료`)
           }
-          return uploadResult.url
-        } catch (uploadError) {
+          return typeof uploadResult === 'string' ? uploadResult : uploadResult.url
+        } catch (error) {
           if (jobId) {
             await this.jobLogsService.createJobLog(
               jobId,
-              `섹션 ${sectionIndex} 이미지 업로드 실패: ${uploadError.message}`,
+              `섹션 ${sectionIndex} 이미지 업로드 실패: ${error.message}`,
               'error',
             )
           }
-          return undefined
+          throw error
         }
       }
       return undefined
@@ -468,57 +468,31 @@ export class ContentGenerateService implements OnModuleInit {
       if (jobId) {
         await this.jobLogsService.createJobLog(
           jobId,
-          `섹션 ${sectionIndex} 이미지 처리 실패: ${error.message}`,
+          `섹션 ${sectionIndex} 이미지 생성 및 업로드 실패: ${error.message}`,
           'error',
         )
       }
-      return undefined
+      throw error
     }
   }
 
-  /**
-   * 설정에 따라 광고 스크립트를 삽입하는 함수
-   */
   private async generateAdScript(sectionIndex: number): Promise<string | undefined> {
     const settings = await this.settingsService.getSettings()
     const adEnabled = settings.adEnabled || false
     const adScript = settings.adScript
-
     if (!adEnabled || !adScript || adScript.trim() === '') {
       this.logger.log(`섹션 ${sectionIndex}: 광고 삽입 안함 (활성화: ${adEnabled}, 스크립트 존재: ${!!adScript})`)
       return undefined
     }
-
     this.logger.log(`섹션 ${sectionIndex}: 광고 스크립트 삽입 완료`)
     return `<div class="ad-section" style="margin: 20px 0; text-align: center;">\n${adScript}\n</div>`
-  }
-
-  /**
-   * AI 서비스를 사용하여 목차 생성
-   */
-  async generateBlogOutline(title: string, description: string, aiService?: AIService): Promise<BlogOutline> {
-    this.logger.log(`AI 서비스로 주제 "${title}"에 대한 목차를 생성합니다.`)
-
-    const currentAiService = aiService || (await this.getAIService())
-
-    const blogOutline = await currentAiService.generateBlogOutline(title, description)
-
-    return blogOutline
-  }
-
-  async generateBlogPost(blogOutline: BlogOutline, aiService?: AIService): Promise<BlogPost> {
-    const currentAiService = aiService || (await this.getAIService())
-
-    const blogPost = await currentAiService.generateBlogPost(blogOutline)
-
-    return blogPost
   }
 
   /**
    * Combine HTML sections into a single HTML string
    * BlogPost에 thumbnailUrl, seo 등 메타 정보도 포함
    */
-  combineHtmlSections(blogPostHtml: BlogPost): string {
+  private combineHtmlSections(blogPostHtml: BlogPost): string {
     let html = ''
     // 썸네일
     if (blogPostHtml.thumbnailUrl) {
@@ -532,12 +506,10 @@ export class ContentGenerateService implements OnModuleInit {
     html += blogPostHtml.sections
       .map(section => {
         let sectionHtml = section.html
-
         // 광고 추가 (섹션 컨텐츠 바로 다음)
         if (section.adHtml) {
           sectionHtml += `\n${section.adHtml}`
         }
-
         // 관련 링크 추가
         if (section.links && section.links.length > 0) {
           section.links.forEach(linkResult => {

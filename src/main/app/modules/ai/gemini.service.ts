@@ -9,13 +9,17 @@ import { postingContentsPrompt, tableOfContentsPrompt } from '@main/app/modules/
 import { CustomHttpException } from '@main/common/errors/custom-http.exception'
 import { ErrorCode } from '@main/common/errors/error-code.enum'
 import { SearchResultItem } from '../search/searxng.service'
+import { UtilService } from '../util/util.service'
 
 @Injectable()
 export class GeminiService implements AIService {
   private readonly logger = new Logger(GeminiService.name)
   private gemini: GoogleGenAI | null = null
 
-  constructor(private readonly settingsService: SettingsService) {}
+  constructor(
+    private readonly settingsService: SettingsService,
+    private readonly utilService: UtilService,
+  ) {}
 
   async initialize(): Promise<void> {
     const settings = await this.settingsService.getSettings()
@@ -283,17 +287,8 @@ ${JSON.stringify(blogOutline)}`
   async generatePixabayPrompt(html: string): Promise<string[]> {
     try {
       const ai = await this.getGemini()
-      const prompt = `다음 HTML 콘텐츠를 분석하여 Pixabay 이미지에서 검색할 키워드 5개를 추천해주세요.
-콘텐츠의 주제와 내용을 잘 반영하는 키워드를 선택해주세요.
-키워드는 영어로 작성해주세요.
-
-[HTML 콘텐츠]
-${html}
-
-응답 형식:
-{
-  "keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"]
-}`
+      const textContent = this.utilService.extractTextContent(html)
+      const prompt = `다음 본문 텍스트를 분석하여 Pixabay 이미지에서 검색할 키워드 5개를 추천해주세요.\n콘텐츠의 주제와 내용을 잘 반영하는 키워드를 선택해주세요.\n키워드는 영어로 작성해주세요.\n\n[본문 텍스트]\n${textContent}\n\n응답 형식:\n{\n  \"keywords\": [\"keyword1\", \"keyword2\", \"keyword3\", \"keyword4\", \"keyword5\"]\n}`
 
       const resp = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
@@ -325,17 +320,8 @@ ${html}
   async generateAiImagePrompt(html: string): Promise<string> {
     try {
       const ai = await this.getGemini()
-      const prompt = `다음 HTML 콘텐츠를 분석하여 이미지 생성 AI에 입력할 프롬프트를 작성해주세요.
-콘텐츠의 주제와 내용을 잘 반영하는 이미지를 생성할 수 있도록 프롬프트를 작성해주세요.
-프롬프트는 영어로 작성해주세요.
-
-[HTML 콘텐츠]
-${html}
-
-응답 형식:
-{
-  "prompt": "프롬프트"
-}`
+      const textContent = this.utilService.extractTextContent(html)
+      const prompt = `다음 본문 텍스트를 분석하여 이미지 생성 AI에 입력할 프롬프트를 작성해주세요.\n콘텐츠의 주제와 내용을 잘 반영하는 이미지를 생성할 수 있도록 프롬프트를 작성해주세요.\n프롬프트는 영어로 작성해주세요.\n\n[본문 텍스트]\n${textContent}\n\n응답 형식:\n{\n  \"prompt\": \"프롬프트\"\n}`
 
       const resp = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
@@ -449,7 +435,8 @@ ${content}
   async generateLinkSearchPrompt(html: string): Promise<string> {
     try {
       const ai = await this.getGemini()
-      const prompt = `다음 HTML 콘텐츠를 분석하여 구글 등에서 검색할 때 가장 적합한 한글 검색어 1개를 추천해주세요.\n\n[HTML 콘텐츠]\n${html}\n\n응답 형식:\n{\n  \"keyword\": \"검색어\"\n}`
+      const textContent = this.utilService.extractTextContent(html)
+      const prompt = `다음 본문 텍스트를 분석하여 구글 등에서 검색할 때 가장 적합한 한글 검색어 1개를 추천해주세요.\n\n[본문 텍스트]\n${textContent}\n\n응답 형식:\n{\n  \"keyword\": \"검색어\"\n}`
       const resp = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
@@ -477,7 +464,8 @@ ${content}
   async generateYoutubeSearchPrompt(html: string): Promise<string> {
     try {
       const ai = await this.getGemini()
-      const prompt = `다음 HTML 콘텐츠를 분석하여 유튜브에서 검색할 때 가장 적합한 한글 검색어 1개를 추천해주세요.\n\n[HTML 콘텐츠]\n${html}\n\n응답 형식:\n{\n  \"keyword\": \"검색어\"\n}`
+      const textContent = this.utilService.extractTextContent(html)
+      const prompt = `다음 본문 텍스트를 분석하여 유튜브에서 검색할 때 가장 적합한 한글 검색어 1개를 추천해주세요.\n\n[본문 텍스트]\n${textContent}\n\n응답 형식:\n{\n  \"keyword\": \"검색어\"\n}`
       const resp = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
@@ -527,7 +515,8 @@ ${content}
 
   async pickBestLinkByAI(html: string, candidates: SearchResultItem[]): Promise<SearchResultItem | null> {
     if (!candidates.length) return null
-    const prompt = `아래는 본문 HTML과, 본문과 관련된 링크 후보 리스트입니다. 본문 내용에 가장 적합한 링크 1개를 골라주세요.\n\n[본문 HTML]\n${html}\n\n[링크 후보]\n${candidates
+    const textContent = this.utilService.extractTextContent(html)
+    const prompt = `아래는 본문 텍스트와, 본문과 관련된 링크 후보 리스트입니다. 본문 내용에 가장 적합한 링크 1개를 골라주세요.\n\n[본문 텍스트]\n${textContent}\n\n[링크 후보]\n${candidates
       .map((c, i) => `${i + 1}. ${c.title} - ${c.url}\n${c.content}`)
       .join('\n\n')}\n\n응답 형식:\n{\n  \"index\": 후보 번호 (1부터 시작)\n}`
     try {
@@ -555,7 +544,8 @@ ${content}
   async generateLinkSearchPromptWithTitle(html: string, title: string): Promise<string> {
     try {
       const ai = await this.getGemini()
-      const prompt = `다음은 블로그 섹션의 제목과 HTML 콘텐츠입니다. 이 두 정보를 모두 참고하여 구글 등에서 검색할 때 가장 적합한 한글 검색어 1개를 추천해주세요.\n\n[섹션 제목]\n${title}\n\n[HTML 콘텐츠]\n${html}\n\n응답 형식:\n{\n  \"keyword\": \"검색어\"\n}`
+      const textContent = this.utilService.extractTextContent(html)
+      const prompt = `다음은 블로그 섹션의 제목과 본문 텍스트입니다. 이 두 정보를 모두 참고하여 구글 등에서 검색할 때 가장 적합한 한글 검색어 1개를 추천해주세요.\n\n[섹션 제목]\n${title}\n\n[본문 텍스트]\n${textContent}\n\n응답 형식:\n{\n  \"keyword\": \"검색어\"\n}`
       const resp = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
