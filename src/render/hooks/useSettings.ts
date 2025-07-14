@@ -98,7 +98,7 @@ export const useSettings = () => {
   // 설정 초기화
   const resetSettings = useCallback(() => {
     setSettings({
-      aiProvider: 'openai',
+      aiProvider: 'gemini',
       adEnabled: false,
       thumbnailEnabled: false,
       linkEnabled: false,
@@ -138,7 +138,7 @@ export const useAISettings = () => {
   const { settings, updatePartialSettings, isLoading, isSaving, error } = useSettings()
 
   const updateAISettings = useCallback(
-    async (aiSettings: { aiProvider?: AppSettings['aiProvider']; openaiApiKey?: string; geminiApiKey?: string }) => {
+    async (aiSettings: { aiProvider?: AppSettings['aiProvider']; geminiApiKey?: string }) => {
       return await updatePartialSettings(aiSettings)
     },
     [updatePartialSettings],
@@ -147,7 +147,6 @@ export const useAISettings = () => {
   return {
     aiSettings: {
       aiProvider: settings.aiProvider,
-      openaiApiKey: settings.openaiApiKey,
       geminiApiKey: settings.geminiApiKey,
     },
     updateAISettings,
@@ -162,11 +161,6 @@ export const useGoogleSettings = () => {
 
   const updateGoogleSettings = useCallback(
     async (googleSettings: {
-      oauth2ClientId?: string
-      oauth2ClientSecret?: string
-      oauth2AccessToken?: string
-      oauth2TokenExpiry?: string
-      oauth2RefreshToken?: string
       bloggerBlogId?: string
       googleAccessToken?: string
       googleRefreshToken?: string
@@ -179,11 +173,6 @@ export const useGoogleSettings = () => {
 
   return {
     googleSettings: {
-      oauth2ClientId: settings.oauth2ClientId,
-      oauth2ClientSecret: settings.oauth2ClientSecret,
-      oauth2AccessToken: settings.oauth2AccessToken,
-      oauth2TokenExpiry: settings.oauth2TokenExpiry,
-      oauth2RefreshToken: settings.oauth2RefreshToken,
       bloggerBlogId: settings.bloggerBlogId,
       googleAccessToken: settings.googleAccessToken,
       googleRefreshToken: settings.googleRefreshToken,

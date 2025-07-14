@@ -306,6 +306,7 @@ export class GoogleOauthService {
         oauth2AccessToken: '',
         oauth2RefreshToken: '',
         oauth2TokenExpiry: '',
+        bloggerBlogId: '',
       }
       await this.settingsService.updateSettings(updatedGoogleSettings)
       return {

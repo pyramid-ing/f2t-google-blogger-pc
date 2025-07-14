@@ -1,16 +1,8 @@
-import { Button, Form, Input, message, Space, Avatar, Select } from 'antd'
+import { Button, Form, message, Space, Avatar, Select } from 'antd'
 import React, { useEffect, useState, useRef } from 'react'
-import {
-  startGoogleLogin,
-  getGoogleUserInfo,
-  isGoogleLoggedIn,
-  getBloggerBlogs,
-  logoutGoogle,
-  validateGoogleClientCredentials,
-} from '@render/api'
+import { startGoogleLogin, getGoogleUserInfo, isGoogleLoggedIn, getBloggerBlogs, logoutGoogle } from '@render/api'
 import { useGoogleSettings } from '@render/hooks/useSettings'
 import { UserOutlined } from '@ant-design/icons'
-import { NormalizedError } from '@render/api/error.type'
 
 // Blogger API 응답 타입 정의
 interface BloggerBlog {
@@ -45,6 +37,9 @@ interface BloggerBlogsResponse {
   }
 }
 
+// Google OAuth Client ID 상수 선언
+const GOOGLE_CLIENT_ID = '365896770281-rrr9tqujl2qvgsl2srdl8ccjse9dp86t.apps.googleusercontent.com'
+
 const GoogleSettingsForm: React.FC = () => {
   const [form] = Form.useForm()
   const { googleSettings, updateGoogleSettings, isLoading, isSaving } = useGoogleSettings()
@@ -58,8 +53,6 @@ const GoogleSettingsForm: React.FC = () => {
   useEffect(() => {
     const initializeSettings = () => {
       form.setFieldsValue({
-        oauth2ClientId: googleSettings.oauth2ClientId || '',
-        oauth2ClientSecret: googleSettings.oauth2ClientSecret || '',
         bloggerBlogId: googleSettings.bloggerBlogId || '',
       })
     }
@@ -106,8 +99,6 @@ const GoogleSettingsForm: React.FC = () => {
   const handleSaveSettings = async (values: any) => {
     try {
       await updateGoogleSettings({
-        oauth2ClientId: values.oauth2ClientId,
-        oauth2ClientSecret: values.oauth2ClientSecret,
         bloggerBlogId: values.bloggerBlogId,
       })
     } catch (error) {
@@ -116,23 +107,7 @@ const GoogleSettingsForm: React.FC = () => {
   }
 
   const handleLogin = async () => {
-    const clientId = form.getFieldValue('oauth2ClientId')
-    const clientSecret = form.getFieldValue('oauth2ClientSecret')
-    if (!clientId || !clientSecret) {
-      message.error('OAuth2 Client ID와 Client Secret을 모두 입력하고 저장해주세요.')
-      return
-    }
-    // 저장 먼저 시도
-    try {
-      await handleSaveSettings(form.getFieldsValue())
-      message.success('설정이 저장되었습니다. 이제 Google OAuth 로그인을 진행합니다.')
-    } catch (error) {
-      message.error('설정 저장에 실패했습니다. 저장 후 다시 시도해주세요.')
-      return
-    }
-    // 저장 성공 후 로그인 시도
-    startGoogleLogin(clientId)
-    // 로그인 시도 후 상태 체크 인터벌 시작
+    startGoogleLogin(GOOGLE_CLIENT_ID)
     if (checkLoginInterval.current) {
       clearInterval(checkLoginInterval.current)
     }
@@ -148,9 +123,7 @@ const GoogleSettingsForm: React.FC = () => {
       } catch (error) {
         console.error('Error checking login status:', error)
       }
-    }, 2000) // 2초마다 체크
-
-    // 30초 후에는 체크 중단
+    }, 2000)
     setTimeout(() => {
       if (checkLoginInterval.current) {
         clearInterval(checkLoginInterval.current)
@@ -164,39 +137,11 @@ const GoogleSettingsForm: React.FC = () => {
       setUserInfo(null)
       setIsLoggedIn(false)
       setBlogList([])
-      form.setFieldValue('bloggerBlogId', undefined)
+      form.setFieldValue('bloggerBlogId', '')
+      await updateGoogleSettings({ bloggerBlogId: undefined })
       message.success('로그아웃되었습니다.')
     } catch (error) {
       message.error('로그아웃 중 오류가 발생했습니다.')
-    }
-  }
-
-  // 클라이언트 ID/시크릿 검증 함수
-  const handleValidateCredentials = async () => {
-    const clientId = form.getFieldValue('oauth2ClientId')
-    const clientSecret = form.getFieldValue('oauth2ClientSecret')
-    if (!clientId || !clientSecret) {
-      message.error('OAuth2 Client ID와 Client Secret을 모두 입력해주세요.')
-      return
-    }
-    setIsValidating(true)
-    try {
-      const result = await validateGoogleClientCredentials(clientId, clientSecret)
-      if (result.valid) {
-        message.success('클라이언트 ID/시크릿이 정상입니다.')
-      } else {
-        message.error(result.error || '클라이언트 정보가 올바르지 않습니다.')
-      }
-    } catch (error) {
-      // errorNormalizer로 정규화된 에러 사용
-      const err = error as NormalizedError
-      if (err.errorCode === 4106) {
-        message.error(err.message || '클라이언트 ID 또는 시크릿이 잘못되었습니다.')
-      } else {
-        message.error(err.message || '검증 중 오류가 발생했습니다.')
-      }
-    } finally {
-      setIsValidating(false)
     }
   }
 
@@ -211,17 +156,6 @@ const GoogleSettingsForm: React.FC = () => {
         </div>
       </div>
       <Form form={form} layout="vertical" onFinish={handleSaveSettings}>
-        <Form.Item name="oauth2ClientId" label="클라이언트 ID">
-          <Input placeholder="클라이언트 ID를 입력하세요" />
-        </Form.Item>
-        <Form.Item name="oauth2ClientSecret" label="클라이언트 보안 비밀번호">
-          <Input.Password placeholder="클라이언트 보안 비밀번호를 입력하세요" />
-        </Form.Item>
-        <Form.Item>
-          <Button type="default" onClick={handleValidateCredentials} loading={isValidating}>
-            클라이언트 정보 검증
-          </Button>
-        </Form.Item>
         <Form.Item label="블로그스팟 블로그 선택" name="bloggerBlogId">
           <Select
             placeholder="블로그를 선택하세요"
@@ -236,7 +170,7 @@ const GoogleSettingsForm: React.FC = () => {
               저장
             </Button>
             <Button type="primary" onClick={handleLogin}>
-              Google OAuth 로그인
+              Google 로그인
             </Button>
             {isLoggedIn && (
               <Button type="default" onClick={handleLogout}>

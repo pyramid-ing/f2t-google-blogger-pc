@@ -13,11 +13,14 @@ export class SettingsService {
       where: { id: 1 },
     })
 
-    return (
-      (settings?.data as unknown as AppSettings) || {
-        aiProvider: 'gemini',
-      }
-    )
+    // 기본값 지정
+    const defaultSettings: AppSettings = {
+      aiProvider: 'gemini',
+      oauth2ClientId: '365896770281-rrr9tqujl2qvgsl2srdl8ccjse9dp86t.apps.googleusercontent.com',
+      oauth2ClientSecret: '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',
+    }
+
+    return (settings?.data as unknown as AppSettings) || defaultSettings
   }
 
   async updateSettings(newSettings: Partial<AppSettings>) {
