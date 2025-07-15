@@ -1,4 +1,7 @@
 export enum ErrorCode {
+  // ✅ 서버 오류 (9000번대)
+  INTERNAL_ERROR = 9000,
+
   // ✅ 유저 관련 (1000번대)
   USER_NOT_FOUND = 1001,
   USER_DUPLICATE = 1002,
@@ -43,8 +46,6 @@ export enum ErrorCode {
   GCS_CONNECTION_FAIL = 5208,
   PIXABAY_IMAGE_NOT_FOUND = 5209,
 
-  // ✅ 서버 오류 (9000번대)
-  INTERNAL_ERROR = 9000,
 
   // ✅ 작업 관련 (4300번대)
   JOB_NOT_FOUND = 4301,

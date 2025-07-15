@@ -284,7 +284,7 @@ function getStatusTitle(status: JobStatus): string {
   }
 }
 
-const ScheduledPostsTable: React.FC = () => {
+const JobTable: React.FC = () => {
   const [data, setData] = useState<Job[]>([])
   const [loading, setLoading] = useState(false)
   const [statusFilter, setStatusFilter] = useState<JobStatus | ''>('')
@@ -998,4 +998,4 @@ const ScheduledPostsTable: React.FC = () => {
   )
 }
 
-export default ScheduledPostsTable
+export default JobTable
