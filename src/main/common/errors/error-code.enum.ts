@@ -46,7 +46,6 @@ export enum ErrorCode {
   GCS_CONNECTION_FAIL = 5208,
   PIXABAY_IMAGE_NOT_FOUND = 5209,
 
-
   // ✅ 작업 관련 (4300번대)
   JOB_NOT_FOUND = 4301,
   JOB_ID_REQUIRED = 4302,
