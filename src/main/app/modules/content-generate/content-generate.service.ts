@@ -69,35 +69,23 @@ export class ContentGenerateService implements OnModuleInit {
   }
 
   async generate(title: string, desc: string, jobId?: string): Promise<string> {
-    if (jobId) {
-      await this.jobLogsService.createJobLog(jobId, '컨텐츠 생성 작업 시작')
-    }
+    await this.jobLogsService.createJobLog(jobId, '컨텐츠 생성 작업 시작')
 
     try {
       const aiService = await this.getAIService()
 
       // 1. 블로그 아웃라인 생성
-      if (jobId) {
-        await this.jobLogsService.createJobLog(jobId, '블로그 목차 생성 시작')
-      }
+      await this.jobLogsService.createJobLog(jobId, '블로그 목차 생성 시작')
       const blogOutline = await aiService.generateBlogOutline(title, desc)
-      if (jobId) {
-        await this.jobLogsService.createJobLog(jobId, '블로그 목차 생성 완료')
-      }
+      await this.jobLogsService.createJobLog(jobId, '블로그 목차 생성 완료')
 
       // 2. 블로그 포스트 생성
-      if (jobId) {
-        await this.jobLogsService.createJobLog(jobId, '블로그 포스트 생성 시작')
-      }
+      await this.jobLogsService.createJobLog(jobId, '블로그 포스트 생성 시작')
       const blogPost = await aiService.generateBlogPost(blogOutline)
-      if (jobId) {
-        await this.jobLogsService.createJobLog(jobId, '블로그 포스트 생성 완료')
-      }
+      await this.jobLogsService.createJobLog(jobId, '블로그 포스트 생성 완료')
 
       // 3. 이미지, 링크, 광고 등 섹션별 처리
-      if (jobId) {
-        await this.jobLogsService.createJobLog(jobId, '섹션별 추가 컨텐츠 처리 시작')
-      }
+      await this.jobLogsService.createJobLog(jobId, '섹션별 추가 컨텐츠 처리 시작')
 
       const processedSections: ProcessedSection[] = await Promise.all(
         blogPost.sections.map(async (section: SectionContent, sectionIndex: number) => {
@@ -117,13 +105,11 @@ export class ContentGenerateService implements OnModuleInit {
               adHtml,
             }
           } catch (error) {
-            if (jobId) {
-              await this.jobLogsService.createJobLog(
-                jobId,
-                `섹션 ${sectionIndex} 처리 중 오류: ${error.message}`,
-                'error',
-              )
-            }
+            await this.jobLogsService.createJobLog(
+              jobId,
+              `섹션 ${sectionIndex} 처리 중 오류: ${error.message}`,
+              'error',
+            )
             throw error
           }
         }),
@@ -132,25 +118,19 @@ export class ContentGenerateService implements OnModuleInit {
       // 섹션 순서 유지를 위해 정렬
       processedSections.sort((a, b) => a.sectionIndex - b.sectionIndex)
 
-      if (jobId) {
-        await this.jobLogsService.createJobLog(jobId, '섹션별 추가 컨텐츠 처리 완료')
-      }
+      await this.jobLogsService.createJobLog(jobId, '섹션별 추가 컨텐츠 처리 완료')
 
       // SEO 정보 생성
       const allSectionsHtml = processedSections.map(s => s.html).join('\n')
       const seo = await this.generateSeo(allSectionsHtml, 0)
 
       // 썸네일 이미지 생성
-      if (jobId) {
-        await this.jobLogsService.createJobLog(jobId, '썸네일 이미지 생성 시작')
-      }
+      await this.jobLogsService.createJobLog(jobId, '썸네일 이미지 생성 시작')
       const thumbnailUrl = await this.generateThumbnailImage(title)
-      if (jobId) {
-        await this.jobLogsService.createJobLog(
-          jobId,
-          thumbnailUrl ? '썸네일 이미지 생성 완료' : '썸네일 이미지 생성 건너뜀',
-        )
-      }
+      await this.jobLogsService.createJobLog(
+        jobId,
+        thumbnailUrl ? '썸네일 이미지 생성 완료' : '썸네일 이미지 생성 건너뜀',
+      )
 
       // BlogPost 객체 생성
       const blogPostWithMeta: BlogPost = {
@@ -162,15 +142,11 @@ export class ContentGenerateService implements OnModuleInit {
       // HTML 결합
       const combinedHtml = this.combineHtmlSections(blogPostWithMeta)
 
-      if (jobId) {
-        await this.jobLogsService.createJobLog(jobId, '컨텐츠 생성 작업 완료')
-      }
+      await this.jobLogsService.createJobLog(jobId, '컨텐츠 생성 작업 완료')
 
       return combinedHtml
     } catch (error) {
-      if (jobId) {
-        await this.jobLogsService.createJobLog(jobId, `컨텐츠 생성 실패: ${error.message}`, 'error')
-      }
+      await this.jobLogsService.createJobLog(jobId, `컨텐츠 생성 실패: ${error.message}`, 'error')
       throw error
     }
   }
@@ -187,7 +163,7 @@ export class ContentGenerateService implements OnModuleInit {
     try {
       const settings = await this.settingsService.getSettings()
       if (!settings.linkEnabled) return []
-      if (jobId) await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 관련 링크 생성 시작`)
+      await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 관련 링크 생성 시작`)
 
       // 1. Gemini로 검색어 추출 (섹션 제목도 함께 전달)
       const aiService = await this.getAIService()
@@ -205,11 +181,10 @@ export class ContentGenerateService implements OnModuleInit {
       // AI로 링크 제목 가공
       const linkTitle = await aiService.generateLinkTitle(bestLink.title, bestLink.content)
 
-      if (jobId) await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 관련 링크 1개 선정 완료`)
+      await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 관련 링크 1개 선정 완료`)
       return [{ name: linkTitle, link: bestLink.url }]
     } catch (error) {
-      if (jobId)
-        await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 링크 생성 실패: ${error.message}`, 'error')
+      await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 링크 생성 실패: ${error.message}`, 'error')
       return []
     }
   }
@@ -221,7 +196,7 @@ export class ContentGenerateService implements OnModuleInit {
     try {
       const settings = await this.settingsService.getSettings()
       if (!settings.youtubeEnabled) return []
-      if (jobId) await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 관련 유튜브 링크 생성 시작`)
+      await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 관련 유튜브 링크 생성 시작`)
 
       // 1. Gemini로 검색어 추출
       const aiService = await this.getAIService()
@@ -236,15 +211,14 @@ export class ContentGenerateService implements OnModuleInit {
       const bestLink = await this.pickBestYoutubeByAI(html, searchRes.results, aiService)
       if (!bestLink) return []
 
-      if (jobId) await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 관련 유튜브 링크 1개 선정 완료`)
+      await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 관련 유튜브 링크 1개 선정 완료`)
       return [{ title: bestLink.title, videoId: this.extractYoutubeId(bestLink.url), url: bestLink.url }]
     } catch (error) {
-      if (jobId)
-        await this.jobLogsService.createJobLog(
-          jobId,
-          `섹션 ${sectionIndex} 유튜브 링크 생성 실패: ${error.message}`,
-          'error',
-        )
+      await this.jobLogsService.createJobLog(
+        jobId,
+        `섹션 ${sectionIndex} 유튜브 링크 생성 실패: ${error.message}`,
+        'error',
+      )
       return []
     }
   }
@@ -340,29 +314,21 @@ export class ContentGenerateService implements OnModuleInit {
 
       if (imageType === 'pixabay') {
         try {
-          if (jobId) {
-            await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} Pixabay 이미지 검색 시작`)
-          }
+          await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} Pixabay 이미지 검색 시작`)
           const pixabayKeyword = await currentAiService.generatePixabayPrompt(html)
           imageUrl = await this.imagePixabayService.searchImage(pixabayKeyword)
-          if (jobId) {
-            await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} Pixabay 이미지 검색 완료`)
-          }
+          await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} Pixabay 이미지 검색 완료`)
         } catch (error) {
-          if (jobId) {
-            await this.jobLogsService.createJobLog(
-              jobId,
-              `섹션 ${sectionIndex} Pixabay 이미지 검색 실패: ${error.message}`,
-              'error',
-            )
-          }
+          await this.jobLogsService.createJobLog(
+            jobId,
+            `섹션 ${sectionIndex} Pixabay 이미지 검색 실패: ${error.message}`,
+            'error',
+          )
           return undefined
         }
       } else if (imageType === 'ai') {
         try {
-          if (jobId) {
-            await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} AI 이미지 생성 시작`)
-          }
+          await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} AI 이미지 생성 시작`)
 
           const aiImagePrompt = await currentAiService.generateAiImagePrompt(html)
 
@@ -383,12 +349,10 @@ export class ContentGenerateService implements OnModuleInit {
                   const jitter = Math.random() * 0.3
                   const backoffDelay = Math.min(initialDelay * Math.pow(2, i) * (1 + jitter), 60000)
 
-                  if (jobId) {
-                    await this.jobLogsService.createJobLog(
-                      jobId,
-                      `섹션 ${sectionIndex} AI 이미지 생성 ${isRateLimitError ? 'rate limit으로 인해' : '오류로 인해'} ${Math.round(backoffDelay / 1000)}초 후 재시도... (${i + 1}/${retries})`,
-                    )
-                  }
+                  await this.jobLogsService.createJobLog(
+                    jobId,
+                    `섹션 ${sectionIndex} AI 이미지 생성 ${isRateLimitError ? 'rate limit으로 인해' : '오류로 인해'} ${Math.round(backoffDelay / 1000)}초 후 재시도... (${i + 1}/${retries})`,
+                  )
                   await sleep(backoffDelay)
                   continue
                 }
@@ -400,17 +364,13 @@ export class ContentGenerateService implements OnModuleInit {
 
           imageUrl = await generateWithRetry()
 
-          if (jobId) {
-            await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} AI 이미지 생성 완료`)
-          }
+          await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} AI 이미지 생성 완료`)
         } catch (error) {
-          if (jobId) {
-            await this.jobLogsService.createJobLog(
-              jobId,
-              `섹션 ${sectionIndex} AI 이미지 생성 실패: ${error.message}`,
-              'error',
-            )
-          }
+          await this.jobLogsService.createJobLog(
+            jobId,
+            `섹션 ${sectionIndex} AI 이미지 생성 실패: ${error.message}`,
+            'error',
+          )
           this.logger.error(`섹션 ${sectionIndex} AI 이미지 생성 실패:`, error)
           throw error
         }
@@ -422,9 +382,7 @@ export class ContentGenerateService implements OnModuleInit {
       // 공통: 이미지 다운로드 및 업로드
       if (imageUrl) {
         try {
-          if (jobId) {
-            await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 이미지 최적화 및 업로드 시작`)
-          }
+          await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 이미지 최적화 및 업로드 시작`)
 
           let imageBuffer: Buffer
           // 로컬 파일 경로인 경우
@@ -448,30 +406,24 @@ export class ContentGenerateService implements OnModuleInit {
             fileName: jobId ? `${jobId}/${sectionIndex}.webp` : undefined,
           })
 
-          if (jobId) {
-            await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 이미지 최적화 및 업로드 완료`)
-          }
+          await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 이미지 최적화 및 업로드 완료`)
           return typeof uploadResult === 'string' ? uploadResult : uploadResult.url
         } catch (error) {
-          if (jobId) {
-            await this.jobLogsService.createJobLog(
-              jobId,
-              `섹션 ${sectionIndex} 이미지 업로드 실패: ${error.message}`,
-              'error',
-            )
-          }
+          await this.jobLogsService.createJobLog(
+            jobId,
+            `섹션 ${sectionIndex} 이미지 업로드 실패: ${error.message}`,
+            'error',
+          )
           throw error
         }
       }
       return undefined
     } catch (error) {
-      if (jobId) {
-        await this.jobLogsService.createJobLog(
-          jobId,
-          `섹션 ${sectionIndex} 이미지 생성 및 업로드 실패: ${error.message}`,
-          'error',
-        )
-      }
+      await this.jobLogsService.createJobLog(
+        jobId,
+        `섹션 ${sectionIndex} 이미지 생성 및 업로드 실패: ${error.message}`,
+        'error',
+      )
       throw error
     }
   }

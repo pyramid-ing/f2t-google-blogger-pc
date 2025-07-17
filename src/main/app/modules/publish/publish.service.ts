@@ -17,9 +17,7 @@ export class PublishService {
   async publishPost(title: string, contentHtml: string, jobId?: string): Promise<any> {
     try {
       this.logger.log(`포스팅 발행 시작: ${title}`)
-      if (jobId) {
-        await this.jobLogsService.createJobLog(jobId, `블로그 포스팅 발행 시작: ${title}`)
-      }
+      await this.jobLogsService.createJobLog(jobId, `블로그 포스팅 발행 시작: ${title}`)
 
       // 블로그 포스팅
       const result = await this.bloggerService.postToBlogger({
@@ -27,16 +25,14 @@ export class PublishService {
         content: contentHtml,
       })
 
-      if (jobId) {
-        await this.jobLogsService.createJobLog(
-          jobId,
-          `블로그 포스팅 발행 완료\n` +
-            `제목: ${result.title}\n` +
-            `URL: ${result.url}\n` +
-            `발행일: ${result.published}\n` +
-            `포스트 ID: ${result.id}`,
-        )
-      }
+      await this.jobLogsService.createJobLog(
+        jobId,
+        `블로그 포스팅 발행 완료\n` +
+          `제목: ${result.title}\n` +
+          `URL: ${result.url}\n` +
+          `발행일: ${result.published}\n` +
+          `포스트 ID: ${result.id}`,
+      )
 
       this.logger.log(`✅ Blogger에 포스팅 완료!`)
       this.logger.log(`📝 제목: ${result.title}`)
@@ -47,9 +43,7 @@ export class PublishService {
       return result
     } catch (error) {
       this.logger.error(`포스트 발행 중 오류 발생: ${error.message}`)
-      if (jobId) {
-        await this.jobLogsService.createJobLog(jobId, `블로그 포스팅 발행 실패: ${error.message}`, 'error')
-      }
+      await this.jobLogsService.createJobLog(jobId, `블로그 포스팅 발행 실패: ${error.message}`, 'error')
       throw error
     }
   }
