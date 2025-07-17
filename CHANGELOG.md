@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - 수정된 버그를 여기에 추가
 
+## [1.4.3]
+- 블로그 본문 서론 제목 없애기
+
 ## [1.3.0]
 - 예약날짜 형싱 변경
 - 이미지 저장 키 구조 변경(JOB ID/section)
