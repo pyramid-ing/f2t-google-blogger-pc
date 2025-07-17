@@ -1,8 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { PrismaService } from '@main/app/modules/common/prisma/prisma.service'
-import { JobProcessor, JobResult } from '../job/job.processor.interface'
 import { PublishService } from '../publish/publish.service'
-import { JobStatus, JobType } from '@main/app/modules/job/job.types'
+import { JobProcessor, JobResult, JobStatus, JobType } from '@main/app/modules/job/job.types'
 import { ContentGenerateService } from '@main/app/modules/content-generate/content-generate.service'
 import { JobLogsService } from '../job-logs/job-logs.service'
 import { isValid, parse } from 'date-fns'
@@ -39,24 +38,19 @@ export class BlogPostJobService implements JobProcessor {
 
     await this.createJobLog(jobId, 'info', '블로그 포스팅 작업 시작')
 
-    try {
-      // 1. 포스팅 내용 구체화
-      await this.createJobLog(jobId, 'info', '본문 내용 생성')
-      const blogHtml = await this.contentGenerateService.generate(job.blogJob.title, job.blogJob.content, jobId)
+    // 1. 포스팅 내용 구체화
+    await this.createJobLog(jobId, 'info', '본문 내용 생성')
+    const blogHtml = await this.contentGenerateService.generate(job.blogJob.title, job.blogJob.content, jobId)
 
-      // 2. 블로그 포스팅
-      await this.createJobLog(jobId, 'info', '블로그 포스팅 시작')
-      const result = await this.publishService.publishPost(job.blogJob.title, blogHtml, jobId)
+    // 2. 블로그 포스팅
+    await this.createJobLog(jobId, 'info', '블로그 포스팅 시작')
+    const result = await this.publishService.publishPost(job.blogJob.title, blogHtml, jobId)
 
-      await this.createJobLog(jobId, 'info', '블로그 포스팅 완료')
+    await this.createJobLog(jobId, 'info', '블로그 포스팅 완료')
 
-      return {
-        resultUrl: result.url,
-        resultMsg: '포스팅이 성공적으로 생성되었습니다.',
-      }
-    } catch (error) {
-      await this.createJobLog(jobId, 'error', `작업 실패: ${error.message}`)
-      throw error
+    return {
+      resultUrl: result.url,
+      resultMsg: '포스팅이 성공적으로 생성되었습니다.',
     }
   }
 

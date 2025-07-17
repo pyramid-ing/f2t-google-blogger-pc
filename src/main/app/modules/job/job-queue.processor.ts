@@ -1,12 +1,13 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { PrismaService } from '../common/prisma/prisma.service'
 import { BlogPostJobService } from '../blog-post-job/blog-post-job.service'
-import { JobProcessor } from './job.processor.interface'
 import { Cron, CronExpression } from '@nestjs/schedule'
-import { JobStatus, JobType } from './job.types'
+import { JobProcessor, JobStatus, JobType } from './job.types'
 import { TopicJobService } from '@main/app/modules/topic/topic-job.service'
 import { Job } from '@prisma/client'
 import { JobLogsService } from '@main/app/modules/job-logs/job-logs.service'
+import { CustomHttpException } from '@main/common/errors/custom-http.exception'
+import { ErrorCodeMap } from '@main/common/errors/error-code.map'
 
 @Injectable()
 export class JobQueueProcessor implements OnModuleInit {
@@ -53,20 +54,16 @@ export class JobQueueProcessor implements OnModuleInit {
 
   @Cron(CronExpression.EVERY_10_SECONDS)
   async processNextJobs() {
-    try {
-      const pendingJobs = await this.prisma.job.findMany({
-        where: {
-          status: JobStatus.REQUEST,
-          scheduledAt: { lte: new Date() },
-        },
-        orderBy: [{ priority: 'desc' }, { scheduledAt: 'asc' }],
-      })
+    const pendingJobs = await this.prisma.job.findMany({
+      where: {
+        status: JobStatus.REQUEST,
+        scheduledAt: { lte: new Date() },
+      },
+      orderBy: [{ priority: 'desc' }, { scheduledAt: 'asc' }],
+    })
 
-      for (const job of pendingJobs) {
-        await this.processJob(job)
-      }
-    } catch (error) {
-      this.logger.error('Error processing jobs:', error)
+    for (const job of pendingJobs) {
+      await this.processJob(job)
     }
   }
 
@@ -114,8 +111,17 @@ export class JobQueueProcessor implements OnModuleInit {
 
       this.logger.debug(`Completed job ${job.id}`)
     } catch (error) {
+      // ErrorCodeMap에서 매핑
+      let logMessage = `작업 처리 중 오류 발생: ${error.message}`
+      if (error instanceof CustomHttpException) {
+        const mapped = ErrorCodeMap[error.errorCode]
+        if (mapped) {
+          logMessage = `작업 처리 중 오류 발생: ${mapped.message(error.metadata)}`
+        }
+      }
+      await this.jobLogsService.createJobLog(job.id, logMessage, 'error')
+      this.logger.error(logMessage)
       await this.markJobAsFailed(job.id, error.message)
-      this.logger.error(`Error processing job ${job.id}:`, error)
     }
   }
 

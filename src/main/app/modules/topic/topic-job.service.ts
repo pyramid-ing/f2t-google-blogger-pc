@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { PrismaService } from '@main/app/modules/common/prisma/prisma.service'
-import { JobProcessor } from '../job/job.processor.interface'
-import { JobStatus, JobType } from '@main/app/modules/job/job.types'
+import { JobProcessor, JobStatus, JobType } from '@main/app/modules/job/job.types'
 import { TopicService } from './topic.service'
 import { saveTopicsResultAsXlsx } from './topic-job.util'
 import { JobLogsService } from '../job-logs/job-logs.service'
