@@ -129,7 +129,7 @@ export class JobQueueProcessor implements OnModuleInit {
         }
       }
       await this.jobLogsService.createJobLog(job.id, logMessage, 'error')
-      this.logger.error(logMessage)
+      this.logger.error(logMessage, error.stack)
       await this.markJobAsFailed(job.id, error.message)
     }
   }
