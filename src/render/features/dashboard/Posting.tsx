@@ -94,7 +94,7 @@ const Posting: React.FC = () => {
       </Upload.Dragger>
 
       <Button type="primary" onClick={handleStartPosting} loading={isPosting} disabled={!file} block size="large">
-        {isPosting ? '포스팅 중...' : '포스팅 시작'}
+        {isPosting ? '포스팅 중...' : '포스팅 작업등록'}
       </Button>
     </div>
   )
