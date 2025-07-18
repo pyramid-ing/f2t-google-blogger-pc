@@ -158,73 +158,77 @@ export class GoogleBlogService {
    * Google 블로그 수정
    */
   async updateGoogleBlog(id: string, data: { name?: string; description?: string; isDefault?: boolean }) {
-    try {
-      // 기존 블로그 조회
-      const existingBlog = await this.prisma.googleBlog.findUnique({
-        where: { id },
-        include: { oauth: true },
-      })
+    // 기존 블로그 조회
+    const existingBlog = await this.prisma.googleBlog.findUnique({
+      where: { id },
+      include: { oauth: true },
+    })
 
-      if (!existingBlog) {
-        throw new CustomHttpException(ErrorCode.GOOGLE_BLOG_NOT_FOUND, {
-          message: '수정할 블로그를 찾을 수 없습니다.',
-          blogId: id,
-        })
-      }
-
-      // 이름 변경 시 중복 확인
-      if (data.name && data.name !== existingBlog.name) {
-        const duplicateBlog = await this.prisma.googleBlog.findFirst({
-          where: {
-            name: data.name,
-            id: { not: id }, // 현재 블로그 제외
-          },
-        })
-
-        if (duplicateBlog) {
-          throw new CustomHttpException(ErrorCode.GOOGLE_BLOG_NAME_DUPLICATE, {
-            message: `블로그 이름 "${data.name}"이 이미 존재합니다.`,
-            name: data.name,
-          })
-        }
-      }
-
-      // 기본 블로그로 설정하는 경우, 기존 기본 블로그 해제
-      if (data.isDefault) {
-        await this.prisma.googleBlog.updateMany({
-          where: {
-            googleOauthId: existingBlog.googleOauthId,
-            isDefault: true,
-            id: { not: id }, // 현재 블로그 제외
-          },
-          data: {
-            isDefault: false,
-          },
-        })
-      }
-
-      const updatedBlog = await this.prisma.googleBlog.update({
-        where: { id },
-        data: {
-          name: data.name,
-          description: data.description,
-          isDefault: data.isDefault,
-        },
-        include: {
-          oauth: true,
-        },
-      })
-      return updatedBlog
-    } catch (error: any) {
-      if (error instanceof CustomHttpException) {
-        throw error
-      }
-      this.logger.error('Google 블로그 수정 실패:', error)
-      throw new CustomHttpException(ErrorCode.EXTERNAL_API_FAIL, {
-        message: `Google 블로그 수정 실패: ${error.message}`,
-        originalError: error.message,
+    if (!existingBlog) {
+      throw new CustomHttpException(ErrorCode.GOOGLE_BLOG_NOT_FOUND, {
+        message: '수정할 블로그를 찾을 수 없습니다.',
+        blogId: id,
       })
     }
+
+    // 이름 변경 시 중복 확인
+    if (data.name && data.name !== existingBlog.name) {
+      const duplicateBlog = await this.prisma.googleBlog.findFirst({
+        where: {
+          name: data.name,
+          id: { not: id }, // 현재 블로그 제외
+        },
+      })
+
+      if (duplicateBlog) {
+        throw new CustomHttpException(ErrorCode.GOOGLE_BLOG_NAME_DUPLICATE, {
+          message: `블로그 이름 "${data.name}"이 이미 존재합니다.`,
+          name: data.name,
+        })
+      }
+    }
+
+    // 기본 블로그로 설정하는 경우, 기존 기본 블로그 해제
+    if (data.isDefault) {
+      await this.prisma.googleBlog.updateMany({
+        where: {
+          isDefault: true,
+          id: { not: id }, // 현재 블로그 제외
+        },
+        data: {
+          isDefault: false,
+        },
+      })
+    }
+
+    // 기본 블로그를 해제하려는 경우, 다른 기본 블로그가 있는지 확인
+    if (data.isDefault === false && existingBlog.isDefault) {
+      const otherDefaultBlogs = await this.prisma.googleBlog.findMany({
+        where: {
+          isDefault: true,
+          id: { not: id }, // 현재 블로그 제외
+        },
+      })
+
+      if (otherDefaultBlogs.length === 0) {
+        throw new CustomHttpException(ErrorCode.GOOGLE_BLOG_NO_DEFAULT, {
+          message: '다른 기본 블로그가 없어서 기본 블로그를 해제할 수 없습니다. 최소 1개의 기본 블로그가 필요합니다.',
+        })
+      }
+    }
+
+    const updatedBlog = await this.prisma.googleBlog.update({
+      where: { id },
+      data: {
+        name: data.name,
+        description: data.description,
+        isDefault: data.isDefault,
+      },
+      include: {
+        oauth: true,
+      },
+    })
+    return updatedBlog
   }
 
   /**
@@ -256,10 +260,7 @@ export class GoogleBlogService {
         })
 
         if (otherBlogs.length === 0) {
-          throw new CustomHttpException(ErrorCode.GOOGLE_BLOG_NO_DEFAULT, {
-            message: '기본 블로그는 삭제할 수 없습니다. 최소 1개의 블로그가 필요합니다.',
-            blogId: id,
-          })
+          throw new CustomHttpException(ErrorCode.GOOGLE_BLOG_NO_DEFAULT)
         }
 
         // 다른 블로그 중 하나를 기본으로 설정
@@ -327,9 +328,7 @@ export class GoogleBlogService {
       })
 
       if (!defaultBlog) {
-        throw new CustomHttpException(ErrorCode.GOOGLE_BLOG_NO_DEFAULT, {
-          message: '기본 블로그가 설정되어 있지 않습니다. 최소 1개의 기본 블로그가 필요합니다.',
-        })
+        throw new CustomHttpException(ErrorCode.GOOGLE_BLOG_NO_DEFAULT)
       }
 
       return defaultBlog
@@ -402,10 +401,7 @@ export class GoogleBlogService {
         })
 
         if (otherBlogs.length === 0) {
-          throw new CustomHttpException(ErrorCode.GOOGLE_BLOG_NO_DEFAULT, {
-            message: '기본 블로그는 삭제할 수 없습니다. 최소 1개의 블로그가 필요합니다.',
-            blogId: id,
-          })
+          throw new CustomHttpException(ErrorCode.GOOGLE_BLOG_NO_DEFAULT)
         }
 
         // 다른 블로그 중 하나를 기본으로 설정
