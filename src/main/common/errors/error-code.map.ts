@@ -23,6 +23,7 @@ export const ErrorCodeMap: Record<ErrorCode, ErrorCodeMeta> = {
     message: meta => meta?.message || '입력값이 유효하지 않습니다.',
   },
   [ErrorCode.DATA_NOT_FOUND]: { status: 404, message: meta => meta?.message || '데이터를 찾을 수 없습니다.' },
+  [ErrorCode.NOT_FOUND]: { status: 404, message: meta => meta?.message || '요청한 리소스를 찾을 수 없습니다.' },
   [ErrorCode.VALIDATION_ERROR]: {
     status: 400,
     message: meta => (meta?.details ? `입력값이 유효하지 않습니다. (${meta.details})` : '입력값이 유효하지 않습니다.'),
@@ -147,5 +148,69 @@ export const ErrorCodeMap: Record<ErrorCode, ErrorCodeMeta> = {
   [ErrorCode.JOB_STATUS_CHANGE_FAILED]: {
     status: 500,
     message: meta => meta?.message || '작업 상태 변경에 실패했습니다.',
+  },
+
+  // Blogger 관련
+  [ErrorCode.BLOGGER_DEFAULT_NOT_SET]: {
+    status: 400,
+    message: meta => meta?.message || '기본 블로거가 설정되지 않았습니다. 설정에서 기본 블로거를 먼저 설정해주세요.',
+  },
+  [ErrorCode.BLOGGER_ID_NOT_FOUND]: {
+    status: 400,
+    message: meta =>
+      meta?.message ||
+      `블로거 ID "${meta?.invalidBloggerId}"가 존재하지 않습니다. 설정에서 올바른 블로거를 선택해주세요.`,
+  },
+
+  // Google OAuth 관련
+  [ErrorCode.GOOGLE_OAUTH_NOT_FOUND]: {
+    status: 404,
+    message: meta => meta?.message || 'Google OAuth 계정을 찾을 수 없습니다.',
+  },
+  [ErrorCode.GOOGLE_OAUTH_DELETE_FAILED]: {
+    status: 500,
+    message: meta => meta?.message || 'Google OAuth 계정 삭제에 실패했습니다.',
+  },
+  [ErrorCode.GOOGLE_OAUTH_CREATE_FAILED]: {
+    status: 500,
+    message: meta => meta?.message || 'Google OAuth 계정 생성에 실패했습니다.',
+  },
+
+  // Google 블로그 관련
+  [ErrorCode.GOOGLE_BLOG_NOT_FOUND]: {
+    status: 404,
+    message: meta => meta?.message || 'Google 블로그를 찾을 수 없습니다.',
+  },
+  [ErrorCode.GOOGLE_BLOG_DELETE_FAILED]: {
+    status: 500,
+    message: meta => meta?.message || 'Google 블로그 삭제에 실패했습니다.',
+  },
+  [ErrorCode.GOOGLE_BLOG_CREATE_FAILED]: {
+    status: 500,
+    message: meta => meta?.message || 'Google 블로그 생성에 실패했습니다.',
+  },
+  [ErrorCode.GOOGLE_BLOG_UPDATE_FAILED]: {
+    status: 500,
+    message: meta => meta?.message || 'Google 블로그 수정에 실패했습니다.',
+  },
+  [ErrorCode.GOOGLE_BLOG_DEFAULT_CONFLICT]: {
+    status: 400,
+    message: meta => meta?.message || '기본 블로그 설정에 충돌이 발생했습니다.',
+  },
+  [ErrorCode.GOOGLE_BLOG_NAME_DUPLICATE]: {
+    status: 409,
+    message: meta => meta?.message || `블로그 이름 "${meta?.name}"이 이미 존재합니다.`,
+  },
+  [ErrorCode.GOOGLE_BLOG_NO_DEFAULT]: {
+    status: 400,
+    message: meta => meta?.message || '기본 블로그가 설정되어 있지 않습니다. 최소 1개의 기본 블로그가 필요합니다.',
+  },
+  [ErrorCode.GOOGLE_BLOG_OAUTH_REQUIRED]: {
+    status: 400,
+    message: meta => meta?.message || 'Google OAuth 계정이 필요합니다.',
+  },
+  [ErrorCode.GOOGLE_BLOG_OAUTH_BLOGGER_DUPLICATE]: {
+    status: 409,
+    message: meta => meta?.message || '이미 등록된 Google OAuth 계정과 Blogger 블로그 조합입니다.',
   },
 }

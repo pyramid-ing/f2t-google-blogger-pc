@@ -3,4 +3,5 @@ export type BlogPostExcelRow = {
   내용: string
   예약날짜: string
   라벨?: string
+  블로그이름?: string
 }

@@ -1,12 +1,14 @@
 import { Module } from '@nestjs/common'
-import { SettingsService } from '@main/app/modules/settings/settings.service'
+import { GoogleOauthService } from './google-oauth.service'
+import { PrismaModule } from '../../common/prisma/prisma.module'
+import { SettingsModule } from '../../settings/settings.module'
+import { HttpModule } from '@nestjs/axios'
 import { GoogleOAuthController } from '@main/app/modules/google/oauth/google-oauth.controller'
-import { GoogleOauthService } from '@main/app/modules/google/oauth/google-oauth.service'
-import { CommonModule } from '@main/app/modules/common/common.module'
 
 @Module({
-  imports: [CommonModule],
-  providers: [SettingsService, GoogleOauthService],
+  imports: [PrismaModule, SettingsModule, HttpModule],
   controllers: [GoogleOAuthController],
+  providers: [GoogleOauthService],
+  exports: [GoogleOauthService],
 })
 export class GoogleOauthModule {}

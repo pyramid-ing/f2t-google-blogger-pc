@@ -2,7 +2,7 @@ import React from 'react'
 import { Tabs } from 'antd'
 import { AISettingsForm } from './AISettingsForm'
 import AppSettingsForm from './AppSettingsForm'
-import GoogleSettingsForm from './GoogleSettingsForm'
+import GoogleBlogSettingsForm from './GoogleBlogSettingsForm'
 import ImageSettingsForm from './ImageSettingsForm'
 import LinkSettingsForm from './LinkSettingsForm'
 
@@ -19,9 +19,9 @@ const SettingsTabs: React.FC = () => {
       children: <AppSettingsForm />,
     },
     {
-      key: 'google',
-      label: 'Google 설정',
-      children: <GoogleSettingsForm />,
+      key: 'google-blog',
+      label: 'Google 블로그',
+      children: <GoogleBlogSettingsForm />,
     },
     {
       key: 'image',

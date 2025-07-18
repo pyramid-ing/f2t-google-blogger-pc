@@ -71,84 +71,75 @@ export class ContentGenerateService implements OnModuleInit {
   async generate(title: string, desc: string, jobId?: string): Promise<string> {
     await this.jobLogsService.createJobLog(jobId, '컨텐츠 생성 작업 시작')
 
-    try {
-      const aiService = await this.getAIService()
+    const aiService = await this.getAIService()
 
-      // 1. 블로그 아웃라인 생성
-      await this.jobLogsService.createJobLog(jobId, '블로그 목차 생성 시작')
-      const blogOutline = await aiService.generateBlogOutline(title, desc)
-      await this.jobLogsService.createJobLog(jobId, '블로그 목차 생성 완료')
+    // 1. 블로그 아웃라인 생성
+    await this.jobLogsService.createJobLog(jobId, '블로그 목차 생성 시작')
+    const blogOutline = await aiService.generateBlogOutline(title, desc)
+    await this.jobLogsService.createJobLog(jobId, '블로그 목차 생성 완료')
 
-      // 2. 블로그 포스트 생성
-      await this.jobLogsService.createJobLog(jobId, '블로그 포스트 생성 시작')
-      const blogPost = await aiService.generateBlogPost(blogOutline)
-      await this.jobLogsService.createJobLog(jobId, '블로그 포스트 생성 완료')
+    // 2. 블로그 포스트 생성
+    await this.jobLogsService.createJobLog(jobId, '블로그 포스트 생성 시작')
+    const blogPost = await aiService.generateBlogPost(blogOutline)
+    await this.jobLogsService.createJobLog(jobId, '블로그 포스트 생성 완료')
 
-      // 3. 이미지, 링크, 광고 등 섹션별 처리
-      await this.jobLogsService.createJobLog(jobId, '섹션별 추가 컨텐츠 처리 시작')
+    // 3. 이미지, 링크, 광고 등 섹션별 처리
+    await this.jobLogsService.createJobLog(jobId, '섹션별 추가 컨텐츠 처리 시작')
 
-      const processedSections: ProcessedSection[] = await Promise.all(
-        blogPost.sections.map(async (section: SectionContent, sectionIndex: number) => {
-          try {
-            const [imageUrl, links, youtubeLinks, adHtml] = await Promise.all([
-              this.generateAndUploadImage(section.html, sectionIndex, jobId, aiService),
-              this.generateLinks(section.html, sectionIndex, jobId, title),
-              this.generateYoutubeLinks(section.html, sectionIndex, jobId),
-              this.generateAdScript(sectionIndex),
-            ])
-            return {
-              ...section,
-              sectionIndex,
-              imageUrl,
-              links,
-              youtubeLinks,
-              adHtml,
-            }
-          } catch (error) {
-            await this.jobLogsService.createJobLog(
-              jobId,
-              `섹션 ${sectionIndex} 처리 중 오류: ${error.message}`,
-              'error',
-            )
-            throw error
+    const processedSections: ProcessedSection[] = await Promise.all(
+      blogPost.sections.map(async (section: SectionContent, sectionIndex: number) => {
+        try {
+          const [imageUrl, links, youtubeLinks, adHtml] = await Promise.all([
+            this.generateAndUploadImage(section.html, sectionIndex, jobId, aiService),
+            this.generateLinks(section.html, sectionIndex, jobId, title),
+            this.generateYoutubeLinks(section.html, sectionIndex, jobId),
+            this.generateAdScript(sectionIndex),
+          ])
+          return {
+            ...section,
+            sectionIndex,
+            imageUrl,
+            links,
+            youtubeLinks,
+            adHtml,
           }
-        }),
-      )
+        } catch (error) {
+          await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 처리 중 오류: ${error.message}`, 'error')
+          throw error
+        }
+      }),
+    )
 
-      // 섹션 순서 유지를 위해 정렬
-      processedSections.sort((a, b) => a.sectionIndex - b.sectionIndex)
+    // 섹션 순서 유지를 위해 정렬
+    processedSections.sort((a, b) => a.sectionIndex - b.sectionIndex)
 
-      await this.jobLogsService.createJobLog(jobId, '섹션별 추가 컨텐츠 처리 완료')
+    await this.jobLogsService.createJobLog(jobId, '섹션별 추가 컨텐츠 처리 완료')
 
-      // SEO 정보 생성
-      const allSectionsHtml = processedSections.map(s => s.html).join('\n')
-      const seo = await this.generateSeo(allSectionsHtml, 0)
+    // SEO 정보 생성
+    const allSectionsHtml = processedSections.map(s => s.html).join('\n')
+    const seo = await this.generateSeo(allSectionsHtml, 0)
 
-      // 썸네일 이미지 생성
-      await this.jobLogsService.createJobLog(jobId, '썸네일 이미지 생성 시작')
-      const thumbnailUrl = await this.generateThumbnailImage(title)
-      await this.jobLogsService.createJobLog(
-        jobId,
-        thumbnailUrl ? '썸네일 이미지 생성 완료' : '썸네일 이미지 생성 건너뜀',
-      )
+    // 썸네일 이미지 생성
+    await this.jobLogsService.createJobLog(jobId, '썸네일 이미지 생성 시작')
+    const thumbnailUrl = await this.generateThumbnailImage(title)
+    await this.jobLogsService.createJobLog(
+      jobId,
+      thumbnailUrl ? '썸네일 이미지 생성 완료' : '썸네일 이미지 생성 건너뜀',
+    )
 
-      // BlogPost 객체 생성
-      const blogPostWithMeta: BlogPost = {
-        thumbnailUrl,
-        seo,
-        sections: processedSections.map(({ sectionIndex, ...rest }) => rest),
-      }
-
-      // HTML 결합
-      const combinedHtml = this.combineHtmlSections(blogPostWithMeta)
-
-      await this.jobLogsService.createJobLog(jobId, '컨텐츠 생성 작업 완료')
-
-      return combinedHtml
-    } catch (error) {
-      await this.jobLogsService.createJobLog(jobId, `컨텐츠 생성 실패: ${error.message}`, 'error')
-      throw error
+    // BlogPost 객체 생성
+    const blogPostWithMeta: BlogPost = {
+      thumbnailUrl,
+      seo,
+      sections: processedSections.map(({ sectionIndex, ...rest }) => rest),
     }
+
+    // HTML 결합
+    const combinedHtml = this.combineHtmlSections(blogPostWithMeta)
+
+    await this.jobLogsService.createJobLog(jobId, '컨텐츠 생성 작업 완료')
+
+    return combinedHtml
   }
 
   /**

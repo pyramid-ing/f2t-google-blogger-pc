@@ -1,44 +1,59 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { SettingsService } from '../../settings/settings.service'
-import { AppSettings } from '@render/types/settings'
+import { PrismaService } from '../../common/prisma/prisma.service'
 import { CustomHttpException } from '@main/common/errors/custom-http.exception'
 import { ErrorCode } from '@main/common/errors/error-code.enum'
+
+const OAUTH2_CLIENT_ID = '365896770281-rrr9tqujl2qvgsl2srdl8ccjse9dp86t.apps.googleusercontent.com'
+const OAUTH2_CLIENT_SECRET = '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'
 
 @Injectable()
 export class GoogleOauthService {
   private readonly logger = new Logger(GoogleOauthService.name)
 
-  constructor(private readonly settingsService: SettingsService) {}
+  constructor(
+    private readonly settingsService: SettingsService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   /**
-   * 저장된 Google OAuth 토큰 가져오기
+   * 저장된 Google OAuth 토큰 가져오기 (기본 계정 사용)
    */
   async getAccessToken(): Promise<string> {
     try {
-      const settings = await this.settingsService.getSettings()
-      const { oauth2AccessToken, oauth2RefreshToken, oauth2TokenExpiry, oauth2ClientId, oauth2ClientSecret } = settings
+      // GoogleOAuth DB에서 첫 번째 계정 조회
+      const googleOAuth = await this.prisma.googleOAuth.findFirst({
+        orderBy: { createdAt: 'asc' },
+      })
 
-      if (!oauth2AccessToken) {
+      if (!googleOAuth) {
         throw new CustomHttpException(ErrorCode.AUTH_REQUIRED, {
-          message: 'Google OAuth 토큰이 없습니다. 먼저 로그인해주세요.',
-          hasRefreshToken: !!oauth2RefreshToken,
+          message: 'Google OAuth 계정이 없습니다. 먼저 로그인해주세요.',
         })
       }
 
       // 토큰 만료 확인
-      const expiryTime = oauth2TokenExpiry ? new Date(oauth2TokenExpiry).getTime() : 0
+      const expiryTime = googleOAuth.oauth2TokenExpiry.getTime()
       const isExpired = Date.now() >= expiryTime - 60000 // 1분 여유
 
-      if (isExpired && oauth2RefreshToken) {
+      if (isExpired && googleOAuth.oauth2RefreshToken) {
         this.logger.log('Google 토큰 만료 감지, 자동 갱신 시도...')
         try {
-          const newTokens = await this.refreshAccessToken(oauth2RefreshToken, oauth2ClientId, oauth2ClientSecret)
-          const updatedSetting = {
-            ...settings,
-            oauth2AccessToken: newTokens.accessToken,
-            oauth2TokenExpiry: new Date(newTokens.expiresAt).toISOString(),
-          }
-          await this.settingsService.updateSettings(updatedSetting)
+          const newTokens = await this.refreshAccessToken(
+            googleOAuth.oauth2RefreshToken,
+            googleOAuth.oauth2ClientId,
+            googleOAuth.oauth2ClientSecret,
+          )
+
+          // DB 업데이트
+          await this.prisma.googleOAuth.update({
+            where: { id: googleOAuth.id },
+            data: {
+              oauth2AccessToken: newTokens.accessToken,
+              oauth2TokenExpiry: new Date(newTokens.expiresAt),
+            },
+          })
+
           this.logger.log('Google 토큰이 자동으로 갱신되었습니다.')
           return newTokens.accessToken
         } catch (refreshError: any) {
@@ -49,7 +64,7 @@ export class GoogleOauthService {
         }
       }
 
-      return oauth2AccessToken
+      return googleOAuth.oauth2AccessToken
     } catch (error: any) {
       if (error instanceof CustomHttpException) {
         throw error
@@ -104,7 +119,7 @@ export class GoogleOauthService {
   }
 
   /**
-   * OAuth 콜백 처리 및 토큰 저장
+   * OAuth 콜백 처리 및 GoogleOAuth DB에 새로운 계정 추가
    */
   async processOAuthCallback(code: string) {
     try {
@@ -115,25 +130,45 @@ export class GoogleOauthService {
           configType: 'global_settings',
         })
       }
-      const { oauth2ClientId, oauth2ClientSecret } = settings
-      if (!oauth2ClientId || !oauth2ClientSecret) {
-        throw new CustomHttpException(ErrorCode.INVALID_INPUT, {
-          message: 'OAuth2 Client ID 또는 Client Secret이 설정되지 않았습니다.',
-          hasClientId: !!oauth2ClientId,
-          hasClientSecret: !!oauth2ClientSecret,
-        })
-      }
-      const tokens = await this.exchangeCodeForTokens(code, oauth2ClientId, oauth2ClientSecret)
+
+      // 토큰 교환
+      const tokens = await this.exchangeCodeForTokens(code, OAUTH2_CLIENT_ID, OAUTH2_CLIENT_SECRET)
+
+      // 사용자 정보 조회
       const userInfo = await this.getGoogleUserInfo(tokens.accessToken)
-      const updatedGoogleSettings = {
-        ...settings,
-        oauth2AccessToken: tokens.accessToken,
-        oauth2RefreshToken: tokens.refreshToken,
-        oauth2TokenExpiry: new Date(tokens.expiresAt).toISOString(),
+
+      // 이메일 기준으로 upsert (이미 존재하면 업데이트, 없으면 생성)
+      const googleOAuth = await this.prisma.googleOAuth.upsert({
+        where: { email: userInfo.email },
+        update: {
+          oauth2ClientId: OAUTH2_CLIENT_ID,
+          oauth2ClientSecret: OAUTH2_CLIENT_SECRET,
+          oauth2AccessToken: tokens.accessToken,
+          oauth2RefreshToken: tokens.refreshToken,
+          oauth2TokenExpiry: new Date(tokens.expiresAt),
+          name: `${userInfo.name || userInfo.email}의 계정`,
+          description: `Google OAuth 계정 - ${userInfo.email}`,
+          updatedAt: new Date(),
+        },
+        create: {
+          oauth2ClientId: OAUTH2_CLIENT_ID,
+          oauth2ClientSecret: OAUTH2_CLIENT_SECRET,
+          oauth2AccessToken: tokens.accessToken,
+          oauth2RefreshToken: tokens.refreshToken,
+          oauth2TokenExpiry: new Date(tokens.expiresAt),
+          email: userInfo.email,
+          name: `${userInfo.name || userInfo.email}의 계정`,
+          description: `Google OAuth 계정 - ${userInfo.email}`,
+        },
+      })
+
+      this.logger.log(`GoogleOAuth DB에 새로운 계정 추가 완료: ${googleOAuth.id}`)
+
+      return {
+        tokens,
+        userInfo,
+        googleOAuthId: googleOAuth.id,
       }
-      await this.settingsService.updateSettings(updatedGoogleSettings)
-      this.logger.log('OAuth 토큰 저장 완료')
-      return { tokens, userInfo }
     } catch (error: any) {
       if (error instanceof CustomHttpException) {
         throw error
@@ -217,22 +252,36 @@ export class GoogleOauthService {
   }
 
   /**
-   * 토큰 갱신
+   * 토큰 갱신 (기본 계정)
    */
   async refreshToken() {
     try {
-      const appSettings = await this.settingsService.getSettings()
-      const { oauth2ClientId, oauth2ClientSecret, oauth2RefreshToken } = appSettings
-      if (!oauth2RefreshToken) {
-        throw new CustomHttpException(ErrorCode.AUTH_REQUIRED, { message: 'Refresh token이 없습니다.' })
+      // GoogleOAuth DB에서 첫 번째 계정 조회
+      const googleOAuth = await this.prisma.googleOAuth.findFirst({
+        orderBy: { createdAt: 'asc' },
+      })
+
+      if (!googleOAuth || !googleOAuth.oauth2RefreshToken) {
+        throw new CustomHttpException(ErrorCode.AUTH_REQUIRED, {
+          message: 'Refresh token이 없습니다.',
+        })
       }
-      const newTokens = await this.refreshAccessToken(oauth2RefreshToken, oauth2ClientId, oauth2ClientSecret)
-      const updatedSettings: AppSettings = {
-        ...appSettings,
-        oauth2AccessToken: newTokens.accessToken,
-        oauth2TokenExpiry: new Date(newTokens.expiresAt).toISOString(),
-      }
-      await this.settingsService.updateSettings(updatedSettings)
+
+      const newTokens = await this.refreshAccessToken(
+        googleOAuth.oauth2RefreshToken,
+        googleOAuth.oauth2ClientId,
+        googleOAuth.oauth2ClientSecret,
+      )
+
+      // DB 업데이트
+      await this.prisma.googleOAuth.update({
+        where: { id: googleOAuth.id },
+        data: {
+          oauth2AccessToken: newTokens.accessToken,
+          oauth2TokenExpiry: new Date(newTokens.expiresAt),
+        },
+      })
+
       return {
         success: true,
         message: '토큰이 성공적으로 갱신되었습니다.',
@@ -251,22 +300,30 @@ export class GoogleOauthService {
    */
   async getOAuthStatus() {
     try {
-      const globalSettings = await this.settingsService.getSettings()
-      const { oauth2AccessToken, oauth2RefreshToken, oauth2TokenExpiry } = globalSettings
-      if (!oauth2AccessToken) {
+      // GoogleOAuth DB에서 첫 번째 계정 조회
+      const googleOAuth = await this.prisma.googleOAuth.findFirst({
+        orderBy: { createdAt: 'asc' },
+      })
+
+      if (!googleOAuth) {
         return {
           isLoggedIn: false,
           message: '로그인이 필요합니다.',
         }
       }
+
       // 토큰 만료 확인
-      const expiryTime = oauth2TokenExpiry ? new Date(oauth2TokenExpiry).getTime() : 0
+      const expiryTime = googleOAuth.oauth2TokenExpiry.getTime()
       const isExpired = Date.now() >= expiryTime - 60000 // 1분 여유
-      if (isExpired && oauth2RefreshToken) {
+
+      if (isExpired && googleOAuth.oauth2RefreshToken) {
         // 자동으로 토큰 갱신 시도
         try {
           await this.refreshToken()
-          const userInfo = await this.getGoogleUserInfo(globalSettings.oauth2AccessToken)
+          const updatedOAuth = await this.prisma.googleOAuth.findFirst({
+            orderBy: { createdAt: 'asc' },
+          })
+          const userInfo = await this.getGoogleUserInfo(updatedOAuth!.oauth2AccessToken)
           return {
             isLoggedIn: true,
             userInfo,
@@ -279,8 +336,9 @@ export class GoogleOauthService {
           }
         }
       }
+
       // 유효한 토큰으로 사용자 정보 가져오기
-      const userInfo = await this.getGoogleUserInfo(oauth2AccessToken)
+      const userInfo = await this.getGoogleUserInfo(googleOAuth.oauth2AccessToken)
       return {
         isLoggedIn: true,
         userInfo,
@@ -296,19 +354,13 @@ export class GoogleOauthService {
   }
 
   /**
-   * 로그아웃 (토큰 삭제)
+   * 로그아웃 (GoogleOAuth DB에서 계정 삭제)
    */
   async logout() {
     try {
-      const globalSettings = await this.settingsService.getSettings()
-      const updatedGoogleSettings = {
-        ...globalSettings,
-        oauth2AccessToken: '',
-        oauth2RefreshToken: '',
-        oauth2TokenExpiry: '',
-        bloggerBlogId: '',
-      }
-      await this.settingsService.updateSettings(updatedGoogleSettings)
+      // GoogleOAuth DB에서 모든 계정 삭제
+      await this.prisma.googleOAuth.deleteMany()
+
       return {
         success: true,
         message: 'Google 계정 연동이 해제되었습니다.',
@@ -316,6 +368,49 @@ export class GoogleOauthService {
     } catch (error: any) {
       throw new CustomHttpException(ErrorCode.EXTERNAL_API_FAIL, {
         message: `로그아웃 실패: ${error.message}`,
+        originalError: error.message,
+      })
+    }
+  }
+
+  /**
+   * OAuth 계정 목록 조회
+   */
+  async getOAuthAccounts() {
+    try {
+      const accounts = await this.prisma.googleOAuth.findMany({
+        orderBy: { createdAt: 'asc' },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      })
+
+      return accounts
+    } catch (error: any) {
+      throw new CustomHttpException(ErrorCode.EXTERNAL_API_FAIL, {
+        message: `OAuth 계정 목록 조회 실패: ${error.message}`,
+        originalError: error.message,
+      })
+    }
+  }
+
+  /**
+   * 특정 OAuth 계정 삭제
+   */
+  async deleteOAuthAccount(accountId: string) {
+    try {
+      await this.prisma.googleOAuth.delete({
+        where: { id: accountId },
+      })
+
+      return { success: true, message: 'OAuth 계정이 삭제되었습니다.' }
+    } catch (error: any) {
+      throw new CustomHttpException(ErrorCode.EXTERNAL_API_FAIL, {
+        message: `OAuth 계정 삭제 실패: ${error.message}`,
         originalError: error.message,
       })
     }

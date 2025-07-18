@@ -46,6 +46,9 @@ const TopicExtraction: React.FC = () => {
           <li>
             <strong>라벨</strong>: 블로그 카테고리/태그 (수동 입력, 쉼표로 구분)
           </li>
+          <li>
+            <strong>블로거 ID</strong>: 특정 블로거 ID (수동 입력, 비워두면 기본 블로거 사용)
+          </li>
         </ul>
         <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: '#6a737d' }}>
           라벨 예시: "기술,프로그래밍,웹개발" - 이렇게 입력하면 블로그에 해당 카테고리가 자동으로 설정됩니다.

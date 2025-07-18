@@ -50,11 +50,46 @@ export class GoogleBloggerController {
   }
 
   /**
-   * 사용자의 블로그 목록 조회
+   * 사용자의 블로그 목록 조회 (기본 계정)
    */
   @Get('user/blogs')
   async getUserBlogs(): Promise<any> {
     const blogs = await this.bloggerService.getUserSelfBlogs()
     return { blogs }
+  }
+
+  /**
+   * 특정 OAuth 계정의 사용자 블로그 목록 조회
+   */
+  @Get('user/blogs/:oauthId')
+  async getUserBlogsByOAuthId(@Param('oauthId') oauthId: string): Promise<any> {
+    const blogs = await this.bloggerService.getUserSelfBlogsByOAuthId(oauthId)
+    return { blogs }
+  }
+
+  @Post('validate-credentials')
+  async validateCredentials(@Body() body: { clientId: string; clientSecret: string }) {
+    return this.bloggerService.validateClientCredentials(body.clientId, body.clientSecret)
+  }
+
+  @Get('blogs')
+  async getBloggerBlogs() {
+    return this.bloggerService.getBloggerBlogs()
+  }
+
+  /**
+   * 기본 블로그 조회
+   */
+  @Get('default')
+  async getDefaultGoogleBlog() {
+    return await this.bloggerService.getDefaultGoogleBlog()
+  }
+
+  /**
+   * 특정 OAuth 계정의 기본 블로그 조회
+   */
+  @Get('oauth/:oauthId/default')
+  async getDefaultGoogleBlogByOAuthId(@Param('oauthId') oauthId: string) {
+    return await this.bloggerService.getDefaultGoogleBlogByOAuthId(oauthId)
   }
 }

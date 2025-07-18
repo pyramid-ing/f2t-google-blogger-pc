@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Logger, Post, Query, Res } from '@nestjs/common'
+import { Controller, Get, Post, Delete, Body, Query, Res, Logger, Param } from '@nestjs/common'
 import { Response } from 'express'
-import { GoogleOauthService } from 'src/main/app/modules/google/oauth/google-oauth.service'
+
+import { GoogleOauthService } from './google-oauth.service'
 
 @Controller('google-oauth')
 export class GoogleOAuthController {
@@ -169,5 +170,15 @@ export class GoogleOAuthController {
   @Post('validate-credentials')
   async validateCredentials(@Body() body: { clientId: string; clientSecret: string }) {
     return this.oauthService.validateClientCredentials(body.clientId, body.clientSecret)
+  }
+
+  @Get('accounts')
+  async getOAuthAccounts() {
+    return this.oauthService.getOAuthAccounts()
+  }
+
+  @Delete('accounts/:id')
+  async deleteOAuthAccount(@Param('id') id: string) {
+    return this.oauthService.deleteOAuthAccount(id)
   }
 }

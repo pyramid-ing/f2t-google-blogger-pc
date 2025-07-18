@@ -1,13 +1,20 @@
 import { api } from './apiClient'
 
-export async function getGoogleOAuthStatus() {
-  const res = await api.get('/google-oauth/status')
-  return res.data
-}
+export const googleOAuthApi = {
+  // 토큰 갱신
+  refreshToken: () => api.post('/google-oauth/refresh-token').then(res => res.data),
 
-export async function googleOAuthLogout() {
-  const res = await api.post('/google-oauth/logout')
-  return res.data
+  // OAuth 상태 확인
+  getOAuthStatus: () => api.get('/google-oauth/status').then(res => res.data),
+
+  // 로그아웃
+  logout: () => api.post('/google-oauth/logout').then(res => res.data),
+
+  // OAuth 계정 목록 조회
+  getOAuthAccounts: () => api.get('/google-oauth/accounts').then(res => res.data),
+
+  // OAuth 계정 삭제
+  deleteOAuthAccount: (id: string) => api.delete(`/google-oauth/accounts/${id}`).then(res => res.data),
 }
 
 const GOOGLE_REDIRECT_URI = 'http://localhost:3554/google-oauth/callback'
@@ -30,12 +37,12 @@ export function generateGoogleAuthUrl(clientId: string): string {
 }
 
 export async function getGoogleAuthStatus() {
-  const response = await getGoogleOAuthStatus()
+  const response = await googleOAuthApi.getOAuthStatus()
   return response
 }
 
 export async function logoutGoogle() {
-  const response = await googleOAuthLogout()
+  const response = await googleOAuthApi.logout()
   return response
 }
 
@@ -62,9 +69,4 @@ export function startGoogleLogin(clientId: string) {
     success: true,
     message: '브라우저에서 Google 로그인을 완료하세요. 인증이 완료되면 자동으로 처리됩니다.',
   }
-}
-
-export async function validateGoogleClientCredentials(clientId: string, clientSecret: string) {
-  const res = await api.post('/google-oauth/validate-credentials', { clientId, clientSecret })
-  return res.data
 }

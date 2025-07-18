@@ -9,6 +9,7 @@ import { BlogPostExcelRow } from './blog-post-job.types'
 import { CustomHttpException } from '@main/common/errors/custom-http.exception'
 import { ErrorCode } from '@main/common/errors/error-code.enum'
 import { StorageService } from '@main/app/modules/google/storage/storage.service'
+import { GoogleBlogService } from '../google/google-blog/google-blog.service'
 
 @Injectable()
 export class BlogPostJobService implements JobProcessor {
@@ -20,6 +21,7 @@ export class BlogPostJobService implements JobProcessor {
     private readonly contentGenerateService: ContentGenerateService,
     private readonly jobLogsService: JobLogsService,
     private readonly storageService: StorageService,
+    private readonly googleBlogService: GoogleBlogService,
   ) {}
 
   canProcess(job: any): boolean {
@@ -30,7 +32,11 @@ export class BlogPostJobService implements JobProcessor {
     const job = await this.prisma.job.findUniqueOrThrow({
       where: { id: jobId },
       include: {
-        blogJob: true,
+        blogJob: {
+          include: {
+            googleBlog: true,
+          },
+        },
       },
     })
 
@@ -55,7 +61,13 @@ export class BlogPostJobService implements JobProcessor {
 
       // 3. 블로그 포스팅
       await this.createJobLog(jobId, 'info', '블로그 포스팅 시작')
-      publishResult = await this.publishService.publishPost(job.blogJob.title, blogHtml, jobId, labels)
+      publishResult = await this.publishService.publishPost(
+        job.blogJob.title,
+        blogHtml,
+        jobId,
+        labels,
+        job.blogJob.googleBlog.bloggerBlogId,
+      )
 
       await this.createJobLog(jobId, 'info', '블로그 포스팅 완료')
 
@@ -75,6 +87,7 @@ export class BlogPostJobService implements JobProcessor {
           this.logger.error(`GCS ${jobId}/ 객체 삭제 실패:`, removeErr)
         }
       }
+      throw e
     }
   }
 
@@ -87,6 +100,15 @@ export class BlogPostJobService implements JobProcessor {
    */
   async createJobsFromExcelRows(rows: BlogPostExcelRow[]): Promise<any[]> {
     const jobs: any[] = []
+
+    // 기본 블로거 설정 조회
+    const defaultBlog = await this.googleBlogService.getDefaultGoogleBlog()
+    if (!defaultBlog) {
+      throw new CustomHttpException(ErrorCode.BLOGGER_DEFAULT_NOT_SET, {
+        message: '기본 블로거가 설정되지 않았습니다. 설정에서 기본 블로거를 먼저 설정해주세요.',
+      })
+    }
+
     for (const row of rows) {
       const title = row.제목 || ''
       const content = row.내용 || ''
@@ -98,6 +120,31 @@ export class BlogPostJobService implements JobProcessor {
         : []
       const scheduledAtFormatStr = row.예약날짜 || ''
       let scheduledAt: Date
+
+      // 블로거 이름 처리
+      let bloggerBlogName = row.블로그이름 || defaultBlog.name
+      let targetBlog = defaultBlog
+
+      // 블로거 이름 유효성 검사
+      if (bloggerBlogName) {
+        // 해당 블로거가 존재하는지 확인
+        const blogExists = await this.prisma.googleBlog.findFirst({
+          where: {
+            name: bloggerBlogName,
+          },
+          include: {
+            oauth: true,
+          },
+        })
+
+        if (!blogExists) {
+          throw new CustomHttpException(ErrorCode.BLOGGER_ID_NOT_FOUND, {
+            message: `블로거 이름 "${bloggerBlogName}"가 존재하지 않습니다. 설정에서 올바른 블로거를 선택해주세요.`,
+            invalidBloggerId: bloggerBlogName,
+          })
+        }
+        targetBlog = blogExists
+      }
 
       if (scheduledAtFormatStr && typeof scheduledAtFormatStr === 'string' && scheduledAtFormatStr.trim() !== '') {
         try {
@@ -136,13 +183,18 @@ export class BlogPostJobService implements JobProcessor {
               title,
               content,
               labels: labels.length > 0 ? labels : null,
+              blogName: targetBlog.name,
             },
           },
         },
         include: { blogJob: true },
       })
 
-      await this.createJobLog(job.id, 'info', '작업이 등록되었습니다.')
+      await this.createJobLog(
+        job.id,
+        'info',
+        `작업이 등록되었습니다. (블로거 이름: ${targetBlog.name}, ID: ${targetBlog.bloggerBlogId})`,
+      )
       jobs.push(job)
     }
     return jobs

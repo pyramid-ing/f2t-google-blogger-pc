@@ -2,14 +2,16 @@ import * as fs from 'fs'
 import * as path from 'path'
 import * as XLSX from 'xlsx'
 import { EnvConfig } from '@main/config/env.config'
+import { BlogPostExcelRow } from '@main/app/modules/blog-post-job/blog-post-job.types'
 
 export async function saveTopicsResultAsXlsx(jobId: string, topics: any[]) {
-  // 예약날짜 필드와 라벨 필드 추가(공란)
-  const topicsWithDate = topics.map(item => ({
-    제목: item.title,
-    내용: item.content,
+  // 예약날짜 필드, 라벨 필드, 블로거 ID 필드 추가(공란)
+  const topicsWithDate: BlogPostExcelRow[] = topics.map(row => ({
+    제목: row.title,
+    내용: row.content,
     예약날짜: '',
     라벨: '',
+    블로그이름: '',
   }))
 
   // 엑셀 시트 생성 (topics 객체 배열 그대로 사용)
@@ -21,6 +23,7 @@ export async function saveTopicsResultAsXlsx(jobId: string, topics: any[]) {
     { width: 80 }, // 내용
     { width: 20 }, // 예약날짜
     { width: 20 }, // 라벨
+    { width: 20 }, // 블로거 ID
   ]
 
   // 워크북에 시트 추가

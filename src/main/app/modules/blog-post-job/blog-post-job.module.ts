@@ -7,9 +7,21 @@ import { PublishModule } from '../publish/publish.module'
 import { ContentGenerateModule } from '@main/app/modules/content-generate/content-generate.module'
 import { JobLogsModule } from '../job-logs/job-logs.module'
 import { StorageModule } from '@main/app/modules/google/storage/storage.module'
+import { SettingsModule } from '../settings/settings.module'
+import { GoogleBlogModule } from '../google/google-blog/google-blog.module'
 
 @Module({
-  imports: [CommonModule, AIModule, UtilModule, PublishModule, ContentGenerateModule, JobLogsModule, StorageModule],
+  imports: [
+    CommonModule,
+    AIModule,
+    UtilModule,
+    PublishModule,
+    ContentGenerateModule,
+    JobLogsModule,
+    StorageModule,
+    SettingsModule,
+    GoogleBlogModule,
+  ],
   providers: [BlogPostJobService],
   exports: [BlogPostJobService],
 })

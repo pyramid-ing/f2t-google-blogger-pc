@@ -1,11 +1,11 @@
 export type AIProvider = 'gemini'
 
 export interface AppSettings {
-  // Google OAuth 관련 설정
+  // Google OAuth 관련 설정 (토큰 정보만)
   oauth2AccessToken?: string
   oauth2TokenExpiry?: string
   oauth2RefreshToken?: string
-  bloggerBlogId?: string // 선택된 Blogger 블로그 ID
+  bloggerBlogName?: string // 선택된 Blogger 블로그 이름
 
   // AI 설정
   aiProvider: AIProvider

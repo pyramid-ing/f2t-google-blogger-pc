@@ -161,10 +161,10 @@ export const useGoogleSettings = () => {
 
   const updateGoogleSettings = useCallback(
     async (googleSettings: {
-      bloggerBlogId?: string
-      googleAccessToken?: string
-      googleRefreshToken?: string
-      googleTokenExpiry?: number
+      bloggerBlogName?: string
+      oauth2AccessToken?: string
+      oauth2TokenExpiry?: string
+      oauth2RefreshToken?: string
     }) => {
       return await updatePartialSettings(googleSettings)
     },
@@ -173,10 +173,10 @@ export const useGoogleSettings = () => {
 
   return {
     googleSettings: {
-      bloggerBlogId: settings.bloggerBlogId,
-      googleAccessToken: settings.googleAccessToken,
-      googleRefreshToken: settings.googleRefreshToken,
-      googleTokenExpiry: settings.googleTokenExpiry,
+      bloggerBlogName: settings.bloggerBlogName,
+      oauth2AccessToken: settings.oauth2AccessToken,
+      oauth2TokenExpiry: settings.oauth2TokenExpiry,
+      oauth2RefreshToken: settings.oauth2RefreshToken,
     },
     updateGoogleSettings,
     isLoading,

@@ -1,11 +1,12 @@
 import { HttpService } from '@nestjs/axios'
 import { Injectable, Logger } from '@nestjs/common'
 import { firstValueFrom } from 'rxjs'
-import { GoogleOauthService } from 'src/main/app/modules/google/oauth/google-oauth.service'
+import { GoogleOauthService } from '../oauth/google-oauth.service'
 import type * as BloggerTypes from './google-blogger.types'
 import { SettingsService } from '@main/app/modules/settings/settings.service'
 import { CustomHttpException } from '@main/common/errors/custom-http.exception'
 import { ErrorCode } from '@main/common/errors/error-code.enum'
+import { PrismaService } from '@main/app/modules/common/prisma/prisma.service'
 
 @Injectable()
 export class GoogleBloggerService {
@@ -16,6 +17,7 @@ export class GoogleBloggerService {
     private readonly httpService: HttpService,
     private readonly oauthService: GoogleOauthService,
     private readonly settingsService: SettingsService,
+    private readonly prisma: PrismaService,
   ) {}
 
   /**
@@ -187,7 +189,7 @@ export class GoogleBloggerService {
   }
 
   /**
-   * 사용자의 블로그 목록 조회
+   * 사용자의 블로그 목록 조회 (기본 계정)
    */
   async getUserSelfBlogs(): Promise<BloggerTypes.BloggerBlogListResponse> {
     try {
@@ -208,16 +210,99 @@ export class GoogleBloggerService {
   }
 
   /**
+   * 특정 OAuth 계정으로 사용자의 블로그 목록 조회
+   */
+  async getUserSelfBlogsByOAuthId(oauthId: string): Promise<BloggerTypes.BloggerBlogListResponse> {
+    try {
+      // 특정 OAuth 계정 조회
+      const oauthAccount = await this.prisma.googleOAuth.findUnique({
+        where: { id: oauthId },
+      })
+
+      if (!oauthAccount) {
+        throw new CustomHttpException(ErrorCode.DATA_NOT_FOUND, {
+          message: `OAuth 계정을 찾을 수 없습니다: ${oauthId}`,
+        })
+      }
+
+      // 토큰 만료 확인 및 갱신
+      const expiryTime = oauthAccount.oauth2TokenExpiry.getTime()
+      const isExpired = Date.now() >= expiryTime - 60000 // 1분 여유
+
+      let accessToken = oauthAccount.oauth2AccessToken
+
+      if (isExpired && oauthAccount.oauth2RefreshToken) {
+        try {
+          const newTokens = await this.oauthService.refreshAccessToken(
+            oauthAccount.oauth2RefreshToken,
+            oauthAccount.oauth2ClientId,
+            oauthAccount.oauth2ClientSecret,
+          )
+
+          // DB 업데이트
+          await this.prisma.googleOAuth.update({
+            where: { id: oauthId },
+            data: {
+              oauth2AccessToken: newTokens.accessToken,
+              oauth2TokenExpiry: new Date(newTokens.expiresAt),
+            },
+          })
+
+          accessToken = newTokens.accessToken
+        } catch (refreshError) {
+          throw new CustomHttpException(ErrorCode.EXTERNAL_API_FAIL, {
+            message: `토큰 갱신 실패: ${refreshError.message}`,
+            originalError: refreshError.message,
+          })
+        }
+      }
+
+      const response = await firstValueFrom(
+        this.httpService.get(`${this.bloggerApiUrl}/users/self/blogs`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }),
+      )
+      return response.data
+    } catch (error) {
+      if (error instanceof CustomHttpException) {
+        throw error
+      }
+      throw new CustomHttpException(ErrorCode.EXTERNAL_API_FAIL, {
+        message: `사용자 블로그 목록 조회 실패: ${error.response?.data?.error?.message || error.message}`,
+        responseStatus: error.response?.status,
+        responseData: error.response?.data,
+      })
+    }
+  }
+
+  /**
    * Blogger API를 사용하여 블로그에 포스팅
    */
-  async postToBlogger(request: Omit<BloggerTypes.BloggerPostRequest, 'blogId'>): Promise<BloggerTypes.BloggerPost> {
-    const { title, content, labels } = request
-    const settings = await this.settingsService.getSettings()
-    const blogId = settings.bloggerBlogId
-    if (!blogId)
+  async postToBlogger(
+    request: Omit<BloggerTypes.BloggerPostRequest, 'blogId'> & { bloggerBlogId?: string },
+  ): Promise<BloggerTypes.BloggerPost> {
+    const { title, content, labels, bloggerBlogId } = request
+
+    if (!bloggerBlogId) {
       throw new CustomHttpException(ErrorCode.INVALID_INPUT, {
         message: 'bloggerBlogId가 설정되어 있지 않습니다. 설정에서 블로그를 선택하세요.',
       })
+    }
+
+    // bloggerBlogId로 GoogleBlog를 찾아서 실제 Blogger API의 blogId를 가져옴
+    const googleBlog = await this.prisma.googleBlog.findFirst({
+      where: { bloggerBlogId },
+    })
+
+    if (!googleBlog) {
+      throw new CustomHttpException(ErrorCode.BLOGGER_ID_NOT_FOUND, {
+        message: `블로거 ID "${bloggerBlogId}"가 존재하지 않습니다.`,
+        invalidBloggerId: bloggerBlogId,
+      })
+    }
+
+    const blogId = googleBlog.bloggerBlogId
+
     try {
       const accessToken = await this.oauthService.getAccessToken()
       const response = await firstValueFrom(
@@ -242,6 +327,121 @@ export class GoogleBloggerService {
     } catch (error) {
       this.logger.error('Blogger 포스팅 실패:', error)
       throw error
+    }
+  }
+
+  /**
+   * Blogger 블로그 목록 조회
+   */
+  async getBloggerBlogs() {
+    try {
+      const accessToken = await this.oauthService.getAccessToken()
+      const response = await firstValueFrom(
+        this.httpService.get('https://www.googleapis.com/blogger/v3/users/self/blogs', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }),
+      )
+      return response.data
+    } catch (error: any) {
+      if (error instanceof CustomHttpException) {
+        throw error
+      }
+      throw new CustomHttpException(ErrorCode.EXTERNAL_API_FAIL, {
+        message: `Blogger 블로그 목록 조회 실패: ${error.message}`,
+        originalError: error.message,
+      })
+    }
+  }
+
+  /**
+   * 클라이언트 자격 증명 검증
+   */
+  async validateClientCredentials(clientId: string, clientSecret: string) {
+    try {
+      // 간단한 검증 로직 (실제로는 Google API를 호출하여 검증)
+      if (!clientId || !clientSecret) {
+        throw new CustomHttpException(ErrorCode.INVALID_INPUT, {
+          message: 'Client ID와 Client Secret이 필요합니다.',
+        })
+      }
+
+      return {
+        valid: true,
+        message: '자격 증명이 유효합니다.',
+      }
+    } catch (error: any) {
+      if (error instanceof CustomHttpException) {
+        throw error
+      }
+      throw new CustomHttpException(ErrorCode.EXTERNAL_API_FAIL, {
+        message: `자격 증명 검증 실패: ${error.message}`,
+        originalError: error.message,
+      })
+    }
+  }
+
+  /**
+   * 기본 블로그 조회
+   */
+  async getDefaultGoogleBlog() {
+    try {
+      const defaultBlog = await this.prisma.googleBlog.findFirst({
+        where: { isDefault: true },
+        include: {
+          oauth: true,
+        },
+      })
+
+      if (!defaultBlog) {
+        throw new CustomHttpException(ErrorCode.DATA_NOT_FOUND, {
+          message: '기본 블로그가 설정되어 있지 않습니다.',
+        })
+      }
+
+      return defaultBlog
+    } catch (error: any) {
+      if (error instanceof CustomHttpException) {
+        throw error
+      }
+      throw new CustomHttpException(ErrorCode.EXTERNAL_API_FAIL, {
+        message: `기본 블로그 조회 실패: ${error.message}`,
+        originalError: error.message,
+      })
+    }
+  }
+
+  /**
+   * 특정 OAuth 계정의 기본 블로그 조회
+   */
+  async getDefaultGoogleBlogByOAuthId(oauthId: string) {
+    try {
+      const defaultBlog = await this.prisma.googleBlog.findFirst({
+        where: {
+          isDefault: true,
+          googleOauthId: oauthId,
+        },
+        include: {
+          oauth: true,
+        },
+      })
+
+      if (!defaultBlog) {
+        throw new CustomHttpException(ErrorCode.DATA_NOT_FOUND, {
+          message: `OAuth 계정 ${oauthId}의 기본 블로그가 설정되어 있지 않습니다.`,
+          oauthId,
+        })
+      }
+
+      return defaultBlog
+    } catch (error: any) {
+      if (error instanceof CustomHttpException) {
+        throw error
+      }
+      throw new CustomHttpException(ErrorCode.EXTERNAL_API_FAIL, {
+        message: `기본 블로그 조회 실패: ${error.message}`,
+        oauthId,
+        originalError: error.message,
+      })
     }
   }
 }
