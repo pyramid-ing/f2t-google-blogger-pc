@@ -10,7 +10,7 @@
   },
   "scripts": {
     "dev": "rimraf dist && NODE_OPTIONS=\"--enable-source-maps\" vite",
-    "debug": "rimraf dist && NODE_OPTIONS=\"--enable-source-maps\" vite -- --dsb-debug",
+    "debug": "rimraf dist && vite -- --dsb-debug",
     "build": "rimraf dist && vite build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -24,7 +24,7 @@
     "build-initial-db": "node scripts/build-initial-db.js",
     "db:force-reset": "node scripts/update-db-force-reset.js",
     "dev:front": "vite --config src/render/vite.config.mts",
-    "dev:electron": "tsc -p tsconfig.json && cross-env ELECTRON_DEBUG=true NODE_OPTIONS=\"--enable-source-maps\" electron ."
+    "dev:electron": "tsc -p tsconfig.json && cross-env ELECTRON_DEBUG=true electron ."
   },
   "dependencies": {
     "@ai-sdk/perplexity": "^1.1.9",

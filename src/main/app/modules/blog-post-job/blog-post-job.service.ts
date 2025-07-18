@@ -34,7 +34,11 @@ export class BlogPostJobService implements JobProcessor {
       include: {
         blogJob: {
           include: {
-            googleBlog: true,
+            googleBlog: {
+              include: {
+                oauth: true,
+              },
+            },
           },
         },
       },
@@ -42,6 +46,30 @@ export class BlogPostJobService implements JobProcessor {
 
     if (!job.blogJob) {
       throw new CustomHttpException(ErrorCode.BLOG_POST_JOB_NOT_FOUND, { message: 'Blog post job data not found' })
+    }
+
+    // blogName을 통해 GoogleBlog 찾기
+    let targetGoogleBlog = job.blogJob.googleBlog
+    if (!targetGoogleBlog && job.blogJob.blogName) {
+      // blogName으로 GoogleBlog 찾기
+      targetGoogleBlog = await this.prisma.googleBlog.findUnique({
+        where: { name: job.blogJob.blogName },
+        include: {
+          oauth: true,
+        },
+      })
+    }
+
+    // 여전히 없으면 기본 블로그 사용
+    if (!targetGoogleBlog) {
+      this.logger.log('작업에 연결된 Google 블로그가 없어 기본 블로그를 사용합니다.')
+      targetGoogleBlog = await this.googleBlogService.getDefaultGoogleBlog()
+
+      if (!targetGoogleBlog) {
+        throw new CustomHttpException(ErrorCode.BLOGGER_DEFAULT_NOT_SET, {
+          message: '기본 블로거가 설정되지 않았습니다. 설정에서 기본 블로거를 먼저 설정해주세요.',
+        })
+      }
     }
 
     let publishResult
@@ -60,16 +88,16 @@ export class BlogPostJobService implements JobProcessor {
       }
 
       // 3. 블로그 포스팅
-      await this.createJobLog(jobId, 'info', '블로그 포스팅 시작')
+      await this.createJobLog(jobId, 'info', `블로그 발행 시작 (블로그: ${targetGoogleBlog.name})`)
       publishResult = await this.publishService.publishPost(
         job.blogJob.title,
         blogHtml,
+        targetGoogleBlog.bloggerBlogId,
+        targetGoogleBlog.oauth.id,
         jobId,
         labels,
-        job.blogJob.googleBlog.bloggerBlogId,
       )
-
-      await this.createJobLog(jobId, 'info', '블로그 포스팅 완료')
+      await this.createJobLog(jobId, 'info', '블로그 발행 완료')
 
       return {
         resultUrl: publishResult?.url,

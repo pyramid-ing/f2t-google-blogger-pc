@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Query, Patch } from '@nestjs/common'
+import { Body, Controller, Delete, Get, Param, Post, Query, Patch, Logger } from '@nestjs/common'
 import { PrismaService } from '../common/prisma/prisma.service'
 import { JobQueueProcessor } from './job-queue.processor'
 import { Prisma } from '@prisma/client'
@@ -16,6 +16,8 @@ export type JobType = (typeof JOB_TYPE)[keyof typeof JOB_TYPE]
 
 @Controller('api/jobs')
 export class JobController {
+  private readonly logger = new Logger(JobController.name)
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jobProcessor: JobQueueProcessor,
@@ -121,8 +123,10 @@ export class JobController {
             },
           })
 
-          // 작업 큐에 다시 추가
-          await this.jobProcessor.processJob(job)
+          // 작업 큐에 다시 추가 (비동기로 처리)
+          this.jobProcessor.processJob(job).catch(error => {
+            this.logger.error(`Job ${job.id} 재시도 처리 중 오류:`, error)
+          })
           successCount++
         } catch (error) {
           failedCount++
@@ -271,8 +275,10 @@ export class JobController {
         },
       })
 
-      // 작업 큐에 다시 추가
-      await this.jobProcessor.processJob(job)
+      // 작업 큐에 다시 추가 (비동기로 처리하여 즉시 응답)
+      this.jobProcessor.processJob(job).catch(error => {
+        this.logger.error(`Job ${jobId} 재시도 처리 중 오류:`, error)
+      })
 
       return {
         success: true,

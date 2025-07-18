@@ -74,6 +74,8 @@ export type BloggerPostSearchResponse = BloggerPostListResponse
 // 포스트 생성 요청
 export interface BloggerPostRequest {
   blogId: string
+  bloggerBlogId: string
+  googleOAuthId: string
   title: string
   content: string
   labels?: string[]

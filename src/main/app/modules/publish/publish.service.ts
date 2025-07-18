@@ -17,9 +17,10 @@ export class PublishService {
   async publishPost(
     title: string,
     contentHtml: string,
+    bloggerBlogId: string,
+    googleOAuthId: string,
     jobId?: string,
     labels?: string[],
-    bloggerBlogId?: string,
   ): Promise<any> {
     this.logger.log(`포스팅 발행 시작: ${title}`)
     await this.jobLogsService.createJobLog(jobId, `블로그 포스팅 발행 시작: ${title}`)
@@ -30,6 +31,7 @@ export class PublishService {
       content: contentHtml,
       labels,
       bloggerBlogId,
+      googleOAuthId,
     })
 
     await this.jobLogsService.createJobLog(
