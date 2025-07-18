@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - 수정된 버그를 여기에 추가
 
-## [1.6.0]
+## [1.6.1]
 - 구글 다계정
 - 라벨 추가
 
