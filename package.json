@@ -9,8 +9,8 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "dev": "rimraf dist && vite",
-    "debug": "rimraf dist && vite -- --dsb-debug",
+    "dev": "rimraf dist && NODE_OPTIONS=\"--enable-source-maps\" vite",
+    "debug": "rimraf dist && NODE_OPTIONS=\"--enable-source-maps\" vite -- --dsb-debug",
     "build": "rimraf dist && vite build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -23,7 +23,7 @@
     "db:init": "prisma generate && prisma migrate deploy",
     "build-initial-db": "node scripts/build-initial-db.js",
     "dev:front": "vite --config src/render/vite.config.mts",
-    "dev:electron": "tsc -p tsconfig.json && cross-env ELECTRON_DEBUG=true electron ."
+    "dev:electron": "tsc -p tsconfig.json && cross-env ELECTRON_DEBUG=true NODE_OPTIONS=\"--enable-source-maps\" electron ."
   },
   "dependencies": {
     "@ai-sdk/perplexity": "^1.1.9",

@@ -52,6 +52,11 @@ export class BlogPostJobService implements JobProcessor {
       publishResult = await this.publishService.publishPost(job.blogJob.title, blogHtml, jobId)
 
       await this.createJobLog(jobId, 'info', '블로그 포스팅 완료')
+
+      return {
+        resultUrl: publishResult?.url,
+        resultMsg: '포스팅이 성공적으로 생성되었습니다.',
+      }
     } catch (e) {
       // === 에러 발생 시 jobId로 GCS 객체 전체 삭제 ===
       if (jobId) {
@@ -64,11 +69,6 @@ export class BlogPostJobService implements JobProcessor {
           this.logger.error(`GCS ${jobId}/ 객체 삭제 실패:`, removeErr)
         }
       }
-    }
-
-    return {
-      resultUrl: publishResult.url,
-      resultMsg: '포스팅이 성공적으로 생성되었습니다.',
     }
   }
 
