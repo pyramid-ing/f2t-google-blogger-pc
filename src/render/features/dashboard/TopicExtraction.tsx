@@ -36,7 +36,7 @@ const TopicExtraction: React.FC = () => {
         style={{ marginBottom: 8 }}
       />
       <Button type="primary" onClick={handleFindTopics} loading={loading}>
-        주제 찾기
+        주제 찾기 작업 등록
       </Button>
     </div>
   )
