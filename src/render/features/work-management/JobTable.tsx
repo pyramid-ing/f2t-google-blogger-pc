@@ -746,6 +746,22 @@ const JobTable: React.FC = () => {
             ),
           },
           {
+            title: '블로그',
+            dataIndex: 'blogName',
+            width: 150,
+            align: 'center',
+            render: (_: any, row: Job) => {
+              if (row.type === JOB_TYPE.POST && row.blogJob?.blogName) {
+                return (
+                  <Tag color="blue" style={{ cursor: 'pointer' }}>
+                    {row.blogJob.blogName}
+                  </Tag>
+                )
+              }
+              return '-'
+            },
+          },
+          {
             title: '제목',
             dataIndex: 'subject',
             width: 300,

@@ -54,6 +54,7 @@ export interface BlogJobDetail {
   publishedAt: string | null
   createdAt: string
   updatedAt: string
+  blogName?: string
 }
 
 export interface BaseJob {
