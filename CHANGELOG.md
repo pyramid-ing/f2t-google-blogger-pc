@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - 수정된 버그를 여기에 추가
 
+## [1.6.0]
+- 구글 다계정
+- 라벨 추가
+
 ## [1.4.4]
 - 블로그 본문 서론 제목 없애기
 
