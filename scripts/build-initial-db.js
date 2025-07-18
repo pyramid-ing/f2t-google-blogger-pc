@@ -43,3 +43,20 @@ if (fs.existsSync(tmpDbPath)) {
 }
 
 console.log('=== 초기 DB 빌드 완료 ===')
+
+// 5. DB 강제 초기화 설정 파일 생성 (선택적)
+const forceResetConfigPath = path.join(__dirname, '../db-force-reset.json')
+if (!fs.existsSync(forceResetConfigPath)) {
+  // package.json에서 버전 읽기
+  const packageJsonPath = path.join(__dirname, '../package.json')
+  const packageJsonContent = fs.readFileSync(packageJsonPath, 'utf8')
+  const packageJson = JSON.parse(packageJsonContent)
+  
+  const defaultConfig = {
+    version: packageJson.version,
+    forceReset: false
+  }
+  
+  fs.writeFileSync(forceResetConfigPath, JSON.stringify(defaultConfig, null, 2))
+  console.log('기본 DB 강제 초기화 설정 파일 생성됨')
+}
