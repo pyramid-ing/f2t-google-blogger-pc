@@ -6,8 +6,6 @@ import { JobProcessor, JobStatus, JobType } from './job.types'
 import { TopicJobService } from '@main/app/modules/topic/topic-job.service'
 import { Job } from '@prisma/client'
 import { JobLogsService } from '@main/app/modules/job-logs/job-logs.service'
-import { CustomHttpException } from '@main/common/errors/custom-http.exception'
-import { ErrorCodeMap } from '@main/common/errors/error-code.map'
 
 @Injectable()
 export class JobQueueProcessor implements OnModuleInit {
@@ -120,16 +118,8 @@ export class JobQueueProcessor implements OnModuleInit {
 
       this.logger.debug(`Completed job ${job.id}`)
     } catch (error) {
-      // ErrorCodeMap에서 매핑
-      let logMessage = `작업 처리 중 오류 발생: ${error.message}`
-      if (error instanceof CustomHttpException) {
-        const mapped = ErrorCodeMap[error.errorCode]
-        if (mapped) {
-          logMessage = `작업 처리 중 오류 발생: ${mapped.message(error.metadata)}`
-        }
-      }
-      await this.jobLogsService.createJobLog(job.id, logMessage, 'error')
-      this.logger.error(logMessage, error.stack)
+      await this.jobLogsService.createJobLog(job.id, error.message, 'error')
+      this.logger.error(error.message, error.stack)
       await this.markJobAsFailed(job.id, error.message)
     }
   }
