@@ -47,9 +47,15 @@ export class BlogPostJobService implements JobProcessor {
       await this.createJobLog(jobId, 'info', '본문 내용 생성')
       const blogHtml = await this.contentGenerateService.generate(job.blogJob.title, job.blogJob.content, jobId)
 
-      // 2. 블로그 포스팅
+      // 2. 라벨 처리
+      const labels = job.blogJob.labels ? (job.blogJob.labels as string[]) : undefined
+      if (labels && labels.length > 0) {
+        await this.createJobLog(jobId, 'info', `라벨 설정: ${labels.join(', ')}`)
+      }
+
+      // 3. 블로그 포스팅
       await this.createJobLog(jobId, 'info', '블로그 포스팅 시작')
-      publishResult = await this.publishService.publishPost(job.blogJob.title, blogHtml, jobId)
+      publishResult = await this.publishService.publishPost(job.blogJob.title, blogHtml, jobId, labels)
 
       await this.createJobLog(jobId, 'info', '블로그 포스팅 완료')
 
@@ -84,6 +90,12 @@ export class BlogPostJobService implements JobProcessor {
     for (const row of rows) {
       const title = row.제목 || ''
       const content = row.내용 || ''
+      const labels = row.라벨
+        ? row.라벨
+            .split(',')
+            .map(label => label.trim())
+            .filter(label => label)
+        : []
       const scheduledAtFormatStr = row.예약날짜 || ''
       let scheduledAt: Date
 
@@ -120,7 +132,11 @@ export class BlogPostJobService implements JobProcessor {
           priority: 1,
           scheduledAt,
           blogJob: {
-            create: { title, content },
+            create: {
+              title,
+              content,
+              labels: labels.length > 0 ? labels : null,
+            },
           },
         },
         include: { blogJob: true },

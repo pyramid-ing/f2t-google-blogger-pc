@@ -22,6 +22,36 @@ const TopicExtraction: React.FC = () => {
 
   return (
     <div>
+      <div
+        style={{
+          marginBottom: 16,
+          padding: 16,
+          backgroundColor: '#f6f8fa',
+          borderRadius: 8,
+          border: '1px solid #e1e4e8',
+        }}
+      >
+        <h4 style={{ marginTop: 0, marginBottom: 8 }}>📋 다운로드되는 엑셀 파일 형식</h4>
+        <p style={{ margin: 0, fontSize: '14px', color: '#586069' }}>생성된 엑셀 파일에는 다음 컬럼이 포함됩니다:</p>
+        <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px', fontSize: '14px', color: '#586069' }}>
+          <li>
+            <strong>제목</strong>: AI가 생성한 블로그 포스트 제목
+          </li>
+          <li>
+            <strong>내용</strong>: AI가 생성한 블로그 포스트 내용
+          </li>
+          <li>
+            <strong>예약날짜</strong>: 발행 예정일 (수동 입력)
+          </li>
+          <li>
+            <strong>라벨</strong>: 블로그 카테고리/태그 (수동 입력, 쉼표로 구분)
+          </li>
+        </ul>
+        <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: '#6a737d' }}>
+          라벨 예시: "기술,프로그래밍,웹개발" - 이렇게 입력하면 블로그에 해당 카테고리가 자동으로 설정됩니다.
+        </p>
+      </div>
+
       <Input
         placeholder="주제 입력"
         value={topic}

@@ -69,6 +69,7 @@ model BlogJob {
   jobId       String    @unique // Job 모델과 1:1 관계
   title       String // 글 제목
   content     String // 글 내용
+  labels      Json? // 블로그 라벨 (배열)
   status      String    @default("draft") // BlogJobStatus: 'draft' | 'published' | 'failed'
   publishedAt DateTime? // 발행 시간
   createdAt   DateTime  @default(now())

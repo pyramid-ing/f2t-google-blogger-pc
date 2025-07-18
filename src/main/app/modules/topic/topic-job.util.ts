@@ -4,11 +4,12 @@ import * as XLSX from 'xlsx'
 import { EnvConfig } from '@main/config/env.config'
 
 export async function saveTopicsResultAsXlsx(jobId: string, topics: any[]) {
-  // 예약날짜 필드 추가(공란)
+  // 예약날짜 필드와 라벨 필드 추가(공란)
   const topicsWithDate = topics.map(item => ({
     제목: item.title,
     내용: item.content,
     예약날짜: '',
+    라벨: '',
   }))
 
   // 엑셀 시트 생성 (topics 객체 배열 그대로 사용)
@@ -19,6 +20,7 @@ export async function saveTopicsResultAsXlsx(jobId: string, topics: any[]) {
     { width: 40 }, // 제목
     { width: 80 }, // 내용
     { width: 20 }, // 예약날짜
+    { width: 20 }, // 라벨
   ]
 
   // 워크북에 시트 추가

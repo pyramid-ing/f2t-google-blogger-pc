@@ -14,7 +14,7 @@ export class PublishService {
   /**
    * 블로그 포스트를 발행하는 메서드
    */
-  async publishPost(title: string, contentHtml: string, jobId?: string): Promise<any> {
+  async publishPost(title: string, contentHtml: string, jobId?: string, labels?: string[]): Promise<any> {
     try {
       this.logger.log(`포스팅 발행 시작: ${title}`)
       await this.jobLogsService.createJobLog(jobId, `블로그 포스팅 발행 시작: ${title}`)
@@ -23,6 +23,7 @@ export class PublishService {
       const result = await this.bloggerService.postToBlogger({
         title,
         content: contentHtml,
+        labels,
       })
 
       await this.jobLogsService.createJobLog(
@@ -31,7 +32,8 @@ export class PublishService {
           `제목: ${result.title}\n` +
           `URL: ${result.url}\n` +
           `발행일: ${result.published}\n` +
-          `포스트 ID: ${result.id}`,
+          `포스트 ID: ${result.id}` +
+          (labels && labels.length > 0 ? `\n라벨: ${labels.join(', ')}` : ''),
       )
 
       this.logger.log(`✅ Blogger에 포스팅 완료!`)
@@ -39,6 +41,9 @@ export class PublishService {
       this.logger.log(`🔗 URL: ${result.url}`)
       this.logger.log(`📅 발행일: ${result.published}`)
       this.logger.log(`🆔 포스트 ID: ${result.id}`)
+      if (labels && labels.length > 0) {
+        this.logger.log(`🏷️ 라벨: ${labels.join(', ')}`)
+      }
 
       return result
     } catch (error) {

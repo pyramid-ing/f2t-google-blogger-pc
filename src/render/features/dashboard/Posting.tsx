@@ -77,6 +77,36 @@ const Posting: React.FC = () => {
 
   return (
     <div style={{ padding: 16 }}>
+      <div
+        style={{
+          marginBottom: 16,
+          padding: 16,
+          backgroundColor: '#f6f8fa',
+          borderRadius: 8,
+          border: '1px solid #e1e4e8',
+        }}
+      >
+        <h4 style={{ marginTop: 0, marginBottom: 8 }}>📋 엑셀 파일 형식</h4>
+        <p style={{ margin: 0, fontSize: '14px', color: '#586069' }}>엑셀 파일은 다음 컬럼을 포함해야 합니다:</p>
+        <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px', fontSize: '14px', color: '#586069' }}>
+          <li>
+            <strong>제목</strong>: 블로그 포스트 제목
+          </li>
+          <li>
+            <strong>내용</strong>: 블로그 포스트 내용 (간단한 설명)
+          </li>
+          <li>
+            <strong>예약날짜</strong>: 발행 예정일 (YYYY-MM-DD HH:mm 형식, 선택사항)
+          </li>
+          <li>
+            <strong>라벨</strong>: 블로그 카테고리/태그 (쉼표로 구분, 선택사항)
+          </li>
+        </ul>
+        <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: '#6a737d' }}>
+          예시: 라벨에 "기술,프로그래밍,웹개발" 입력 시 블로그에 해당 카테고리가 자동으로 설정됩니다.
+        </p>
+      </div>
+
       <Upload.Dragger
         accept=".xlsx,.xls"
         multiple={false}
