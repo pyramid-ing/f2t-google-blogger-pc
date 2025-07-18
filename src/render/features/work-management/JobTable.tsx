@@ -895,7 +895,7 @@ const JobTable: React.FC = () => {
                 allowClear
                 format="YYYY-MM-DD ddd HH:mm"
                 style={{ minWidth: 150 }}
-                getPopupContainer={trigger => trigger.parentNode as HTMLElement}
+                getPopupContainer={() => document.body}
               />
             ),
             sorter: true,
