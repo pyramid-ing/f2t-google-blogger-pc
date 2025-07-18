@@ -407,7 +407,7 @@ const JobTable: React.FC = () => {
     }
   }
 
-  const handleDownload = async (jobId: string, type: JobType, xlsxFileName?: string) => {
+  const handleDownload = async (jobId: string, type: JobType, xlsxFileName?: string, subject?: string) => {
     setDownloadingJobId(jobId)
     try {
       let blob
@@ -420,7 +420,17 @@ const JobTable: React.FC = () => {
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = xlsxFileName || `job-result-${jobId}.xlsx`
+
+      // 토픽 생성 작업일 때 주제를 파일명에 포함
+      let downloadFileName: string
+      if (type === JOB_TYPE.GENERATE_TOPIC) {
+        const cleanSubject = subject ? subject.replace(/[<>:"/\\|?*]/g, '_').trim() : '토픽'
+        downloadFileName = `${cleanSubject}.xlsx`
+      } else {
+        downloadFileName = xlsxFileName || `job-result-${jobId}.xlsx`
+      }
+
+      a.download = downloadFileName
       document.body.appendChild(a)
       a.click()
       a.remove()
@@ -930,7 +940,7 @@ const JobTable: React.FC = () => {
                       disabled={
                         (downloadingJobId !== null && downloadingJobId !== row.id) || !row.topicJob?.xlsxFileName
                       }
-                      onClick={() => handleDownload(row.id, row.type, row.topicJob?.xlsxFileName)}
+                      onClick={() => handleDownload(row.id, row.type, row.topicJob?.xlsxFileName, row.subject)}
                       style={{ fontSize: '11px', backgroundColor: '#722ed1', borderColor: '#722ed1' }}
                     >
                       다운로드
