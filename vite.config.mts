@@ -26,6 +26,7 @@ export default defineConfig({
       debugCfg: {
         enabled: true,
         args: ['--remote-debugging-port=9222'], // ← 여기에 디버깅 옵션!
+        sourcemapType: 'file', // 소스맵 파일 생성
         // 필요시 env, sourcemapType 등도 추가 가능
       },
       waitTimeout: 60000,
