@@ -295,13 +295,18 @@ const GoogleBlogSettingsForm: React.FC = () => {
       render: (description: string) => description || '-',
     },
     {
+      title: '블로거 이름',
+      dataIndex: 'bloggerBlogName',
+      key: 'bloggerBlogName',
+    },
+    {
       title: '블로거 ID',
       dataIndex: 'bloggerBlogId',
       key: 'bloggerBlogId',
     },
     {
-      title: 'OAuth 계정',
-      dataIndex: ['oauth', 'name'],
+      title: '구글 계정',
+      dataIndex: ['oauth', 'email'],
       key: 'oauthName',
     },
     {
