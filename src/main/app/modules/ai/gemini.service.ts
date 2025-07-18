@@ -129,6 +129,14 @@ export class GeminiService implements AIService {
       throw new CustomHttpException(ErrorCode.AI_API_ERROR, { reason: 'API not found', provider: 'gemini' })
     }
 
+    // 503 에러 (모델 과부하) 처리
+    if (error?.error?.code === 503 || error.message?.includes('overloaded')) {
+      throw new CustomHttpException(ErrorCode.AI_API_ERROR, {
+        reason: '모델이 과부하 상태입니다. 잠시 후 다시 시도해주세요.',
+        provider: 'gemini',
+      })
+    }
+
     throw new CustomHttpException(ErrorCode.AI_API_ERROR, { message: error.message, provider: 'gemini' })
   }
 
