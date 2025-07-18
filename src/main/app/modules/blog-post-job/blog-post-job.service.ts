@@ -8,6 +8,7 @@ import { isValid, parse } from 'date-fns'
 import { BlogPostExcelRow } from './blog-post-job.types'
 import { CustomHttpException } from '@main/common/errors/custom-http.exception'
 import { ErrorCode } from '@main/common/errors/error-code.enum'
+import { StorageService } from '@main/app/modules/google/storage/storage.service'
 
 @Injectable()
 export class BlogPostJobService implements JobProcessor {
@@ -18,6 +19,7 @@ export class BlogPostJobService implements JobProcessor {
     private readonly publishService: PublishService,
     private readonly contentGenerateService: ContentGenerateService,
     private readonly jobLogsService: JobLogsService,
+    private readonly storageService: StorageService,
   ) {}
 
   canProcess(job: any): boolean {
@@ -36,20 +38,36 @@ export class BlogPostJobService implements JobProcessor {
       throw new CustomHttpException(ErrorCode.BLOG_POST_JOB_NOT_FOUND, { message: 'Blog post job data not found' })
     }
 
-    await this.createJobLog(jobId, 'info', '블로그 포스팅 작업 시작')
+    let publishResult
 
-    // 1. 포스팅 내용 구체화
-    await this.createJobLog(jobId, 'info', '본문 내용 생성')
-    const blogHtml = await this.contentGenerateService.generate(job.blogJob.title, job.blogJob.content, jobId)
+    try {
+      await this.createJobLog(jobId, 'info', '블로그 포스팅 작업 시작')
 
-    // 2. 블로그 포스팅
-    await this.createJobLog(jobId, 'info', '블로그 포스팅 시작')
-    const result = await this.publishService.publishPost(job.blogJob.title, blogHtml, jobId)
+      // 1. 포스팅 내용 구체화
+      await this.createJobLog(jobId, 'info', '본문 내용 생성')
+      const blogHtml = await this.contentGenerateService.generate(job.blogJob.title, job.blogJob.content, jobId)
 
-    await this.createJobLog(jobId, 'info', '블로그 포스팅 완료')
+      // 2. 블로그 포스팅
+      await this.createJobLog(jobId, 'info', '블로그 포스팅 시작')
+      publishResult = await this.publishService.publishPost(job.blogJob.title, blogHtml, jobId)
+
+      await this.createJobLog(jobId, 'info', '블로그 포스팅 완료')
+    } catch (e) {
+      // === 에러 발생 시 jobId로 GCS 객체 전체 삭제 ===
+      if (jobId) {
+        try {
+          await this.storageService.deleteFilesByPrefix(jobId)
+          await this.createJobLog(jobId, 'info', `에러 발생으로 GCS 내 이미지 모두 삭제 완료`)
+          this.logger.log(`에러 발생으로 GCS 내 ${jobId}/ 객체 모두 삭제 완료`)
+        } catch (removeErr) {
+          await this.createJobLog(jobId, 'error', `GCS ${jobId}/ 객체 삭제 실패:`)
+          this.logger.error(`GCS ${jobId}/ 객체 삭제 실패:`, removeErr)
+        }
+      }
+    }
 
     return {
-      resultUrl: result.url,
+      resultUrl: publishResult.url,
       resultMsg: '포스팅이 성공적으로 생성되었습니다.',
     }
   }

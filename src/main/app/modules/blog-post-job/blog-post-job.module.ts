@@ -6,9 +6,10 @@ import { CommonModule } from '@main/app/modules/common/common.module'
 import { PublishModule } from '../publish/publish.module'
 import { ContentGenerateModule } from '@main/app/modules/content-generate/content-generate.module'
 import { JobLogsModule } from '../job-logs/job-logs.module'
+import { StorageModule } from '@main/app/modules/google/storage/storage.module'
 
 @Module({
-  imports: [CommonModule, AIModule, UtilModule, PublishModule, ContentGenerateModule, JobLogsModule],
+  imports: [CommonModule, AIModule, UtilModule, PublishModule, ContentGenerateModule, JobLogsModule, StorageModule],
   providers: [BlogPostJobService],
   exports: [BlogPostJobService],
 })

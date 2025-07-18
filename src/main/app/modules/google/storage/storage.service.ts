@@ -161,4 +161,18 @@ export class StorageService {
     // settings에 버킷명 저장
     await this.settingsService.updateSettings({ ...settings, gcsBucketName: bucketName })
   }
+
+  /**
+   * GCS에서 특정 prefix로 시작하는 모든 파일 삭제 (예: jobId/)
+   */
+  async deleteFilesByPrefix(prefix: string): Promise<void> {
+    const storage = await this.initializeStorage()
+    const settings = await this.settingsService.getSettings()
+    const bucket = storage.bucket(settings.gcsBucketName)
+    // prefix로 시작하는 모든 파일 조회
+    const [files] = await bucket.getFiles({ prefix: `${prefix}/` })
+    if (!files.length) return
+    await Promise.all(files.map(file => file.delete()))
+    this.logger.log(`GCS에서 prefix ${prefix}/로 시작하는 파일 모두 삭제 완료`)
+  }
 }
