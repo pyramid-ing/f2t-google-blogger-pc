@@ -9,6 +9,10 @@ export interface AppSettings {
   imageType?: 'ai' | 'pixabay' | 'none' // 이미지 생성 방식 (none: 사용안함)
   pixabayApiKey?: string // Pixabay API 키
 
+  // 업로드/게시 설정
+  uploadTarget: 'gcs' | 'tistory' // 이미지 업로드 대상
+  publishTarget: 'google' | 'tistory' // 블로그 게시 대상
+
   // 썸네일 설정
   thumbnailEnabled?: boolean // 썸네일 생성 활성화 여부
   thumbnailBackgroundImage?: string // 썸네일 배경이미지 파일명 (deprecated)

@@ -26,7 +26,7 @@ export class PublishService {
     await this.jobLogsService.createJobLog(jobId, `블로그 포스팅 발행 시작: ${title}`)
 
     // 블로그 포스팅
-    const result = await this.bloggerService.postToBlogger({
+    const result = await this.bloggerService.publish({
       title,
       content: contentHtml,
       labels,

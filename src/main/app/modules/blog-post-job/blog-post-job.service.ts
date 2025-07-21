@@ -10,6 +10,59 @@ import { CustomHttpException } from '@main/common/errors/custom-http.exception'
 import { ErrorCode } from '@main/common/errors/error-code.enum'
 import { StorageService } from '@main/app/modules/google/storage/storage.service'
 import { GoogleBlogService } from '../google/google-blog/google-blog.service'
+import { TistoryService } from '../tistory/tistory.service'
+import { SettingsService } from '../settings/settings.service'
+
+// 게시 전략 인터페이스
+interface PublishStrategy {
+  publish(...args: any[]): Promise<{ success: boolean; message: string; url?: string }>
+}
+
+// 티스토리 게시 전략
+class TistoryPublishStrategy implements PublishStrategy {
+  constructor(private tistoryService: TistoryService) {}
+
+  async publish(
+    title: string,
+    contentHtml: string,
+    url: string,
+    keywords: string[],
+    category?: string,
+    imagePaths?: string[],
+    kakaoId?: string,
+    kakaoPw?: string,
+    postVisibility?: 'public' | 'private' | 'protected',
+  ): Promise<{ success: boolean; message: string; url?: string }> {
+    const options = {
+      title,
+      contentHtml,
+      url,
+      keywords,
+      category,
+      imagePaths,
+      kakaoId,
+      kakaoPw,
+      postVisibility,
+    }
+    return await this.tistoryService.publish(options, true)
+  }
+}
+
+// 구글 블로거 게시 전략
+class GoogleBloggerPublishStrategy implements PublishStrategy {
+  constructor(private publishService: PublishService) {}
+
+  async publish(
+    title: string,
+    contentHtml: string,
+    bloggerBlogId: string,
+    oauthId: string,
+    jobId?: string,
+    labels?: string[],
+  ): Promise<{ success: boolean; message: string; url?: string }> {
+    return await this.publishService.publishPost(title, contentHtml, bloggerBlogId, oauthId, jobId, labels)
+  }
+}
 
 @Injectable()
 export class BlogPostJobService implements JobProcessor {
@@ -22,6 +75,8 @@ export class BlogPostJobService implements JobProcessor {
     private readonly jobLogsService: JobLogsService,
     private readonly storageService: StorageService,
     private readonly googleBlogService: GoogleBlogService,
+    private readonly tistoryService: TistoryService,
+    private readonly settingsService: SettingsService,
   ) {}
 
   canProcess(job: any): boolean {
@@ -87,16 +142,41 @@ export class BlogPostJobService implements JobProcessor {
         await this.createJobLog(jobId, 'info', `라벨 설정: ${labels.join(', ')}`)
       }
 
-      // 3. 블로그 포스팅
-      await this.createJobLog(jobId, 'info', `블로그 발행 시작 (블로그: ${targetGoogleBlog.name})`)
-      publishResult = await this.publishService.publishPost(
-        job.blogJob.title,
-        blogHtml,
-        targetGoogleBlog.bloggerBlogId,
-        targetGoogleBlog.oauth.id,
-        jobId,
-        labels,
-      )
+      // 3. 게시 전략 선택
+      const settings = await this.settingsService.getSettings()
+      let publishStrategy: PublishStrategy
+      if (settings.publishTarget === 'tistory') {
+        publishStrategy = new TistoryPublishStrategy(this.tistoryService)
+      } else {
+        publishStrategy = new GoogleBloggerPublishStrategy(this.publishService)
+      }
+
+      // 4. 블로그 포스팅
+      await this.createJobLog(jobId, 'info', `블로그 발행 시작 (대상: ${settings.publishTarget})`)
+
+      if (settings.publishTarget === 'tistory') {
+        publishResult = await publishStrategy.publish(
+          job.blogJob.title,
+          blogHtml,
+          '', // url - 기본값
+          [], // keywords - 기본값
+          undefined, // category
+          undefined, // imagePaths
+          undefined, // kakaoId
+          undefined, // kakaoPw
+          undefined, // postVisibility
+        )
+      } else {
+        publishResult = await publishStrategy.publish(
+          job.blogJob.title,
+          blogHtml,
+          targetGoogleBlog.bloggerBlogId,
+          targetGoogleBlog.oauth.id,
+          jobId,
+          labels,
+        )
+      }
+
       await this.createJobLog(jobId, 'info', '블로그 발행 완료')
 
       return {

@@ -16,6 +16,7 @@ import { UtilService } from '../util/util.service'
 import { SearxngService, SearchResultItem } from '../search/searxng.service'
 import { CustomHttpException } from '@main/common/errors/custom-http.exception'
 import { ErrorCode } from '@main/common/errors/error-code.enum'
+import { TistoryService } from '../tistory/tistory.service'
 
 export interface SectionContent {
   html: string
@@ -27,6 +28,33 @@ export interface SectionContent {
 
 export interface ProcessedSection extends SectionContent {
   sectionIndex: number
+  imageUrlUploaded?: string
+}
+
+// 이미지 업로드 전략 인터페이스
+interface ImageUploadStrategy {
+  upload(imageUrl: string, sectionIndex: number, jobId?: string): Promise<string>
+}
+
+// GCS 이미지 업로드 전략
+class GCSImageUploadStrategy implements ImageUploadStrategy {
+  constructor(private service: ContentGenerateService) {}
+
+  async upload(imageUrl: string, sectionIndex: number, jobId?: string): Promise<string> {
+    return (await this.service.uploadImage(imageUrl, sectionIndex, jobId, 'gcs')) || ''
+  }
+}
+
+// 티스토리 이미지 업로드 전략
+class TistoryImageUploadStrategy implements ImageUploadStrategy {
+  constructor(
+    private service: ContentGenerateService,
+    private browserSession: { browser: any; page: any },
+  ) {}
+
+  async upload(imageUrl: string, sectionIndex: number, jobId?: string): Promise<string> {
+    return (await this.service.uploadImage(imageUrl, sectionIndex, jobId, 'tistory', this.browserSession)) || ''
+  }
 }
 
 @Injectable()
@@ -42,6 +70,7 @@ export class ContentGenerateService implements OnModuleInit {
     private readonly jobLogsService: JobLogsService,
     private readonly utilService: UtilService,
     private readonly searxngService: SearxngService,
+    private readonly tistoryService: TistoryService,
   ) {
     this.imageGenerationLimiter = new Bottleneck({
       maxConcurrent: 3,
@@ -86,60 +115,75 @@ export class ContentGenerateService implements OnModuleInit {
     // 3. 이미지, 링크, 광고 등 섹션별 처리
     await this.jobLogsService.createJobLog(jobId, '섹션별 추가 컨텐츠 처리 시작')
 
-    const processedSections: ProcessedSection[] = await Promise.all(
-      blogPost.sections.map(async (section: SectionContent, sectionIndex: number) => {
-        try {
-          const [imageUrl, links, youtubeLinks, adHtml] = await Promise.all([
-            this.generateAndUploadImage(section.html, sectionIndex, jobId, aiService),
-            this.generateLinks(section.html, sectionIndex, jobId, title),
-            this.generateYoutubeLinks(section.html, sectionIndex, jobId),
-            this.generateAdScript(sectionIndex),
-          ])
-          return {
-            ...section,
-            sectionIndex,
-            imageUrl,
-            links,
-            youtubeLinks,
-            adHtml,
-          }
-        } catch (error) {
-          await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 처리 중 오류: ${error.message}`, 'error')
-          throw error
-        }
-      }),
-    )
-
-    // 섹션 순서 유지를 위해 정렬
-    processedSections.sort((a, b) => a.sectionIndex - b.sectionIndex)
-
-    await this.jobLogsService.createJobLog(jobId, '섹션별 추가 컨텐츠 처리 완료')
-
-    // SEO 정보 생성
-    const allSectionsHtml = processedSections.map(s => s.html).join('\n')
-    const seo = await this.generateSeo(allSectionsHtml, 0)
-
-    // 썸네일 이미지 생성
-    await this.jobLogsService.createJobLog(jobId, '썸네일 이미지 생성 시작')
-    const thumbnailUrl = await this.generateThumbnailImage(title)
-    await this.jobLogsService.createJobLog(
-      jobId,
-      thumbnailUrl ? '썸네일 이미지 생성 완료' : '썸네일 이미지 생성 건너뜀',
-    )
-
-    // BlogPost 객체 생성
-    const blogPostWithMeta: BlogPost = {
-      thumbnailUrl,
-      seo,
-      sections: processedSections.map(({ sectionIndex, ...rest }) => rest),
+    let browserSession: { browser: any; page: any } | null = null
+    const settings = await this.settingsService.getSettings()
+    if (settings.uploadTarget === 'tistory') {
+      browserSession = await this.tistoryService.createBrowserSession()
     }
 
-    // HTML 결합
-    const combinedHtml = this.combineHtmlSections(blogPostWithMeta)
+    try {
+      const processedSections: ProcessedSection[] = await Promise.all(
+        blogPost.sections.map(async (section: SectionContent, sectionIndex: number) => {
+          try {
+            const imageUrl = await this.generateImage(section.html, sectionIndex, jobId, aiService)
+            let imageUrlUploaded: string | undefined
+            if (imageUrl) {
+              if (settings.uploadTarget === 'tistory' && browserSession) {
+                imageUrlUploaded = await this.tistoryService.uploadImage(imageUrl, browserSession.page)
+              } else {
+                imageUrlUploaded = await this.uploadImage(imageUrl, sectionIndex, jobId, 'gcs')
+              }
+            }
 
-    await this.jobLogsService.createJobLog(jobId, '컨텐츠 생성 작업 완료')
+            const [links, youtubeLinks, adHtml] = await Promise.all([
+              this.generateLinks(section.html, sectionIndex, jobId, title),
+              this.generateYoutubeLinks(section.html, sectionIndex, jobId),
+              this.generateAdScript(sectionIndex),
+            ])
 
-    return combinedHtml
+            return {
+              ...section,
+              sectionIndex,
+              imageUrl,
+              imageUrlUploaded,
+              links,
+              youtubeLinks,
+              adHtml,
+            }
+          } catch (error) {
+            await this.jobLogsService.createJobLog(
+              jobId,
+              `섹션 ${sectionIndex} 처리 중 오류: ${error.message}`,
+              'error',
+            )
+            this.logger.error(`섹션 ${sectionIndex} 처리 중 오류:`, error)
+            return {
+              ...section,
+              sectionIndex,
+              imageUrl: undefined,
+              imageUrlUploaded: undefined,
+              links: [],
+              youtubeLinks: [],
+              adHtml: undefined,
+            }
+          }
+        }),
+      )
+
+      // 4. HTML 조합
+      await this.jobLogsService.createJobLog(jobId, 'HTML 조합 시작')
+      const combinedHtml = this.combineHtmlSections({
+        ...blogPost,
+        sections: processedSections,
+      })
+      await this.jobLogsService.createJobLog(jobId, 'HTML 조합 완료')
+
+      return combinedHtml
+    } finally {
+      if (browserSession) {
+        await this.tistoryService.closeBrowserSession(browserSession.browser)
+      }
+    }
   }
 
   /**
@@ -290,7 +334,7 @@ export class ContentGenerateService implements OnModuleInit {
   /**
    * 설정에 따라 이미지를 생성하는 함수
    */
-  private async generateAndUploadImage(
+  private async generateImage(
     html: string,
     sectionIndex: number,
     jobId?: string,
@@ -362,61 +406,113 @@ export class ContentGenerateService implements OnModuleInit {
             `섹션 ${sectionIndex} AI 이미지 생성 실패: ${error.message}`,
             'error',
           )
-          this.logger.error(`섹션 ${sectionIndex} AI 이미지 생성 실패:`, error)
-          throw error
-        }
-      } else {
-        this.logger.log(`섹션 ${sectionIndex}: 이미지 사용 안함 설정`)
-        return undefined
-      }
-
-      // 공통: 이미지 다운로드 및 업로드
-      if (imageUrl) {
-        try {
-          await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 이미지 최적화 및 업로드 시작`)
-
-          let imageBuffer: Buffer
-          // 로컬 파일 경로인 경우
-          if (this.utilService.isLocalPath(imageUrl)) {
-            const normalizedPath = path.normalize(imageUrl)
-            imageBuffer = fs.readFileSync(normalizedPath)
-          } else {
-            // 원격 URL인 경우
-            const response = await axios.get(imageUrl, {
-              responseType: 'arraybuffer',
-              timeout: 30000,
-            })
-            imageBuffer = Buffer.from(response.data)
-          }
-
-          const optimizedBuffer = await this.optimizeImage(imageBuffer)
-
-          // GCS 업로드 (fileName을 jobId/sectionIndex.webp로 지정)
-          const uploadResult = await this.storageService.uploadImage(optimizedBuffer, {
-            contentType: 'image/webp',
-            fileName: jobId ? `${jobId}/${sectionIndex}.webp` : undefined,
-          })
-
-          await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 이미지 최적화 및 업로드 완료`)
-          return typeof uploadResult === 'string' ? uploadResult : uploadResult.url
-        } catch (error) {
-          await this.jobLogsService.createJobLog(
-            jobId,
-            `섹션 ${sectionIndex} 이미지 업로드 실패: ${error.message}`,
-            'error',
-          )
-          throw error
+          return undefined
         }
       }
+
+      return imageUrl
+    } catch (error) {
+      this.logger.error(`섹션 ${sectionIndex} 이미지 생성 중 오류:`, error)
       return undefined
+    }
+  }
+
+  /**
+   * 이미지를 업로드하는 함수
+   */
+  public async uploadImage(
+    imageUrl: string,
+    sectionIndex: number,
+    jobId: string | undefined,
+    uploadStrategy: 'gcs' | 'tistory',
+    browserSession?: { browser: any; page: any },
+  ): Promise<string | undefined> {
+    if (!imageUrl) return undefined
+
+    try {
+      if (uploadStrategy === 'gcs') {
+        // GCS 업로드 로직
+        let imageBuffer: Buffer
+        // 로컬 파일 경로인 경우
+        if (this.utilService.isLocalPath(imageUrl)) {
+          const normalizedPath = path.normalize(imageUrl)
+          imageBuffer = fs.readFileSync(normalizedPath)
+        } else {
+          // 원격 URL인 경우
+          const response = await axios.get(imageUrl, {
+            responseType: 'arraybuffer',
+            timeout: 30000,
+          })
+          imageBuffer = Buffer.from(response.data)
+        }
+
+        const optimizedBuffer = await this.optimizeImage(imageBuffer)
+        const fileName = `blog-image-${sectionIndex}-${Date.now()}.webp`
+        const uploadResult = await this.storageService.uploadImage(optimizedBuffer, {
+          contentType: 'image/webp',
+          fileName,
+        })
+        const uploadedUrl = typeof uploadResult === 'string' ? uploadResult : uploadResult.url
+        await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} GCS 이미지 업로드 완료`)
+        return uploadedUrl
+      } else if (uploadStrategy === 'tistory' && browserSession) {
+        // 티스토리 업로드 로직
+        let imageBuffer: Buffer
+        // 로컬 파일 경로인 경우
+        if (this.utilService.isLocalPath(imageUrl)) {
+          const normalizedPath = path.normalize(imageUrl)
+          imageBuffer = fs.readFileSync(normalizedPath)
+        } else {
+          // 원격 URL인 경우
+          const response = await axios.get(imageUrl, {
+            responseType: 'arraybuffer',
+            timeout: 30000,
+          })
+          imageBuffer = Buffer.from(response.data)
+        }
+
+        const tempPath = path.join(EnvConfig.tempDir, `temp-image-${sectionIndex}-${Date.now()}.jpg`)
+        fs.writeFileSync(tempPath, imageBuffer)
+
+        const uploadedUrl = await this.tistoryService.uploadImage(tempPath, browserSession.page)
+
+        // 임시 파일 삭제
+        try {
+          fs.unlinkSync(tempPath)
+        } catch (error) {
+          this.logger.warn(`임시 파일 삭제 실패: ${tempPath}`)
+        }
+
+        await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 티스토리 이미지 업로드 완료`)
+        return uploadedUrl
+      }
     } catch (error) {
       await this.jobLogsService.createJobLog(
         jobId,
-        `섹션 ${sectionIndex} 이미지 생성 및 업로드 실패: ${error.message}`,
+        `섹션 ${sectionIndex} 이미지 업로드 실패: ${error.message}`,
         'error',
       )
-      throw error
+      this.logger.error(`섹션 ${sectionIndex} 이미지 업로드 중 오류:`, error)
     }
+
+    return undefined
+  }
+
+  /**
+   * 설정에 따라 이미지를 생성하는 함수 (기존 메서드 유지)
+   */
+  private async generateAndUploadImage(
+    html: string,
+    sectionIndex: number,
+    jobId?: string,
+    aiService?: AIService,
+  ): Promise<string | undefined> {
+    const imageUrl = await this.generateImage(html, sectionIndex, jobId, aiService)
+    if (imageUrl) {
+      const settings = await this.settingsService.getSettings()
+      return await this.uploadImage(imageUrl, sectionIndex, jobId, settings.uploadTarget || 'gcs')
+    }
+    return undefined
   }
 
   private async generateAdScript(sectionIndex: number): Promise<string | undefined> {

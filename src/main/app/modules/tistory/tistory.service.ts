@@ -21,6 +21,117 @@ export interface TistoryPostOptions {
 export class TistoryService {
   private readonly logger = new Logger(TistoryService.name)
 
+  async createBrowserSession(): Promise<{ browser: Browser; page: Page }> {
+    const launchOptions: any = {
+      headless: false,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-blink-features=AutomationControlled',
+        '--lang=ko-KR,ko',
+      ],
+    }
+    if (process.env.NODE_ENV === 'production' && process.env.PUPPETEER_EXECUTABLE_PATH) {
+      launchOptions.executablePath = ''
+    }
+    const browser = await chromium.launch(launchOptions)
+    const page: Page = await browser.newPage()
+    await page.setExtraHTTPHeaders({
+      'accept-language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
+    })
+
+    // window.confirm(임시글) 핸들러: 임시글 관련 메시지면 취소
+    page.on('dialog', async dialog => {
+      const msg = dialog.message()
+      if (msg.includes('저장된 글이 있습니다.')) {
+        this.logger.warn('임시글 관련 confirm 감지, 자동 취소')
+        await dialog.dismiss()
+      } else {
+        await dialog.accept()
+      }
+    })
+
+    // 쿠키 저장 경로 분기
+    const isProd = process.env.NODE_ENV === 'production'
+    const cookieDir = isProd ? process.env.COOKIE_DIR : path.join(process.cwd(), 'static', 'cookies')
+    if (!fs.existsSync(cookieDir)) fs.mkdirSync(cookieDir, { recursive: true })
+    const kakaoIdForFile = 'default'
+    const absCookiePath = path.join(cookieDir, `tistory_${kakaoIdForFile}.json`)
+    if (fs.existsSync(absCookiePath)) {
+      const cookies = JSON.parse(fs.readFileSync(absCookiePath, 'utf-8'))
+      await browser.contexts()[0].addCookies(cookies)
+      this.logger.log('쿠키 적용 완료')
+    } else {
+      this.logger.warn('쿠키 파일이 존재하지 않습니다. 비로그인 상태로 진행합니다.')
+    }
+
+    const defaultUrl = 'https://www.tistory.com/manage/newpost'
+    await page.goto(defaultUrl, { waitUntil: 'networkidle', timeout: 60000 })
+    this.logger.log('티스토리 새글 작성 페이지 접속 완료')
+
+    // HTML 모드로 전환
+    try {
+      await page.waitForSelector('.CodeMirror-code', { timeout: 10000 })
+      await page.click('.CodeMirror-code')
+      await page.waitForTimeout(500)
+      this.logger.log('HTML 모드로 전환 완료')
+    } catch (e) {
+      this.logger.warn('HTML 모드 전환 실패, 기본 모드로 진행')
+    }
+
+    return { browser, page }
+  }
+
+  async closeBrowserSession(browser: Browser): Promise<void> {
+    try {
+      await browser.close()
+      this.logger.log('브라우저 세션 종료 완료')
+    } catch (error) {
+      this.logger.error('브라우저 세션 종료 중 오류:', error)
+    }
+  }
+
+  async uploadImage(imagePath: string, page: Page): Promise<string> {
+    try {
+      // 1. 이미지 업로드
+      await page.waitForSelector('#attach-layer-btn', { timeout: 10000 })
+      await page.click('#attach-layer-btn')
+      await page.waitForSelector('#attach-image', { timeout: 10000 })
+      const fileInput = await page.$('#attach-image')
+      if (fileInput) {
+        await fileInput.setInputFiles(imagePath)
+        this.logger.log(`이미지 첨부: ${imagePath}`)
+        await page.waitForTimeout(3000) // 업로드 완료 대기
+      } else {
+        this.logger.warn('#attach-image input을 찾을 수 없습니다.')
+        return ''
+      }
+
+      // 2. 에디터에서 이미지 URL 추출
+      const imageUrl = await page.evaluate(() => {
+        const codeMirror = document.querySelector('.CodeMirror-code')
+        if (codeMirror) {
+          const text = codeMirror.textContent || ''
+          const imgMatch = text.match(/<img[^>]+src="([^"]+)"/)
+          return imgMatch ? imgMatch[1] : ''
+        }
+        return ''
+      })
+
+      // 3. 에디터 내용 삭제 (원래 상태로 복원)
+      await page.click('.CodeMirror-code')
+      await page.waitForTimeout(500)
+      await page.keyboard.press('Control+A')
+      await page.keyboard.press('Backspace')
+
+      this.logger.log(`이미지 업로드 완료: ${imageUrl}`)
+      return imageUrl || ''
+    } catch (error) {
+      this.logger.error('이미지 업로드 중 오류:', error)
+      return ''
+    }
+  }
+
   async publish(
     options: TistoryPostOptions,
     headless: boolean = true,

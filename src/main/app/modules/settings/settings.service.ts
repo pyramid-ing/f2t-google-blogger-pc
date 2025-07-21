@@ -15,6 +15,8 @@ export class SettingsService {
 
     const defaultSettings: AppSettings = {
       aiProvider: 'gemini',
+      uploadTarget: 'gcs',
+      publishTarget: 'google',
     }
     const merged = {
       ...defaultSettings,

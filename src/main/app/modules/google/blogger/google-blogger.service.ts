@@ -279,7 +279,7 @@ export class GoogleBloggerService {
   /**
    * Blogger API를 사용하여 블로그에 포스팅
    */
-  async postToBlogger(request: Omit<BloggerTypes.BloggerPostRequest, 'blogId'>): Promise<BloggerTypes.BloggerPost> {
+  async publish(request: Omit<BloggerTypes.BloggerPostRequest, 'blogId'>): Promise<BloggerTypes.BloggerPost> {
     const { title, content, labels, bloggerBlogId, googleOAuthId } = request
 
     if (!bloggerBlogId) {

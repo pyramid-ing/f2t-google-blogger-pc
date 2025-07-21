@@ -8,7 +8,8 @@ import { ContentGenerateModule } from '@main/app/modules/content-generate/conten
 import { JobLogsModule } from '../job-logs/job-logs.module'
 import { StorageModule } from '@main/app/modules/google/storage/storage.module'
 import { SettingsModule } from '../settings/settings.module'
-import { GoogleBlogModule } from '../google/google-blog/google-blog.module'
+import { GoogleBlogModule } from '@main/app/modules/google/google-blog/google-blog.module'
+import { TistoryModule } from '../tistory/tistory.module'
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { GoogleBlogModule } from '../google/google-blog/google-blog.module'
     StorageModule,
     SettingsModule,
     GoogleBlogModule,
+    TistoryModule,
   ],
   providers: [BlogPostJobService],
   exports: [BlogPostJobService],
