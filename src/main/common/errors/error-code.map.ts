@@ -213,4 +213,26 @@ export const ErrorCodeMap: Record<ErrorCode, ErrorCodeMeta> = {
     status: 409,
     message: meta => meta?.message || '이미 등록된 Google OAuth 계정과 Blogger 블로그 조합입니다.',
   },
+
+  // Tistory 관련
+  [ErrorCode.TISTORY_LOGIN_FAILED]: {
+    status: 401,
+    message: meta => meta?.message || '티스토리 로그인에 실패했습니다.',
+  },
+  [ErrorCode.TISTORY_POST_FAILED]: {
+    status: 500,
+    message: meta => meta?.message || '티스토리 글 등록에 실패했습니다.',
+  },
+  [ErrorCode.TISTORY_BROWSER_LAUNCH_FAILED]: {
+    status: 500,
+    message: meta => meta?.message || '브라우저 실행에 실패했습니다.',
+  },
+  [ErrorCode.TISTORY_PAGE_NAVIGATION_FAILED]: {
+    status: 500,
+    message: meta => meta?.message || '페이지 이동에 실패했습니다.',
+  },
+  [ErrorCode.TISTORY_ELEMENT_NOT_FOUND]: {
+    status: 500,
+    message: meta => meta?.message || '필요한 페이지 요소를 찾을 수 없습니다.',
+  },
 }
