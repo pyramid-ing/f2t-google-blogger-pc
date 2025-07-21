@@ -143,10 +143,14 @@ export class BlogPostJobService implements JobProcessor {
       // 3. 게시 전략 선택
       const settings = await this.settingsService.getSettings()
       let publishStrategy: PublishStrategy
-      if (settings.publishType === 'tistory') {
-        publishStrategy = new TistoryPublishStrategy(this.tistoryService)
-      } else {
-        publishStrategy = new GoogleBloggerPublishStrategy(this.publishService)
+      switch (settings.publishType) {
+        case 'tistory':
+          publishStrategy = new TistoryPublishStrategy(this.tistoryService)
+          break
+        case 'google':
+        default:
+          publishStrategy = new GoogleBloggerPublishStrategy(this.publishService)
+          break
       }
 
       // 4. 블로그 포스팅

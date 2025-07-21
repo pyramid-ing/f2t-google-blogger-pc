@@ -88,12 +88,17 @@ export class ContentGenerateService implements OnModuleInit {
     const settings = await this.settingsService.getSettings()
     const uploadPromises = imageUrls.map(async ({ url, sectionIndex }) => {
       try {
-        const uploadedUrl = await this.uploadImage(
-          url,
-          sectionIndex,
-          jobId,
-          settings.publishType === 'tistory' ? 'tistory' : 'gcs',
-        )
+        let uploadStrategy: 'tistory' | 'gcs'
+        switch (settings.publishType) {
+          case 'tistory':
+            uploadStrategy = 'tistory'
+            break
+          case 'google':
+          default:
+            uploadStrategy = 'gcs'
+            break
+        }
+        const uploadedUrl = await this.uploadImage(url, sectionIndex, jobId, uploadStrategy)
         return { sectionIndex, uploadedUrl: uploadedUrl || '' }
       } catch (error) {
         this.logger.error(`섹션 ${sectionIndex} 이미지 업로드 실패:`, error)
@@ -549,12 +554,17 @@ export class ContentGenerateService implements OnModuleInit {
     const imageUrl = await this.generateImage(html, sectionIndex, jobId, aiService)
     if (imageUrl) {
       const settings = await this.settingsService.getSettings()
-      return await this.uploadImage(
-        imageUrl,
-        sectionIndex,
-        jobId,
-        settings.publishType === 'tistory' ? 'tistory' : 'gcs',
-      )
+      let uploadStrategy: 'tistory' | 'gcs'
+      switch (settings.publishType) {
+        case 'tistory':
+          uploadStrategy = 'tistory'
+          break
+        case 'google':
+        default:
+          uploadStrategy = 'gcs'
+          break
+      }
+      return await this.uploadImage(imageUrl, sectionIndex, jobId, uploadStrategy)
     }
     return undefined
   }
