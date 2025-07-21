@@ -31,32 +31,6 @@ export interface ProcessedSection extends SectionContent {
   imageUrlUploaded?: string
 }
 
-// 이미지 업로드 전략 인터페이스
-interface ImageUploadStrategy {
-  upload(imageUrl: string, sectionIndex: number, jobId?: string): Promise<string>
-}
-
-// GCS 이미지 업로드 전략
-class GCSImageUploadStrategy implements ImageUploadStrategy {
-  constructor(private service: ContentGenerateService) {}
-
-  async upload(imageUrl: string, sectionIndex: number, jobId?: string): Promise<string> {
-    return (await this.service.uploadImage(imageUrl, sectionIndex, jobId, 'gcs')) || ''
-  }
-}
-
-// 티스토리 이미지 업로드 전략
-class TistoryImageUploadStrategy implements ImageUploadStrategy {
-  constructor(
-    private service: ContentGenerateService,
-    private browserSession: { browser: any; page: any },
-  ) {}
-
-  async upload(imageUrl: string, sectionIndex: number, jobId?: string): Promise<string> {
-    return (await this.service.uploadImage(imageUrl, sectionIndex, jobId, 'tistory', this.browserSession)) || ''
-  }
-}
-
 @Injectable()
 export class ContentGenerateService implements OnModuleInit {
   private readonly logger = new Logger(ContentGenerateService.name)
@@ -97,9 +71,58 @@ export class ContentGenerateService implements OnModuleInit {
     return aiService
   }
 
-  async generate(title: string, desc: string, jobId?: string): Promise<string> {
-    await this.jobLogsService.createJobLog(jobId, '컨텐츠 생성 작업 시작')
+  /**
+   * 이미지 URL들을 수집하는 메서드
+   */
+  private collectImageUrls(sections: SectionContent[]): { url: string; sectionIndex: number }[] {
+    return sections.map((section, index) => ({ url: section.imageUrl, sectionIndex: index })).filter(item => item.url) // 이미지가 있는 섹션만 필터링
+  }
 
+  /**
+   * 병렬로 이미지들을 업로드하는 메서드
+   */
+  private async uploadImagesInParallel(
+    imageUrls: { url: string; sectionIndex: number }[],
+    jobId?: string,
+  ): Promise<Map<number, string>> {
+    const settings = await this.settingsService.getSettings()
+    const uploadPromises = imageUrls.map(async ({ url, sectionIndex }) => {
+      try {
+        const uploadedUrl = await this.uploadImage(
+          url,
+          sectionIndex,
+          jobId,
+          settings.publishType === 'tistory' ? 'tistory' : 'gcs',
+        )
+        return { sectionIndex, uploadedUrl: uploadedUrl || '' }
+      } catch (error) {
+        this.logger.error(`섹션 ${sectionIndex} 이미지 업로드 실패:`, error)
+        await this.jobLogsService.createJobLog(
+          jobId,
+          `섹션 ${sectionIndex} 이미지 업로드 실패: ${error.message}`,
+          'error',
+        )
+        return { sectionIndex, uploadedUrl: '' }
+      }
+    })
+
+    const results = await Promise.all(uploadPromises)
+
+    // 결과를 Map으로 변환
+    const uploadedUrls = new Map<number, string>()
+    results.forEach(({ sectionIndex, uploadedUrl }) => {
+      if (uploadedUrl) {
+        uploadedUrls.set(sectionIndex, uploadedUrl)
+      }
+    })
+
+    return uploadedUrls
+  }
+
+  async generate(title: string, desc: string, jobId?: string): Promise<string> {
+    await this.jobLogsService.createJobLog(jobId, '블로그 포스트 생성 시작')
+
+    // 1. AI 서비스 초기화
     const aiService = await this.getAIService()
 
     // 1. 블로그 아웃라인 생성
@@ -112,78 +135,95 @@ export class ContentGenerateService implements OnModuleInit {
     const blogPost = await aiService.generateBlogPost(blogOutline)
     await this.jobLogsService.createJobLog(jobId, '블로그 포스트 생성 완료')
 
-    // 3. 이미지, 링크, 광고 등 섹션별 처리
+    // 3. 설정 가져오기
+    const settings = await this.settingsService.getSettings()
+
+    // 4. 이미지 생성 및 업로드
+    await this.jobLogsService.createJobLog(jobId, '이미지 생성 및 업로드 시작')
+
+    // 4-1. 각 섹션에 대해 이미지 생성
+    const sectionsWithImages = await Promise.all(
+      blogPost.sections.map(async (section: SectionContent, sectionIndex: number) => {
+        try {
+          // AI를 통해 이미지 생성
+          const imageUrl = await this.generateImage(section.html, sectionIndex, jobId, aiService)
+          return {
+            ...section,
+            imageUrl,
+          }
+        } catch (error) {
+          this.logger.error(`섹션 ${sectionIndex} 이미지 생성 실패:`, error)
+          await this.jobLogsService.createJobLog(
+            jobId,
+            `섹션 ${sectionIndex} 이미지 생성 실패: ${error.message}`,
+            'error',
+          )
+          return {
+            ...section,
+            imageUrl: undefined,
+          }
+        }
+      }),
+    )
+
+    // 4-2. 생성된 이미지들을 병렬로 업로드
+    let uploadedUrls = new Map<number, string>()
+    const imageUrls = this.collectImageUrls(sectionsWithImages)
+    if (imageUrls.length > 0) {
+      await this.jobLogsService.createJobLog(jobId, '이미지 병렬 업로드 시작')
+      uploadedUrls = await this.uploadImagesInParallel(imageUrls, jobId)
+      await this.jobLogsService.createJobLog(jobId, '이미지 병렬 업로드 완료')
+    }
+    await this.jobLogsService.createJobLog(jobId, '이미지 생성 및 업로드 완료')
+
+    // 5. 섹션별 처리 (이미지 업로드 제외)
     await this.jobLogsService.createJobLog(jobId, '섹션별 추가 컨텐츠 처리 시작')
 
-    let browserSession: { browser: any; page: any } | null = null
-    const settings = await this.settingsService.getSettings()
-    if (settings.uploadTarget === 'tistory') {
-      browserSession = await this.tistoryService.createBrowserSession()
-    }
+    const processedSections: ProcessedSection[] = await Promise.all(
+      sectionsWithImages.map(async (section: SectionContent, sectionIndex: number) => {
+        try {
+          // 이미지 URL은 이미 업로드된 것을 사용
+          const uploadedImageUrl = uploadedUrls.get(sectionIndex)
 
-    try {
-      const processedSections: ProcessedSection[] = await Promise.all(
-        blogPost.sections.map(async (section: SectionContent, sectionIndex: number) => {
-          try {
-            const imageUrl = await this.generateImage(section.html, sectionIndex, jobId, aiService)
-            let imageUrlUploaded: string | undefined
-            if (imageUrl) {
-              if (settings.uploadTarget === 'tistory' && browserSession) {
-                imageUrlUploaded = await this.tistoryService.uploadImage(imageUrl, browserSession.page)
-              } else {
-                imageUrlUploaded = await this.uploadImage(imageUrl, sectionIndex, jobId, 'gcs')
-              }
-            }
+          const [links, youtubeLinks, adHtml] = await Promise.all([
+            this.generateLinks(section.html, sectionIndex, jobId, title),
+            this.generateYoutubeLinks(section.html, sectionIndex, jobId),
+            this.generateAdScript(sectionIndex),
+          ])
 
-            const [links, youtubeLinks, adHtml] = await Promise.all([
-              this.generateLinks(section.html, sectionIndex, jobId, title),
-              this.generateYoutubeLinks(section.html, sectionIndex, jobId),
-              this.generateAdScript(sectionIndex),
-            ])
-
-            return {
-              ...section,
-              sectionIndex,
-              imageUrl,
-              imageUrlUploaded,
-              links,
-              youtubeLinks,
-              adHtml,
-            }
-          } catch (error) {
-            await this.jobLogsService.createJobLog(
-              jobId,
-              `섹션 ${sectionIndex} 처리 중 오류: ${error.message}`,
-              'error',
-            )
-            this.logger.error(`섹션 ${sectionIndex} 처리 중 오류:`, error)
-            return {
-              ...section,
-              sectionIndex,
-              imageUrl: undefined,
-              imageUrlUploaded: undefined,
-              links: [],
-              youtubeLinks: [],
-              adHtml: undefined,
-            }
+          return {
+            ...section,
+            sectionIndex,
+            imageUrl: uploadedImageUrl,
+            links,
+            youtubeLinks,
+            adHtml,
           }
-        }),
-      )
+        } catch (error) {
+          await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} 처리 중 오류: ${error.message}`, 'error')
+          this.logger.error(`섹션 ${sectionIndex} 처리 중 오류:`, error)
+          return {
+            ...section,
+            sectionIndex,
+            imageUrl: undefined,
+            imageUrlUploaded: undefined,
+            links: [],
+            youtubeLinks: [],
+            adHtml: undefined,
+          }
+        }
+      }),
+    )
 
-      // 4. HTML 조합
-      await this.jobLogsService.createJobLog(jobId, 'HTML 조합 시작')
-      const combinedHtml = this.combineHtmlSections({
-        ...blogPost,
-        sections: processedSections,
-      })
-      await this.jobLogsService.createJobLog(jobId, 'HTML 조합 완료')
+    // 6. HTML 조합
+    await this.jobLogsService.createJobLog(jobId, 'HTML 조합 시작')
+    const combinedHtml = this.combineHtmlSections(settings.publishType, {
+      ...blogPost,
+      sections: processedSections,
+    })
+    await this.jobLogsService.createJobLog(jobId, 'HTML 조합 완료')
 
-      return combinedHtml
-    } finally {
-      if (browserSession) {
-        await this.tistoryService.closeBrowserSession(browserSession.browser)
-      }
-    }
+    return combinedHtml
   }
 
   /**
@@ -425,7 +465,6 @@ export class ContentGenerateService implements OnModuleInit {
     sectionIndex: number,
     jobId: string | undefined,
     uploadStrategy: 'gcs' | 'tistory',
-    browserSession?: { browser: any; page: any },
   ): Promise<string | undefined> {
     if (!imageUrl) return undefined
 
@@ -455,8 +494,8 @@ export class ContentGenerateService implements OnModuleInit {
         const uploadedUrl = typeof uploadResult === 'string' ? uploadResult : uploadResult.url
         await this.jobLogsService.createJobLog(jobId, `섹션 ${sectionIndex} GCS 이미지 업로드 완료`)
         return uploadedUrl
-      } else if (uploadStrategy === 'tistory' && browserSession) {
-        // 티스토리 업로드 로직
+      } else if (uploadStrategy === 'tistory') {
+        // 티스토리 업로드 로직 - tistoryService에서 브라우저 세션 관리
         let imageBuffer: Buffer
         // 로컬 파일 경로인 경우
         if (this.utilService.isLocalPath(imageUrl)) {
@@ -474,7 +513,7 @@ export class ContentGenerateService implements OnModuleInit {
         const tempPath = path.join(EnvConfig.tempDir, `temp-image-${sectionIndex}-${Date.now()}.jpg`)
         fs.writeFileSync(tempPath, imageBuffer)
 
-        const uploadedUrl = await this.tistoryService.uploadImage(tempPath, browserSession.page)
+        const uploadedUrl = await this.tistoryService.uploadImageWithBrowser(tempPath)
 
         // 임시 파일 삭제
         try {
@@ -510,7 +549,12 @@ export class ContentGenerateService implements OnModuleInit {
     const imageUrl = await this.generateImage(html, sectionIndex, jobId, aiService)
     if (imageUrl) {
       const settings = await this.settingsService.getSettings()
-      return await this.uploadImage(imageUrl, sectionIndex, jobId, settings.uploadTarget || 'gcs')
+      return await this.uploadImage(
+        imageUrl,
+        sectionIndex,
+        jobId,
+        settings.publishType === 'tistory' ? 'tistory' : 'gcs',
+      )
     }
     return undefined
   }
@@ -531,7 +575,7 @@ export class ContentGenerateService implements OnModuleInit {
    * Combine HTML sections into a single HTML string
    * BlogPost에 thumbnailUrl, seo 등 메타 정보도 포함
    */
-  private combineHtmlSections(blogPostHtml: BlogPost): string {
+  private combineHtmlSections(blogType: 'tistory' | 'google', blogPostHtml: BlogPost): string {
     let html = ''
     // 썸네일
     if (blogPostHtml.thumbnailUrl) {
@@ -555,9 +599,17 @@ export class ContentGenerateService implements OnModuleInit {
             sectionHtml += `\n<a href="${linkResult.link}" target="_blank" rel="noopener noreferrer" style="display: block; margin: 4px 0; color: #007bff; text-decoration: none; font-size: 14px; padding: 2px 0;">🔗 ${linkResult.name}</a>`
           })
         }
+
         // 이미지 추가
         if (section.imageUrl) {
-          sectionHtml += `\n<img src="${section.imageUrl}" alt="section image" style="width: 100%; height: auto; margin: 10px 0;" />`
+          switch (blogType) {
+            case 'tistory':
+              sectionHtml += `${section.imageUrl}`
+              break
+            case 'google':
+              sectionHtml += `\n<img src="${section.imageUrl}" alt="section image" style="width: 100%; height: auto; margin: 10px 0;" />`
+              break
+          }
         }
         // 유튜브 링크 임베딩 추가
         if (section.youtubeLinks && section.youtubeLinks.length > 0) {

@@ -28,7 +28,6 @@ class TistoryPublishStrategy implements PublishStrategy {
     url: string,
     keywords: string[],
     category?: string,
-    imagePaths?: string[],
     kakaoId?: string,
     kakaoPw?: string,
     postVisibility?: 'public' | 'private' | 'protected',
@@ -39,7 +38,6 @@ class TistoryPublishStrategy implements PublishStrategy {
       url,
       keywords,
       category,
-      imagePaths,
       kakaoId,
       kakaoPw,
       postVisibility,
@@ -60,7 +58,7 @@ class GoogleBloggerPublishStrategy implements PublishStrategy {
     jobId?: string,
     labels?: string[],
   ): Promise<{ success: boolean; message: string; url?: string }> {
-    return await this.publishService.publishPost(title, contentHtml, bloggerBlogId, oauthId, jobId, labels)
+    return await this.publishService.publish(title, contentHtml, bloggerBlogId, oauthId, jobId, labels)
   }
 }
 
@@ -145,36 +143,38 @@ export class BlogPostJobService implements JobProcessor {
       // 3. 게시 전략 선택
       const settings = await this.settingsService.getSettings()
       let publishStrategy: PublishStrategy
-      if (settings.publishTarget === 'tistory') {
+      if (settings.publishType === 'tistory') {
         publishStrategy = new TistoryPublishStrategy(this.tistoryService)
       } else {
         publishStrategy = new GoogleBloggerPublishStrategy(this.publishService)
       }
 
       // 4. 블로그 포스팅
-      await this.createJobLog(jobId, 'info', `블로그 발행 시작 (대상: ${settings.publishTarget})`)
+      await this.createJobLog(jobId, 'info', `블로그 발행 시작 (대상: ${settings.publishType})`)
 
-      if (settings.publishTarget === 'tistory') {
-        publishResult = await publishStrategy.publish(
-          job.blogJob.title,
-          blogHtml,
-          '', // url - 기본값
-          [], // keywords - 기본값
-          undefined, // category
-          undefined, // imagePaths
-          undefined, // kakaoId
-          undefined, // kakaoPw
-          undefined, // postVisibility
-        )
-      } else {
-        publishResult = await publishStrategy.publish(
-          job.blogJob.title,
-          blogHtml,
-          targetGoogleBlog.bloggerBlogId,
-          targetGoogleBlog.oauth.id,
-          jobId,
-          labels,
-        )
+      switch (settings.publishType) {
+        case 'google':
+          publishResult = await publishStrategy.publish(
+            job.blogJob.title,
+            blogHtml,
+            targetGoogleBlog.bloggerBlogId,
+            targetGoogleBlog.oauth.id,
+            jobId,
+            labels,
+          )
+          break
+        case 'tistory':
+          publishResult = await publishStrategy.publish(
+            job.blogJob.title,
+            blogHtml,
+            'https://moneys2b.tistory.com/manage/newpost', // url - 기본값
+            [], // keywords - 기본값
+            undefined, // category
+            'busidev22@gmail.com', // kakaoId
+            'tkfkdgo1', // kakaoPw
+            'private', // postVisibility
+          )
+          break
       }
 
       await this.createJobLog(jobId, 'info', '블로그 발행 완료')

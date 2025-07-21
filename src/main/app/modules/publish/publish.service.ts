@@ -14,7 +14,7 @@ export class PublishService {
   /**
    * 블로그 포스트를 발행하는 메서드
    */
-  async publishPost(
+  async publish(
     title: string,
     contentHtml: string,
     bloggerBlogId: string,
