@@ -149,7 +149,7 @@ export class BlogPostJobService implements JobProcessor {
       let publishStrategy
       switch (settings.publishType) {
         case 'google':
-          publishStrategy = new TistoryPublishStrategy(this.tistoryService)
+          publishStrategy = new GoogleBloggerPublishStrategy(this.publishService)
           publishResult = await publishStrategy.publish(
             job.blogJob.title,
             blogHtml,
@@ -160,7 +160,7 @@ export class BlogPostJobService implements JobProcessor {
           )
           break
         case 'tistory':
-          publishStrategy = new GoogleBloggerPublishStrategy(this.publishService)
+          publishStrategy = new TistoryPublishStrategy(this.tistoryService)
           publishResult = await publishStrategy.publish(
             job.blogJob.title,
             blogHtml,
