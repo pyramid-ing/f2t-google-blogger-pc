@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { AIService, BlogOutline, BlogPost, ThumbnailData, Topic, GeminiQuotaError } from './ai.interface'
 import { SettingsService } from '../settings/settings.service'
-import { Type, GoogleGenAI, Modality } from '@google/genai'
+import { Type, GoogleGenAI } from '@google/genai'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { EnvConfig } from '@main/config/env.config'
@@ -388,10 +388,10 @@ ${JSON.stringify(blogOutline)}`
   }
 
   /**
-   * Gemini를 사용하여 이미지 생성
+   * Imagen 3를 사용하여 이미지 생성
    */
   async generateImage(prompt: string): Promise<string> {
-    this.logger.log(`Gemini로 이미지 생성: ${prompt}`)
+    this.logger.log(`Imagen 3로 이미지 생성: ${prompt}`)
     let tempFilePath: string | undefined
 
     try {
@@ -402,26 +402,22 @@ ${JSON.stringify(blogOutline)}`
         fs.mkdirSync(EnvConfig.tempDir, { recursive: true })
       }
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.0-flash-preview-image-generation',
-        contents: prompt,
+      const response = await ai.models.generateImages({
+        model: 'imagen-3.0-generate-002',
+        prompt,
         config: {
-          responseModalities: [Modality.TEXT, Modality.IMAGE],
+          numberOfImages: 1,
         },
       })
 
-      const parts = response.candidates[0].content.parts
+      // 생성된 이미지가 있는지 확인
+      if (response?.generatedImages?.[0]?.image?.imageBytes) {
+        const buffer = Buffer.from(response.generatedImages[0].image.imageBytes, 'base64')
+        const fileName = `output-${Date.now()}.png`
+        tempFilePath = path.join(EnvConfig.tempDir, fileName)
+        fs.writeFileSync(tempFilePath, buffer)
 
-      // 텍스트 설명 + 이미지 저장
-      for (const part of parts) {
-        if (part.inlineData?.data) {
-          const buffer = Buffer.from(part.inlineData.data, 'base64')
-          const fileName = `output-${Date.now()}.png`
-          tempFilePath = path.join(EnvConfig.tempDir, fileName)
-          fs.writeFileSync(tempFilePath, buffer)
-
-          return tempFilePath // 로컬 파일 경로 반환
-        }
+        return tempFilePath // 로컬 파일 경로 반환
       }
 
       throw new CustomHttpException(ErrorCode.AI_IMAGE_DATA_NOT_FOUND)
