@@ -68,7 +68,7 @@ export class GeminiService implements AIService {
 
       return {
         valid: true,
-        model: 'gemini-2.5-flash',
+        model: 'gemini-2.0-flash-lite',
       }
     } catch (error) {
       this.logger.error('Gemini API 키 검증 실패:', error)
@@ -333,7 +333,7 @@ ${JSON.stringify(blogOutline)}`
       const prompt = `다음 본문 텍스트를 분석하여 Pixabay 이미지에서 검색할 키워드 5개를 추천해주세요.\n콘텐츠의 주제와 내용을 잘 반영하는 키워드를 선택해주세요.\n키워드는 영어로 작성해주세요.\n\n[본문 텍스트]\n${textContent}\n\n응답 형식:\n{\n  \"keywords\": [\"keyword1\", \"keyword2\", \"keyword3\", \"keyword4\", \"keyword5\"]\n}`
 
       const resp = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-2.0-flash-lite',
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
@@ -366,7 +366,7 @@ ${JSON.stringify(blogOutline)}`
       const prompt = `다음 본문 텍스트를 분석하여 이미지 생성 AI에 입력할 프롬프트를 작성해주세요.\n콘텐츠의 주제와 내용을 잘 반영하는 이미지를 생성할 수 있도록 프롬프트를 작성해주세요.\n프롬프트는 영어로 작성해주세요.\n\n[본문 텍스트]\n${textContent}\n\n응답 형식:\n{\n  \"prompt\": \"프롬프트\"\n}`
 
       const resp = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-2.0-flash-lite',
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
@@ -445,7 +445,7 @@ ${content}
 }`
 
       const resp = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-2.0-flash-lite',
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
@@ -476,7 +476,7 @@ ${content}
       const textContent = this.utilService.extractTextContent(html)
       const prompt = `다음 본문 텍스트를 분석하여 구글 등에서 검색할 때 가장 적합한 한글 검색어 1개를 추천해주세요.\n\n[본문 텍스트]\n${textContent}\n\n응답 형식:\n{\n  \"keyword\": \"검색어\"\n}`
       const resp = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-2.0-flash-lite',
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
@@ -505,7 +505,7 @@ ${content}
       const textContent = this.utilService.extractTextContent(html)
       const prompt = `다음 본문 텍스트를 분석하여 유튜브에서 검색할 때 가장 적합한 한글 검색어 1개를 추천해주세요.\n\n[본문 텍스트]\n${textContent}\n\n응답 형식:\n{\n  \"keyword\": \"검색어\"\n}`
       const resp = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-2.0-flash-lite',
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
@@ -530,7 +530,7 @@ ${content}
       const ai = await this.getGemini()
       const prompt = `다음은 웹페이지의 원래 제목과 본문 내용 일부입니다. 이 정보를 참고하여 사용자가 보기 편하고, 핵심을 잘 전달하는 링크 제목을 30자 이내로 한글로 만들어주세요. 너무 길거나 불필요한 정보는 생략하고, 클릭을 유도할 수 있게 간결하게 요약/가공해주세요.\n\n[원래 제목]\n${title}\n\n[본문 내용]\n${content}\n\n응답 형식:\n{\n  \"linkTitle\": \"가공된 제목\"\n}`
       const resp = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-2.0-flash-lite',
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
@@ -560,7 +560,7 @@ ${content}
     try {
       const ai = await this.getGemini()
       const resp = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-2.0-flash-lite',
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
@@ -585,7 +585,7 @@ ${content}
       const textContent = this.utilService.extractTextContent(html)
       const prompt = `다음은 블로그 섹션의 제목과 본문 텍스트입니다. 이 두 정보를 모두 참고하여 구글 등에서 검색할 때 가장 적합한 한글 검색어 1개를 추천해주세요.\n\n[섹션 제목]\n${title}\n\n[본문 텍스트]\n${textContent}\n\n응답 형식:\n{\n  \"keyword\": \"검색어\"\n}`
       const resp = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-2.0-flash-lite',
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
