@@ -573,6 +573,12 @@ export class ContentGenerateService implements OnModuleInit {
     const settings = await this.settingsService.getSettings()
     const adEnabled = settings.adEnabled || false
     const adScript = settings.adScript
+
+    // 첫 번째 섹션(sectionIndex = 0)에는 광고 삽입 안함
+    if (sectionIndex === 0) {
+      return undefined
+    }
+
     if (!adEnabled || !adScript || adScript.trim() === '') {
       this.logger.log(`섹션 ${sectionIndex}: 광고 삽입 안함 (활성화: ${adEnabled}, 스크립트 존재: ${!!adScript})`)
       return undefined
