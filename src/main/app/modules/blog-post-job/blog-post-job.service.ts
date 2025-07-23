@@ -142,22 +142,14 @@ export class BlogPostJobService implements JobProcessor {
 
       // 3. 게시 전략 선택
       const settings = await this.settingsService.getSettings()
-      let publishStrategy: PublishStrategy
-      switch (settings.publishType) {
-        case 'tistory':
-          publishStrategy = new TistoryPublishStrategy(this.tistoryService)
-          break
-        case 'google':
-        default:
-          publishStrategy = new GoogleBloggerPublishStrategy(this.publishService)
-          break
-      }
 
       // 4. 블로그 포스팅
       await this.createJobLog(jobId, 'info', `블로그 발행 시작 (대상: ${settings.publishType})`)
 
+      let publishStrategy
       switch (settings.publishType) {
         case 'google':
+          publishStrategy = new TistoryPublishStrategy(this.tistoryService)
           publishResult = await publishStrategy.publish(
             job.blogJob.title,
             blogHtml,
@@ -168,6 +160,7 @@ export class BlogPostJobService implements JobProcessor {
           )
           break
         case 'tistory':
+          publishStrategy = new GoogleBloggerPublishStrategy(this.publishService)
           publishResult = await publishStrategy.publish(
             job.blogJob.title,
             blogHtml,
